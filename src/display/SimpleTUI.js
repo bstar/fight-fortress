@@ -189,6 +189,50 @@ export class SimpleTUI {
       }
     });
 
+    // Knockdown counter overlay - hidden by default
+    this.boxes.countOverlay = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: 40,
+      height: 9,
+      tags: true,
+      hidden: true,
+      border: {
+        type: 'line'
+      },
+      style: {
+        fg: 'white',
+        bg: '#660000',
+        bold: true,
+        border: {
+          fg: 'red'
+        }
+      }
+    });
+
+    // Fight ending overlay - hidden by default
+    this.boxes.endingOverlay = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: 50,
+      height: 7,
+      tags: true,
+      hidden: true,
+      border: {
+        type: 'line'
+      },
+      style: {
+        fg: 'yellow',
+        bg: '#333300',
+        bold: true,
+        border: {
+          fg: 'yellow'
+        }
+      }
+    });
+
     this.updateStatus('Press [Q] to quit, [P] to pause, [+/-] to change speed');
   }
 
@@ -315,6 +359,8 @@ export class SimpleTUI {
     sim.on('buzzed', (data) => this.onBuzzed(data));
     sim.on('hurt', (data) => this.onHurt(data));
     sim.on('recovery', (data) => this.onRecovery(data));
+    sim.on('count', (data) => this.onCount(data));
+    sim.on('fightEnding', (data) => this.onFightEnding(data));
     sim.on('fightEnd', (data) => this.onFightEnd(data));
   }
 
@@ -665,6 +711,9 @@ export class SimpleTUI {
   onRecovery(data) {
     const fighter = data.fighter === 'A' ? this.fight.fighterA : this.fight.fighterB;
 
+    // Hide the count overlay
+    this.boxes.countOverlay.hide();
+
     if (data.count <= 5) {
       this.addCommentary(`${fighter.getShortName()} is up quickly at ${data.count}! Looks okay.`);
     } else if (data.count <= 7) {
@@ -677,9 +726,104 @@ export class SimpleTUI {
   }
 
   /**
+   * Handle referee count during knockdown - prominent counter display
+   */
+  onCount(data) {
+    const fighter = data.fighter === 'A' ? this.fight.fighterA : this.fight.fighterB;
+    const count = data.count;
+    const isKO = data.isKO || false;
+
+    // Show the count overlay
+    this.boxes.countOverlay.show();
+
+    // Build dramatic count display
+    const countArt = this.getCountArt(count);
+    const fighterName = fighter.getShortName().toUpperCase();
+
+    // Color changes as count gets higher
+    let countColor = 'white';
+    if (count >= 8) countColor = 'red';
+    else if (count >= 5) countColor = 'yellow';
+
+    const content = [
+      '{center}{bold}THE COUNT{/bold}{/center}',
+      '',
+      `{center}{${countColor}-fg}{bold}${countArt}{/bold}{/${countColor}-fg}{/center}`,
+      '',
+      `{center}${fighterName}{/center}`,
+      isKO ? '{center}{red-fg}{bold}OUT COLD!{/bold}{/red-fg}{/center}' : ''
+    ].join('\n');
+
+    this.boxes.countOverlay.setContent(content);
+    this.screen.render();
+
+    // If count reaches 10, keep overlay visible briefly
+    if (count === 10) {
+      setTimeout(() => {
+        this.boxes.countOverlay.hide();
+        this.screen.render();
+      }, 1500);
+    }
+  }
+
+  /**
+   * Get ASCII art for count number
+   */
+  getCountArt(count) {
+    const arts = {
+      1: '  ██╗  \n ███║  \n ╚██║  \n  ██║  \n  ██║  \n  ╚═╝  ',
+      2: ' ██████╗ \n ╚════██╗\n  █████╔╝\n ██╔═══╝ \n ███████╗\n ╚══════╝',
+      3: ' ██████╗ \n ╚════██╗\n  █████╔╝\n  ╚═══██╗\n ██████╔╝\n ╚═════╝ ',
+      4: ' ██╗  ██╗\n ██║  ██║\n ███████║\n ╚════██║\n      ██║\n      ╚═╝',
+      5: ' ███████╗\n ██╔════╝\n ███████╗\n ╚════██║\n ███████║\n ╚══════╝',
+      6: '  ██████╗\n ██╔════╝\n ███████╗\n ██╔═══██╗\n ╚██████╔╝\n  ╚═════╝',
+      7: ' ███████╗\n ╚════██║\n     ██╔╝\n    ██╔╝ \n    ██║  \n    ╚═╝  ',
+      8: '  █████╗ \n ██╔══██╗\n  █████╔╝\n ██╔══██╗\n ╚█████╔╝\n  ╚════╝ ',
+      9: '  █████╗ \n ██╔══██╗\n ╚██████║\n  ╚═══██║\n  █████╔╝\n  ╚════╝ ',
+      10: '  ██╗ ██████╗ \n ███║██╔═████╗\n ╚██║██║██╔██║\n  ██║████╔╝██║\n  ██║╚██████╔╝\n  ╚═╝ ╚═════╝ '
+    };
+    // Simpler display for terminal - just large numbers
+    return `>>> ${count} <<<`;
+  }
+
+  /**
+   * Handle pre-fight-end announcement - cinematic buildup
+   */
+  onFightEnding(data) {
+    const isKO = data.isKO || false;
+
+    // Show ending overlay with dramatic text
+    this.boxes.endingOverlay.show();
+
+    let content;
+    if (isKO) {
+      content = [
+        '',
+        '{center}{bold}{red-fg}IT\'S ALL OVER!{/red-fg}{/bold}{/center}',
+        '',
+        '{center}{bold}THE REFEREE WAVES IT OFF!{/bold}{/center}',
+        ''
+      ].join('\n');
+    } else {
+      content = [
+        '',
+        '{center}{bold}{yellow-fg}THE FINAL BELL!{/yellow-fg}{/bold}{/center}',
+        '',
+        '{center}{bold}WE GO TO THE SCORECARDS...{/bold}{/center}',
+        ''
+      ].join('\n');
+    }
+
+    this.boxes.endingOverlay.setContent(content);
+    this.screen.render();
+  }
+
+  /**
    * Handle fight end - HBO style
    */
   onFightEnd(data) {
+    // Hide the ending overlay
+    this.boxes.endingOverlay.hide();
     // Generate HBO-style commentary
     const event = {
       type: 'FIGHT_END',

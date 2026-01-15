@@ -426,14 +426,8 @@ export class SimulationLoop extends EventEmitter {
       }
     }
 
-    // Fight is over
-    const fightEndEvent = {
-      type: 'FIGHT_END',
-      ...this.fight.result,
-      scorecards: this.fight.result?.scorecards?.map(s => `${s.A}-${s.B}`) || []
-    };
-    this.emit('fightEnd', fightEndEvent);
-    this.renderEvent(fightEndEvent);
+    // Fight is over - cinematic ending sequence
+    await this.playCinematicEnding();
   }
 
   /**
@@ -1042,10 +1036,11 @@ export class SimulationLoop extends EventEmitter {
     const targetCount = Math.max(2, Math.min(4, Math.round(4 - recoveryBonus * 2)));
 
     for (let i = 1; i <= targetCount; i++) {
-      this.emit('count', { fighter: knockdown.target, count: i });
+      this.emit('count', { fighter: knockdown.target, count: i, isFlash: true });
 
       if (this.options.realTime) {
-        await this.sleep(countSpeed * 800 / this.options.speedMultiplier);
+        // Real-time count even for flash knockdowns - dramatic moment
+        await this.sleep(countSpeed * 800);
       }
     }
 
@@ -1067,7 +1062,7 @@ export class SimulationLoop extends EventEmitter {
       // Fighter is out cold - count to 10 for dramatic effect
       // Use real-time count (ignore speed multiplier for dramatic effect)
       for (let i = 1; i <= 10; i++) {
-        this.emit('count', { fighter: knockdown.target, count: i });
+        this.emit('count', { fighter: knockdown.target, count: i, isFlash: false, isKO: true });
         if (this.options.realTime) {
           await this.sleep(countSpeed * 1000); // Real-time 1 second per count
         }
@@ -1081,7 +1076,7 @@ export class SimulationLoop extends EventEmitter {
       count = i;
 
       // Emit count
-      this.emit('count', { fighter: knockdown.target, count: i });
+      this.emit('count', { fighter: knockdown.target, count: i, isFlash: false });
 
       // Wait for count timing - real time for drama
       if (this.options.realTime) {
@@ -1486,6 +1481,56 @@ export class SimulationLoop extends EventEmitter {
       // Active effects (buffs/debuffs)
       effects: this.effectsManager.getEffectsSummary(fighterId)
     };
+  }
+
+  /**
+   * Play cinematic fight ending sequence
+   * Slows down the action and spaces out events for dramatic effect
+   */
+  async playCinematicEnding() {
+    const result = this.fight.result;
+    const isKO = result?.method === 'KO' || result?.method?.startsWith('TKO');
+
+    // Emit pre-ending event for TUI to prepare
+    this.emit('fightEnding', {
+      winner: result?.winner,
+      method: result?.method,
+      round: this.fight.currentRound,
+      isKO
+    });
+
+    if (this.options.realTime) {
+      // Dramatic pause before the official announcement
+      if (isKO) {
+        // For KO/TKO - dramatic silence moment
+        await this.sleep(1500);
+      } else {
+        // For decisions - tension while waiting for scores
+        await this.sleep(1000);
+      }
+    }
+
+    // Emit the main fight end event
+    const fightEndEvent = {
+      type: 'FIGHT_END',
+      ...result,
+      scorecards: result?.scorecards?.map(s => `${s.A}-${s.B}`) || []
+    };
+
+    this.emit('fightEnd', fightEndEvent);
+    this.renderEvent(fightEndEvent);
+
+    if (this.options.realTime) {
+      // Final dramatic pause for the result to sink in
+      await this.sleep(500);
+    }
+
+    // Emit post-ending event for any celebration/reaction displays
+    this.emit('fightComplete', {
+      winner: result?.winner,
+      method: result?.method,
+      fightSummary: this.fight.getSummary()
+    });
   }
 
   /**

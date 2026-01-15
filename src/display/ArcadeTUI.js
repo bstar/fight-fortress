@@ -269,6 +269,42 @@ export class ArcadeTUI {
       style: { fg: '#888', bg: '#111' }
     });
 
+    // Knockdown counter overlay - fighting game style, hidden by default
+    this.boxes.countOverlay = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: 36,
+      height: 11,
+      tags: true,
+      hidden: true,
+      border: { type: 'line' },
+      style: {
+        fg: '#ff4444',
+        bg: '#1a0000',
+        bold: true,
+        border: { fg: '#ff0000' }
+      }
+    });
+
+    // Fight ending overlay - dramatic announcement, hidden by default
+    this.boxes.endingOverlay = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: 46,
+      height: 9,
+      tags: true,
+      hidden: true,
+      border: { type: 'line' },
+      style: {
+        fg: '#ffcc00',
+        bg: '#1a1a00',
+        bold: true,
+        border: { fg: '#ffcc00' }
+      }
+    });
+
     this.updateStatus('{bold}[Q]{/bold}uit  {bold}[P]{/bold}ause  {bold}[+/-]{/bold} Speed');
   }
 
@@ -693,6 +729,8 @@ export class ArcadeTUI {
     sim.on('buzzed', (data) => this.onBuzzed(data));
     sim.on('hurt', (data) => this.onHurt(data));
     sim.on('recovery', (data) => this.onRecovery(data));
+    sim.on('count', (data) => this.onCount(data));
+    sim.on('fightEnding', (data) => this.onFightEnding(data));
     sim.on('fightEnd', (data) => this.onFightEnd(data));
   }
 
@@ -945,11 +983,126 @@ export class ArcadeTUI {
 
   onRecovery(data) {
     const fighter = data.fighter === 'A' ? this.fight.fighterA : this.fight.fighterB;
+
+    // Hide the count overlay
+    this.boxes.countOverlay.hide();
+
     this.addCommentary(`${fighter.getShortName()} beats the count at ${data.count}!`);
     this.screen.render();
   }
 
+  /**
+   * Handle referee count during knockdown - arcade style big numbers
+   */
+  onCount(data) {
+    const fighter = data.fighter === 'A' ? this.fight.fighterA : this.fight.fighterB;
+    const count = data.count;
+    const isKO = data.isKO || false;
+    const color = data.fighter === 'A' ? '#ff4444' : '#4488ff';
+
+    // Show the count overlay
+    this.boxes.countOverlay.show();
+
+    // Build dramatic count display - fighting game style
+    const bigNumber = this.getBigCountNumber(count);
+
+    // Color intensifies as count gets higher
+    let countColor = '#ffffff';
+    let bgEffect = '';
+    if (count >= 9) { countColor = '#ff0000'; bgEffect = '{bold}'; }
+    else if (count >= 7) { countColor = '#ff4400'; }
+    else if (count >= 5) { countColor = '#ffaa00'; }
+
+    const fighterName = fighter.getShortName().toUpperCase();
+
+    const content = [
+      `{center}{${color}-fg}{bold}★ KNOCKDOWN ★{/bold}{/${color}-fg}{/center}`,
+      '',
+      `{center}{${countColor}-fg}{bold}${bigNumber}{/bold}{/${countColor}-fg}{/center}`,
+      '',
+      `{center}{bold}${fighterName}{/bold}{/center}`,
+      '',
+      isKO ? `{center}{#ff0000-fg}{bold}★★★ K.O.! ★★★{/bold}{/#ff0000-fg}{/center}` :
+        count >= 8 ? `{center}{#ffaa00-fg}GET UP!{/#ffaa00-fg}{/center}` : ''
+    ].join('\n');
+
+    this.boxes.countOverlay.setContent(content);
+    this.screen.render();
+
+    // If count reaches 10, keep overlay briefly then hide
+    if (count === 10) {
+      setTimeout(() => {
+        this.boxes.countOverlay.hide();
+        this.screen.render();
+      }, 1500);
+    }
+  }
+
+  /**
+   * Get big ASCII representation for count
+   */
+  getBigCountNumber(count) {
+    // Arcade style - huge single digit display
+    const numbers = {
+      1: '  ╔═╗  \n  ║█║  \n  ╚═╝  ',
+      2: ' ╔══╗ \n ╔═█║ \n ║█══╝',
+      3: ' ╔══╗ \n ╔═█║ \n ╚══╝ ',
+      4: ' ║ ║ \n ╚═█║ \n   ║ ',
+      5: ' ╔══╗ \n ║█═╗ \n ╚══╝ ',
+      6: ' ╔══╗ \n ║█═╗ \n ╚══╝ ',
+      7: ' ╔══╗ \n   █║ \n   ║ ',
+      8: ' ╔══╗ \n ║█═║ \n ╚══╝ ',
+      9: ' ╔══╗ \n ╚═█║ \n ╚══╝ ',
+      10: '╔═╗╔══╗\n║█║║  ║\n╚═╝╚══╝'
+    };
+    // Simpler arcade display with large text emphasis
+    if (count === 10) return '★★★ 10 ★★★';
+    return `>>> ${count} <<<`;
+  }
+
+  /**
+   * Handle pre-fight-end announcement - cinematic buildup
+   */
+  onFightEnding(data) {
+    const isKO = data.isKO || false;
+    const winner = data.winner;
+    const winnerFighter = winner ? this.fight.getFighter(winner) : null;
+    const winnerColor = winner === 'A' ? '#ff4444' : '#4488ff';
+
+    // Show ending overlay with dramatic arcade text
+    this.boxes.endingOverlay.show();
+
+    let content;
+    if (isKO) {
+      content = [
+        '',
+        `{center}{#ff0000-fg}{bold}★★★★★★★★★★★★★★★★★★★★★{/#ff0000-fg}{/bold}{/center}`,
+        `{center}{#ff0000-fg}{bold}    IT\'S ALL OVER!    {/#ff0000-fg}{/bold}{/center}`,
+        `{center}{#ff0000-fg}{bold}★★★★★★★★★★★★★★★★★★★★★{/#ff0000-fg}{/bold}{/center}`,
+        '',
+        winnerFighter ?
+          `{center}{${winnerColor}-fg}{bold}${winnerFighter.getShortName().toUpperCase()} WINS!{/${winnerColor}-fg}{/bold}{/center}` : '',
+        ''
+      ].join('\n');
+    } else {
+      content = [
+        '',
+        `{center}{#ffcc00-fg}{bold}════════════════════════{/#ffcc00-fg}{/bold}{/center}`,
+        `{center}{#ffcc00-fg}{bold}    THE FINAL BELL!    {/#ffcc00-fg}{/bold}{/center}`,
+        `{center}{#ffcc00-fg}{bold}════════════════════════{/#ffcc00-fg}{/bold}{/center}`,
+        '',
+        `{center}{#ffffff-fg}{bold}WAITING FOR DECISION...{/#ffffff-fg}{/bold}{/center}`,
+        ''
+      ].join('\n');
+    }
+
+    this.boxes.endingOverlay.setContent(content);
+    this.screen.render();
+  }
+
   onFightEnd(data) {
+    // Hide the ending overlay
+    this.boxes.endingOverlay.hide();
     // Broadcast team commentary
     const event = {
       type: 'FIGHT_END',
