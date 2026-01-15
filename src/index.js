@@ -16,6 +16,8 @@ import {
 } from './engine/index.js';
 import { ConfigLoader } from './utils/index.js';
 import { SimpleTUI } from './display/SimpleTUI.js';
+import { ArcadeTUI } from './display/ArcadeTUI.js';
+import { GameMenu } from './display/GameMenu.js';
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -86,9 +88,9 @@ export async function simulateFight(fighterAConfig, fighterBConfig, fightConfig 
 async function main() {
   const args = process.argv.slice(2);
 
-  // No arguments - show interactive menu
+  // No arguments - show interactive game menu
   if (args.length === 0) {
-    await runMainMenu();
+    await runGameMenu();
     return;
   }
 
@@ -117,7 +119,7 @@ async function main() {
       break;
 
     case 'menu':
-      await runMainMenu();
+      await runGameMenu();
       break;
 
     default:
@@ -227,14 +229,15 @@ async function runFight(args) {
 
       const simulation = createSimulation(fighterA, fighterB, fightConfig);
 
-      // Create and initialize SimpleTUI
-      const tui = new SimpleTUI();
+      // Create and initialize TUI based on display mode
+      const displayMode = options.display || 'hbo';
+      const tui = displayMode === 'arcade' ? new ArcadeTUI() : new SimpleTUI();
       tui.initialize();
 
       // Connect TUI to simulation for round prompts
       simulation.setTUI(tui);
 
-      // Start the fight with SimpleTUI
+      // Start the fight with selected TUI
       tui.startFight(simulation.fight, simulation);
 
       // Run simulation
@@ -529,7 +532,48 @@ async function runBatchTest(args) {
 }
 
 /**
- * Interactive Main Menu
+ * Game-style Interactive Menu
+ * Uses blessed for arrow-key navigation and fighter selection
+ */
+async function runGameMenu() {
+  while (true) {
+    const menu = new GameMenu();
+    const result = await menu.run();
+
+    if (!result) {
+      // User chose to exit
+      return;
+    }
+
+    // User selected a fight - run it
+    await runFight([
+      result.pathA,
+      result.pathB,
+      '--rounds', String(result.rounds),
+      '--speed', String(result.speed),
+      '--display', result.display || 'hbo'
+    ]);
+
+    // After fight ends, ask if they want to continue
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    const answer = await new Promise(resolve => {
+      rl.question('\n  Press Enter to return to menu (or Q to quit): ', resolve);
+    });
+    rl.close();
+
+    if (answer.toLowerCase() === 'q') {
+      console.log('\n  Thanks for using Fight Fortress!\n');
+      return;
+    }
+  }
+}
+
+/**
+ * Interactive Main Menu (Legacy text-based version)
  */
 async function runMainMenu() {
   const rl = readline.createInterface({
@@ -936,6 +980,8 @@ function parseOptions(args) {
       options.output = args[++i];
     } else if (arg === '--count' && args[i + 1]) {
       options.count = parseInt(args[++i], 10);
+    } else if (arg === '--display' && args[i + 1]) {
+      options.display = args[++i];  // 'hbo' or 'arcade'
     }
   }
 

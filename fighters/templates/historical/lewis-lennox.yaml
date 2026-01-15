@@ -38,11 +38,11 @@ speed:
   combinationSpeed: 78
 
 stamina:
-  cardio: 80
-  recoveryRate: 78
-  workRate: 72
-  secondWind: 75
-  paceControl: 85
+  cardio: 72               # Reduced - had conditioning issues vs Vitali, tired vs Holyfield I
+  recoveryRate: 74
+  workRate: 65             # Low output fighter - conserved energy through pacing
+  secondWind: 70
+  paceControl: 85          # Excellent energy management when disciplined
 
 defense:
   headMovement: 72

@@ -7,22 +7,21 @@ import { FighterState, OffensiveSubState, DefensiveSubState, MovementSubState } 
 import { ActionType, PunchType } from './FighterAI.js';
 
 // Stamina costs by action type
-// BALANCED: Boxers should end at ~40-60%, pressure fighters at ~10-30%
-// Fights should still go 12 rounds between skilled fighters
+// BALANCED: Boxers should end at ~50-70%, pressure fighters at ~30-50%
+// Even the most active fighters shouldn't gas completely in 12 rounds
 const STAMINA_COSTS = {
-  // Punches - moderately increased from original
-  // Jabs add up but shouldn't gas you out quickly
+  // Punches - moderate costs, balanced with recovery
   punches: {
-    [PunchType.JAB]: 0.45,            // Increased from 0.3 - jabs add up
-    [PunchType.CROSS]: 0.9,           // Increased from 0.7
-    [PunchType.LEAD_HOOK]: 0.8,       // Increased from 0.6
-    [PunchType.REAR_HOOK]: 1.2,       // Increased from 0.9
-    [PunchType.LEAD_UPPERCUT]: 0.7,   // Increased from 0.5
-    [PunchType.REAR_UPPERCUT]: 1.3,   // Increased from 1.0
-    [PunchType.BODY_JAB]: 0.45,       // Increased from 0.3
-    [PunchType.BODY_CROSS]: 0.9,      // Increased from 0.7
-    [PunchType.BODY_HOOK_LEAD]: 0.8,  // Increased from 0.6
-    [PunchType.BODY_HOOK_REAR]: 1.2   // Increased from 0.9
+    [PunchType.JAB]: 0.22,            // Efficient but not free
+    [PunchType.CROSS]: 0.45,          // Power punches cost more
+    [PunchType.LEAD_HOOK]: 0.40,
+    [PunchType.REAR_HOOK]: 0.55,
+    [PunchType.LEAD_UPPERCUT]: 0.38,
+    [PunchType.REAR_UPPERCUT]: 0.60,
+    [PunchType.BODY_JAB]: 0.22,
+    [PunchType.BODY_CROSS]: 0.45,
+    [PunchType.BODY_HOOK_LEAD]: 0.40,
+    [PunchType.BODY_HOOK_REAR]: 0.55
   },
 
   // Combination bonus costs - moderate increase
@@ -55,9 +54,9 @@ const STAMINA_COSTS = {
     burst: 0.35           // Explosive movement
   },
 
-  // Baseline fight cost - MINIMAL
-  // The ring presence cost shouldn't be the main drain
-  baseline: 0.03,  // Per second, always applied
+  // Baseline fight cost - ensures everyone tires over 12 rounds
+  // Even defensive fighters expend energy staying alert, moving, ready
+  baseline: 0.07,  // Per second, always applied - balanced with punch costs
 
   // Other
   clinch: {
@@ -74,28 +73,28 @@ const STAMINA_COSTS = {
   }
 };
 
-// Recovery rates - HIGHER to allow sustainable fighting
-// Main drain comes from punching, not passive states
+// Recovery rates - REDUCED so everyone tires over 12 rounds
+// Even distance fighters should tire somewhat, pressure fighters more so
 const RECOVERY_RATES = {
-  // State-based recovery multipliers
-  // Higher than before: defensive styles should be sustainable for 12 rounds
+  // State-based recovery multipliers - BALANCED for 12-round fights
+  // Target: Boxers end ~50-70%, Pressure fighters end ~30-50%
   states: {
-    [FighterState.NEUTRAL]: 1.2,      // Good recovery when neutral
-    [FighterState.DEFENSIVE]: 0.8,    // Good recovery while defending
-    [FighterState.TIMING]: 0.7,       // Counter-punchers recover well
-    [FighterState.MOVING]: 0.5,       // Some recovery while moving
-    [FighterState.OFFENSIVE]: 0.3,    // Less recovery while attacking
-    [FighterState.CLINCH]: 1.1,       // Clinching is for recovery
+    [FighterState.NEUTRAL]: 0.4,      // Moderate recovery when neutral
+    [FighterState.DEFENSIVE]: 0.25,   // Reduced - defensive boxing still tires you
+    [FighterState.TIMING]: 0.2,       // Counter-punchers stay alert - less recovery
+    [FighterState.MOVING]: 0.15,      // Moving takes energy
+    [FighterState.OFFENSIVE]: 0.4,    // Increased - pressure fighters need recovery too
+    [FighterState.CLINCH]: 0.55,      // Clinching is for recovery
     [FighterState.HURT]: 0.0          // No recovery when hurt
   },
 
-  // Defensive sub-state recovery - higher for sustainability
+  // Defensive sub-state recovery - reduced for balance
   defensiveSubStates: {
-    [DefensiveSubState.HIGH_GUARD]: 0.7,    // Holding guard up
-    [DefensiveSubState.PHILLY_SHELL]: 0.85, // Efficient style
-    [DefensiveSubState.HEAD_MOVEMENT]: 0.5, // Active defense
-    [DefensiveSubState.DISTANCE]: 0.7,      // Footwork-based recovery
-    [DefensiveSubState.PARRYING]: 0.6       // Active defense
+    [DefensiveSubState.HIGH_GUARD]: 0.5,    // Holding guard up
+    [DefensiveSubState.PHILLY_SHELL]: 0.6,  // Efficient style
+    [DefensiveSubState.HEAD_MOVEMENT]: 0.3, // Active defense costs energy
+    [DefensiveSubState.DISTANCE]: 0.4,      // Footwork-based
+    [DefensiveSubState.PARRYING]: 0.35      // Active defense
   }
 };
 
@@ -152,9 +151,9 @@ export class StaminaManager {
     }
 
     // Work rate reduces costs - high workRate fighters can sustain output
-    // Elite workRate (90+) = very efficient, average (70) = normal efficiency
-    // Reduced impact: 0.012 instead of 0.015
-    const workRateMod = Math.max(0.5, 1 - (fighter.stamina.workRate - 50) * 0.012);
+    // Elite workRate (92) = ~65% cost reduction, average (70) = ~25% reduction
+    // This is crucial for pressure fighters to go 12 rounds
+    const workRateMod = Math.max(0.35, 1 - (fighter.stamina.workRate - 50) * 0.016);
     cost *= workRateMod;
 
     // Pace control helps manage energy expenditure
@@ -268,10 +267,10 @@ export class StaminaManager {
    * Calculate stamina recovery for this tick
    */
   calculateRecovery(fighter, decision, deltaTime) {
-    // Base recovery rate from cardio - BALANCED for gradual fatigue
-    // A fighter with 80 cardio should recover ~0.8 stamina/sec at rest
-    // With active fighting, net drain ensures fatigue by late rounds
-    const baseRate = fighter.stamina.cardio * 0.01;  // Balanced from original 0.015
+    // Base recovery rate from cardio - GENEROUS for sustainable fights
+    // High cardio fighters (90+) recover significantly faster
+    // This helps pressure fighters who have elite conditioning
+    const baseRate = fighter.stamina.cardio * 0.018;  // Increased from 0.015
 
     // State modifier - now all states have some recovery
     const stateMod = this.getStateRecoveryModifier(fighter);
@@ -331,9 +330,9 @@ export class StaminaManager {
    */
   calculateBetweenRoundRecovery(fighter) {
     // Base from recovery rate attribute - BALANCED for gradual fatigue
-    // A fighter with 75 recoveryRate should recover ~28% of max stamina between rounds
+    // A fighter with 75 recoveryRate should recover ~34% of max stamina between rounds
     // This allows fights to go 12 rounds while still building fatigue
-    const baseRecovery = fighter.maxStamina * (fighter.stamina.recoveryRate / 100) * 0.38;
+    const baseRecovery = fighter.maxStamina * (fighter.stamina.recoveryRate / 100) * 0.45;
 
     // Corner effectiveness bonus (up to 12% extra)
     const cornerBonus = fighter.corner?.headTrainer?.strategySkill
@@ -349,8 +348,8 @@ export class StaminaManager {
     // Calculate total
     let recovery = baseRecovery * (1 + cornerBonus) * bodyPenalty * ageMod;
 
-    // Cap at 45% of max - can recover decently but not fully
-    recovery = Math.min(recovery, fighter.maxStamina * 0.45);
+    // Cap at 55% of max - can recover decently but not fully
+    recovery = Math.min(recovery, fighter.maxStamina * 0.55);
 
     return recovery;
   }

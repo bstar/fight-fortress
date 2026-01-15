@@ -19,12 +19,47 @@ A CLI-based professional boxing simulation engine with extreme realism. Fully au
 # Install dependencies
 npm install
 
-# Run a fight
+# Launch interactive menu (recommended)
+npm start
+
+# Or run a direct fight
 node src/index.js fight fighters/templates/historical/tyson-mike.yaml fighters/templates/historical/lewis-lennox.yaml
 
 # Run with options
-node src/index.js fight <fighter1> <fighter2> --rounds 12 --speed 2.0
+node src/index.js fight <fighter1> <fighter2> --rounds 12 --speed 3 --display arcade
 ```
+
+## Interactive Menu
+
+The game features a full interactive menu with arrow-key navigation:
+
+- **START FIGHT** - Browse and select fighters with live stat preview
+- **QUICK FIGHT** - Jump straight into action with default fighters
+- **VIEW ROSTER** - Browse all fighters with detailed profiles
+- **EXIT** - Quit the game
+
+### Fighter Selection
+
+Navigate fighters with arrow keys and see real-time previews showing:
+- Record, fighting style, physical stats
+- Attribute bars (Power, Speed, Defense, Chin, Heart)
+- Overall rating
+
+### Fight Options
+
+Before each fight, configure:
+- **Rounds**: 4, 6, 8, 10, 12, or 15
+- **Speed**: 1x to 10x playback
+- **Display**: Classic (HBO broadcast) or Arcade (fighting game style)
+
+## Display Modes
+
+| Mode | Style | Best For |
+|------|-------|----------|
+| **Classic** | HBO broadcast with Lampley, Foreman, Merchant commentary | Immersive experience |
+| **Arcade** | Fighting game style with health bars, combos, hit effects | Quick visual feedback |
+
+Switch modes in fight options or via command line: `--display arcade` or `--display hbo`
 
 ## Controls During Fight
 
@@ -85,15 +120,33 @@ The simulation models realistic style interactions:
 | Inside-Fighter vs Swarmer | Inside-fighter (explosive short punches) |
 | Boxer-Puncher | Wild card (adaptable to any matchup) |
 
-## Historical Fighter Balance
+## Balance Testing
+
+Run batch simulations to verify fighter balance:
+
+```bash
+# Test two fighters (100 fights)
+node src/index.js batch fighters/templates/historical/tyson-mike.yaml fighters/templates/historical/lewis-lennox.yaml --count 100
+
+# Run all historical matchup tests
+node scripts/batch-test.js
+```
+
+### Historical Fighter Balance
 
 Tested matchup results (100 fight samples):
 
 | Matchup | Result | Notes |
 |---------|--------|-------|
-| Tyson vs Lewis | ~50-50 | Explosive power vs reach/jab |
+| Tyson vs Lewis | ~45-55 | Explosive power vs reach/jab |
 | Lewis vs Holyfield | ~55-45 Lewis | Distance control vs pressure |
 | Tyson vs Holyfield | ~45-55 Holyfield | Conditioning vs early KO power |
+
+A healthy balance shows:
+- Win rates in 35-65% range
+- KO rates matching fighter styles
+- Decision rate 30-50%
+- Average fight length 8-11 rounds
 
 ## Project Structure
 

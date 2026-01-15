@@ -466,16 +466,102 @@ export class FighterAI {
       weights[FighterState.OFFENSIVE] *= (1 + killerInstinct * 0.5);
     }
 
-    // Behind on scorecards and late rounds
-    if (situation.scoreDiff < -2 && situation.round >= situation.totalRounds - 2) {
-      weights[FighterState.OFFENSIVE] *= 1.5;
-      weights[FighterState.DEFENSIVE] *= 0.7;
+    // =========================================================================
+    // RISK/REWARD SYSTEM - Fighter mentality affects risk-taking behavior
+    // =========================================================================
+
+    // Calculate base risk tolerance from fighter mentality
+    // High heart + high killerInstinct = natural risk-taker (e.g., Tyson, Holyfield)
+    // Low composure + low heart = conservative fighter (e.g., cautious boxers)
+    const fighterHeart = fighter.mental?.heart || 70;
+    const fighterKillerInstinct = fighter.mental?.killerInstinct || 70;
+    const fighterComposure = fighter.mental?.composure || 70;
+    const fighterConfidence = fighter.mental?.confidence || 70;
+
+    // Risk tolerance: 0 = very conservative, 1 = very aggressive
+    // Average fighter (all 70s) = 0.5 risk tolerance
+    const baseRiskTolerance = ((fighterHeart - 50) * 0.4 + (fighterKillerInstinct - 50) * 0.3 +
+                               (fighterComposure - 50) * 0.15 + (fighterConfidence - 50) * 0.15) / 50;
+
+    // Situational risk modifiers
+    let riskMultiplier = 1.0;
+    let takeRisks = false;
+
+    // LOSING: Fighters who are behind need to take risks to win
+    // The bigger the deficit and later the round, the more risk needed
+    const roundsLeft = situation.totalRounds - situation.round;
+    const scoreDiff = situation.scoreDiff || 0;
+
+    if (scoreDiff < 0) {
+      // Behind on cards - need to take risks
+      const desperationLevel = Math.abs(scoreDiff) / 10; // -10 points = full desperation
+      const urgency = roundsLeft <= 3 ? 1.5 : roundsLeft <= 6 ? 1.2 : 1.0;
+      riskMultiplier += desperationLevel * urgency;
+
+      // High heart fighters embrace risk when behind
+      // Low heart fighters become conservative (play not to lose badly)
+      if (fighterHeart >= 80) {
+        takeRisks = true;
+        riskMultiplier *= 1 + (fighterHeart - 80) / 50; // Heart 90 = 1.2x risk boost
+      } else if (fighterHeart < 60) {
+        // Low heart = doesn't have courage to take risks, accepts loss
+        riskMultiplier *= 0.7;
+      }
     }
 
-    // Ahead on scorecards - be more conservative
-    if (situation.scoreDiff > 2 && situation.round >= situation.totalRounds - 2) {
-      weights[FighterState.DEFENSIVE] *= 1.4;
-      weights[FighterState.OFFENSIVE] *= 0.7;
+    // WINNING: Risk tolerance when ahead
+    if (scoreDiff > 0) {
+      // Ahead on cards - can choose to cruise or finish
+      // High killerInstinct = go for the kill anyway
+      // Low killerInstinct = protect the lead
+      if (fighterKillerInstinct >= 85) {
+        // Savage finisher - doesn't care about points, wants KO
+        riskMultiplier *= 1.1;
+      } else {
+        // Normal fighter - protect the lead in late rounds
+        if (roundsLeft <= 3 && scoreDiff > 2) {
+          riskMultiplier *= 0.7; // Play it safe
+        }
+      }
+    }
+
+    // HURT: Recent damage affects risk tolerance
+    // Combine head and body damage for total damage assessment
+    const totalDamagePercent = ((situation.headDamagePercent || 0) + (situation.bodyDamagePercent || 0)) / 2;
+    if (totalDamagePercent > 0.4) {
+      // Damaged fighters with low composure become scared/conservative
+      if (fighterComposure < 65) {
+        riskMultiplier *= 0.6; // Shell up, try to survive
+        takeRisks = false;
+      } else if (fighterComposure >= 85) {
+        // Elite composure - stays aggressive even when hurt (Holyfield, Hagler)
+        riskMultiplier *= 1.1;
+      }
+    }
+
+    // LOW STAMINA: Exhausted fighters must take risks (all-in or lose on points)
+    if (situation.staminaPercent < 0.25 && scoreDiff < 0) {
+      // Gassed and losing - either go for broke or accept defeat
+      if (fighterHeart >= 75) {
+        takeRisks = true;
+        riskMultiplier *= 1.3; // Empty the tank
+      }
+    }
+
+    // Apply risk tolerance to weights
+    const effectiveRisk = baseRiskTolerance * riskMultiplier;
+
+    if (effectiveRisk > 0.5 || takeRisks) {
+      // Risk-taking mode: boost offense, reduce defense
+      const riskBoost = 1 + (effectiveRisk - 0.5) * 0.8; // Max ~1.4x boost
+      weights[FighterState.OFFENSIVE] *= riskBoost;
+      weights[FighterState.DEFENSIVE] *= Math.max(0.5, 1 - (effectiveRisk - 0.5) * 0.5);
+      weights[FighterState.TIMING] *= Math.max(0.6, 1 - (effectiveRisk - 0.5) * 0.3);
+    } else if (effectiveRisk < 0.3) {
+      // Conservative mode: reduce offense, boost defense
+      const conservativeBoost = 1 + (0.5 - effectiveRisk) * 0.6;
+      weights[FighterState.DEFENSIVE] *= conservativeBoost;
+      weights[FighterState.OFFENSIVE] *= Math.max(0.6, 1 - (0.5 - effectiveRisk) * 0.4);
     }
 
     // Out of range - need to move
