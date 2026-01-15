@@ -76,6 +76,12 @@ export class SimulationLoop extends EventEmitter {
     if (this.combatResolver) {
       this.combatResolver.setEffectsManager(this.effectsManager);
     }
+
+    // Wire up staminaManager to AI for action gating
+    // This enables the stamina-based action validation system
+    if (this.fighterAI && this.staminaManager) {
+      this.fighterAI.setStaminaManager(this.staminaManager);
+    }
   }
 
   /**

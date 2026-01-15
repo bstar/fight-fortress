@@ -174,6 +174,78 @@ export class StaminaManager {
   }
 
   /**
+   * Check if fighter has enough stamina to perform an action
+   * Actions are GATED by stamina - you can only do what your energy allows
+   * This prevents fighters from throwing punches when completely exhausted
+   * @param {Fighter} fighter - The fighter attempting the action
+   * @param {Object} action - The action being attempted
+   * @returns {Object} - { canPerform: boolean, cost: number, deficit: number }
+   */
+  canPerformAction(fighter, action) {
+    // No action or non-punch actions always allowed
+    if (!action || action.type !== ActionType.PUNCH) {
+      return { canPerform: true, cost: 0, deficit: 0 };
+    }
+
+    // Calculate the base cost for this action
+    const baseCost = this.calculateActionCost(action, fighter);
+
+    // Apply fighter-specific modifiers (same as calculateCost)
+    const workRateMod = Math.max(0.35, 1 - (fighter.stamina.workRate - 50) * 0.016);
+    const paceControlMod = Math.max(0.7, 1 - (fighter.stamina.paceControl - 50) * 0.006);
+    const bodyDamageMod = 1 + (fighter.bodyDamage / 150);
+    const fatigueLevel = 1 - fighter.getStaminaPercent();
+    const fatigueMod = 1 + (fatigueLevel * 0.25);
+
+    const finalCost = baseCost * workRateMod * paceControlMod * bodyDamageMod * fatigueMod;
+
+    // Fighter must have enough stamina to perform the action
+    const canPerform = fighter.currentStamina >= finalCost;
+    const deficit = canPerform ? 0 : finalCost - fighter.currentStamina;
+
+    return { canPerform, cost: finalCost, deficit };
+  }
+
+  /**
+   * Get alternative action when primary action cannot be performed due to insufficient stamina
+   * When a fighter is too exhausted to throw punches, they must resort to defensive actions
+   * @param {Fighter} fighter - The fighter
+   * @param {Object} originalAction - The action that couldn't be performed
+   * @param {Object} situation - Current fight situation (distance, opponent state, etc.)
+   * @returns {Object} - Replacement action with reason
+   */
+  getStaminaGatedAlternative(fighter, originalAction, situation) {
+    const staminaPercent = fighter.getStaminaPercent();
+    const distance = situation?.distance || 4;
+
+    // At desperately low stamina and close to opponent - try to clinch for recovery
+    if (staminaPercent < 0.05 && distance < 3) {
+      return {
+        type: ActionType.CLINCH,
+        reason: 'stamina_gated',
+        message: 'Too exhausted to punch - attempting to clinch'
+      };
+    }
+
+    // At very low stamina - go into defensive shell and wait
+    if (staminaPercent < 0.10) {
+      return {
+        type: ActionType.BLOCK,
+        blockType: DefensiveSubState.HIGH_GUARD,
+        reason: 'stamina_gated',
+        message: 'Too exhausted to punch - covering up'
+      };
+    }
+
+    // Default - just wait and recover
+    return {
+      type: ActionType.WAIT,
+      reason: 'stamina_gated',
+      message: 'Insufficient stamina for punch'
+    };
+  }
+
+  /**
    * Calculate cost for a specific action
    */
   calculateActionCost(action, fighter) {
@@ -506,6 +578,31 @@ export class StaminaManager {
     }
 
     return penalties;
+  }
+
+  /**
+   * Get zero stamina vulnerability modifiers
+   * When stamina is at/near zero, fighters become extremely vulnerable to KO
+   * This represents complete exhaustion - a fighter with no energy left
+   * @param {number} staminaPercent - Current stamina as percentage (0-1)
+   * @returns {Object} - { chinPenalty: number, koMultiplier: number }
+   */
+  getZeroStaminaVulnerability(staminaPercent) {
+    // Vulnerability kicks in below 10% stamina
+    if (staminaPercent > 0.10) {
+      return { chinPenalty: 0, koMultiplier: 1.0 };
+    }
+
+    // At 0-10% stamina, apply escalating penalties
+    // At exactly 0%: -30 chin, 2.0x KO multiplier (extremely vulnerable)
+    // At 5%: -15 chin, 1.5x KO multiplier
+    // At 10%: no additional penalty
+    const severityFactor = 1 - (staminaPercent / 0.10); // 0 at 10%, 1 at 0%
+
+    const chinPenalty = Math.round(-30 * severityFactor);
+    const koMultiplier = 1.0 + (1.0 * severityFactor); // 1.0 to 2.0
+
+    return { chinPenalty, koMultiplier };
   }
 }
 

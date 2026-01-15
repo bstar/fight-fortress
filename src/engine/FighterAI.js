@@ -201,6 +201,9 @@ export class FighterAI {
 
     // Effects manager reference (set by SimulationLoop)
     this.effectsManager = null;
+
+    // Stamina manager reference for action gating (set by SimulationLoop)
+    this.staminaManager = null;
   }
 
   /**
@@ -208,6 +211,14 @@ export class FighterAI {
    */
   setEffectsManager(effectsManager) {
     this.effectsManager = effectsManager;
+  }
+
+  /**
+   * Set stamina manager reference for action validation
+   * This enables action gating - fighters can only do what their stamina allows
+   */
+  setStaminaManager(staminaManager) {
+    this.staminaManager = staminaManager;
   }
 
   /**
@@ -239,10 +250,37 @@ export class FighterAI {
     }
 
     // Determine state transition
-    const { state, subState } = this.decideState(fighter, opponent, situation, memory);
+    let { state, subState } = this.decideState(fighter, opponent, situation, memory);
 
     // Determine action based on state
-    const action = this.decideAction(fighter, opponent, state, subState, situation, memory);
+    let action = this.decideAction(fighter, opponent, state, subState, situation, memory);
+
+    // ACTION GATING: Validate action against available stamina
+    // Fighters can only do what their energy allows - no punching at zero stamina
+    if (this.staminaManager && action && action.type === ActionType.PUNCH) {
+      const validation = this.staminaManager.canPerformAction(fighter, action);
+
+      if (!validation.canPerform) {
+        // Cannot perform this action - get alternative
+        const alternative = this.staminaManager.getStaminaGatedAlternative(fighter, action, situation);
+
+        // Replace action with gated alternative
+        action = alternative;
+
+        // Adjust state to match the gated action
+        if (alternative.type === ActionType.CLINCH) {
+          state = FighterState.CLINCH;
+          subState = null;
+        } else if (alternative.type === ActionType.BLOCK) {
+          state = FighterState.DEFENSIVE;
+          subState = alternative.blockType || DefensiveSubState.HIGH_GUARD;
+        } else {
+          // Wait/defensive
+          state = FighterState.DEFENSIVE;
+          subState = DefensiveSubState.HIGH_GUARD;
+        }
+      }
+    }
 
     // Update memory for learning
     this.updateMemory(memory, situation, action);
@@ -449,11 +487,19 @@ export class FighterAI {
    * Apply situational modifiers to state weights
    */
   applyStateModifiers(weights, fighter, opponent, situation) {
-    // Low stamina - reduce offense, increase clinching
-    if (situation.staminaPercent < 0.4) {
-      weights[FighterState.OFFENSIVE] *= 0.6;
-      weights[FighterState.CLINCH] *= 2.0;
-      weights[FighterState.DEFENSIVE] *= 1.3;
+    // =========================================================================
+    // CONTEXT-AWARE STAMINA CONSERVATION
+    // Starts at 50% stamina but behavior depends on fight context
+    // Fighters protect leads when ahead, push harder when behind
+    // =========================================================================
+    if (situation.staminaPercent < 0.50) {
+      const strategy = this.calculateConservationStrategy(fighter, opponent, situation);
+
+      weights[FighterState.OFFENSIVE] *= strategy.offensiveMultiplier;
+      weights[FighterState.DEFENSIVE] *= strategy.defensiveMultiplier;
+      weights[FighterState.CLINCH] *= strategy.clinchMultiplier;
+      weights[FighterState.TIMING] *= strategy.timingMultiplier;
+      weights[FighterState.MOVING] *= strategy.movementMultiplier;
     }
 
     // Opponent hurt - increase offense
@@ -675,6 +721,206 @@ export class FighterAI {
       weights[FighterState.DEFENSIVE] *= 1 + defMod;
       weights[FighterState.CLINCH] *= 1 - defMod * 0.5;
     }
+  }
+
+  /**
+   * Calculate stamina conservation strategy based on fight context
+   * This is the brain of the stamina management system - it considers:
+   * - Scorecard situation (ahead/behind/even)
+   * - Round context (early/late, championship rounds)
+   * - Fighter attributes (heart, pace control, fight IQ, killer instinct)
+   * - Fighting style (aggressive vs conservative)
+   * - Opponent situation (hurt, also tired)
+   * @returns {Object} - Multipliers for each state type
+   */
+  calculateConservationStrategy(fighter, opponent, situation) {
+    const staminaPercent = situation.staminaPercent;
+    const scoreDiff = situation.scoreDiff || 0;
+    const round = situation.round || 1;
+    const totalRounds = situation.totalRounds || 12;
+    const roundsRemaining = totalRounds - round;
+    const isChampionshipRounds = round >= 9;
+
+    // Get fighter attributes that influence conservation behavior
+    const heart = fighter.mental?.heart || 70;
+    const paceControl = fighter.stamina?.paceControl || 60;
+    const fightIQ = fighter.technical?.fightIQ || 65;
+    const killerInstinct = fighter.mental?.killerInstinct || 65;
+    const composure = fighter.mental?.composure || 65;
+
+    // Style influences base conservation tendency
+    const style = fighter.style?.primary;
+    const isAggressive = ['swarmer', 'slugger', 'inside-fighter'].includes(style);
+    const isConservative = ['out-boxer', 'counter-puncher'].includes(style);
+
+    // Base conservation intensity based on stamina level
+    // 50% stamina = mild conservation, 25% = heavy conservation, 0% = survival mode
+    const baseConservation = 1 - (staminaPercent / 0.50); // 0 at 50%, 1 at 0%
+
+    // Initialize modifiers at neutral
+    let offensiveMultiplier = 1.0;
+    let defensiveMultiplier = 1.0;
+    let clinchMultiplier = 1.0;
+    let timingMultiplier = 1.0;
+    let movementMultiplier = 1.0;
+
+    // =========================================================================
+    // SCORECARD CONTEXT
+    // =========================================================================
+
+    if (scoreDiff > 0) {
+      // AHEAD ON CARDS - protect the lead
+      const leadSize = Math.min(scoreDiff / 10, 1); // Normalize 0-1
+
+      // More rounds remaining = less need to conserve aggressively
+      // Fewer rounds = protect lead more carefully
+      const urgencyFactor = 1 - (roundsRemaining / totalRounds);
+
+      // High fight IQ fighters protect leads better
+      const iqFactor = fightIQ / 100;
+
+      // Conservative fighters naturally protect leads
+      const styleFactor = isConservative ? 1.3 : (isAggressive ? 0.8 : 1.0);
+
+      // BUT high killer instinct fighters may go for the finish anyway
+      const killerFactor = killerInstinct >= 85 ? 0.7 : (killerInstinct >= 75 ? 0.85 : 1.0);
+
+      const protectionIntensity = leadSize * urgencyFactor * iqFactor * styleFactor * killerFactor;
+
+      offensiveMultiplier -= protectionIntensity * 0.35;  // Reduce offense up to 35%
+      defensiveMultiplier += protectionIntensity * 0.4;   // Increase defense up to 40%
+      timingMultiplier += protectionIntensity * 0.2;      // More counter-punching
+      movementMultiplier += protectionIntensity * 0.3;    // More movement to avoid
+      clinchMultiplier += protectionIntensity * 0.5;      // More clinching to waste time
+
+    } else if (scoreDiff < 0) {
+      // BEHIND ON CARDS - may need to push harder despite fatigue
+      const deficit = Math.min(Math.abs(scoreDiff) / 10, 1); // Normalize 0-1
+
+      // More rounds remaining = can be patient
+      // Fewer rounds = must take risks NOW
+      const desperationFactor = 1 - (roundsRemaining / totalRounds);
+
+      // Championship rounds increase urgency
+      const champsBonus = isChampionshipRounds ? 1.3 : 1.0;
+
+      // Heart determines willingness to push when tired
+      const heartFactor = heart >= 90 ? 1.4 : (heart >= 80 ? 1.2 : (heart >= 70 ? 1.0 : 0.8));
+
+      // Aggressive fighters naturally push harder
+      const styleFactor = isAggressive ? 1.2 : (isConservative ? 0.9 : 1.0);
+
+      const pushIntensity = deficit * desperationFactor * champsBonus * heartFactor * styleFactor;
+
+      // If behind and running out of time, REDUCE conservation
+      // This overrides normal conservation behavior
+      offensiveMultiplier += pushIntensity * 0.3;  // Increase offense
+      defensiveMultiplier -= pushIntensity * 0.2;  // Reduce defense
+      timingMultiplier -= pushIntensity * 0.3;     // Less waiting for counters
+      clinchMultiplier -= pushIntensity * 0.4;     // Less clinching (wastes time)
+
+    } else {
+      // EVEN ON CARDS - standard conservation
+      const paceAdjustment = paceControl / 100;
+      const iqAdjustment = fightIQ / 100;
+
+      offensiveMultiplier -= baseConservation * 0.3 * paceAdjustment;
+      defensiveMultiplier += baseConservation * 0.25 * iqAdjustment;
+      clinchMultiplier += baseConservation * 0.4;
+      timingMultiplier += baseConservation * 0.15;
+    }
+
+    // =========================================================================
+    // ROUND CONTEXT
+    // =========================================================================
+
+    // Early rounds (1-4): Smart fighters pace more carefully
+    if (round <= 4) {
+      if (fightIQ >= 75) {
+        offensiveMultiplier *= 0.9;
+        defensiveMultiplier *= 1.1;
+      }
+    }
+
+    // Championship rounds (9+): Elite fighters dig deep
+    if (round >= 9) {
+      // Heart allows pushing through fatigue
+      if (heart >= 85) {
+        offensiveMultiplier *= 1.15;
+        clinchMultiplier *= 0.85;
+      }
+    }
+
+    // =========================================================================
+    // STAMINA SEVERITY OVERRIDE
+    // =========================================================================
+
+    // Critical stamina (< 15%) forces conservation regardless of context
+    if (staminaPercent < 0.15) {
+      const criticalMultiplier = staminaPercent / 0.15; // 0 to 1
+
+      // Reduce offensive capability significantly
+      offensiveMultiplier *= 0.5 + (criticalMultiplier * 0.3);
+
+      // Increase clinching for recovery
+      clinchMultiplier *= 1.5;
+
+      // Defensive priority
+      defensiveMultiplier *= 1.3;
+    }
+
+    // Zero stamina - forced into survival mode
+    if (staminaPercent <= 0.05) {
+      offensiveMultiplier *= 0.3;
+      clinchMultiplier *= 2.0;
+      defensiveMultiplier *= 1.5;
+      movementMultiplier *= 0.5; // Can barely move
+    }
+
+    // =========================================================================
+    // STYLE-SPECIFIC ADJUSTMENTS
+    // =========================================================================
+
+    // Swarmers and inside fighters live on offense - can't conserve too extremely
+    if (isAggressive && offensiveMultiplier < 0.6) {
+      offensiveMultiplier = Math.max(0.6, offensiveMultiplier);
+    }
+
+    // Counter-punchers and out-boxers can conserve more effectively
+    if (isConservative) {
+      defensiveMultiplier *= 1.1;
+      timingMultiplier *= 1.1;
+    }
+
+    // =========================================================================
+    // OPPONENT CONTEXT
+    // =========================================================================
+
+    // If opponent is hurt, ignore conservation and attack
+    if (situation.opponentIsHurt) {
+      offensiveMultiplier *= 1.5;
+      clinchMultiplier *= 0.3;
+
+      // Killer instinct amplifies
+      if (killerInstinct >= 80) {
+        offensiveMultiplier *= 1.2;
+      }
+    }
+
+    // If opponent is also low on stamina, may be worth trading
+    if (situation.opponentStaminaPercent < 0.30 && staminaPercent >= situation.opponentStaminaPercent) {
+      // We have stamina advantage - can push
+      offensiveMultiplier *= 1.15;
+    }
+
+    // Clamp all multipliers to reasonable ranges
+    return {
+      offensiveMultiplier: Math.max(0.2, Math.min(2.0, offensiveMultiplier)),
+      defensiveMultiplier: Math.max(0.5, Math.min(2.0, defensiveMultiplier)),
+      clinchMultiplier: Math.max(0.3, Math.min(3.0, clinchMultiplier)),
+      timingMultiplier: Math.max(0.4, Math.min(1.8, timingMultiplier)),
+      movementMultiplier: Math.max(0.3, Math.min(1.5, movementMultiplier))
+    };
   }
 
   /**

@@ -1129,6 +1129,17 @@ export class CombatResolver {
     // Fresh fighters can only be knocked down by exceptional shots
     const directKnockdownPossible = !isFresh || hit.damage >= knockdownThreshold * 1.3;
 
+    // ZERO STAMINA VULNERABILITY: Exhausted fighters are extremely vulnerable to KOs
+    // At 0% stamina: 2.0x KO multiplier (resistance halved)
+    // At 5% stamina: 1.5x KO multiplier
+    // At 10%+ stamina: no additional vulnerability
+    const targetStaminaPercent = target.getStaminaPercent();
+    let zeroStaminaKOMultiplier = 1.0;
+    if (targetStaminaPercent <= 0.10) {
+      const severityFactor = 1 - (targetStaminaPercent / 0.10);
+      zeroStaminaKOMultiplier = 1.0 + (1.0 * severityFactor); // 1.0 to 2.0
+    }
+
     if (directKnockdownPossible && hit.damage >= knockdownThreshold) {
       // Roll against chin - higher chin = much harder to knock down
       // chinResistance is the CHANCE to RESIST knockdown (higher = better)
@@ -1145,6 +1156,9 @@ export class CombatResolver {
       } else if (chin >= 80) {
         chinResistance = 0.65 + (chin - 80) * 0.02; // 80=0.65, 85=0.75
       }
+
+      // Apply zero stamina vulnerability - reduces resistance when exhausted
+      chinResistance /= zeroStaminaKOMultiplier;
 
       // Knockdown happens if random roll EXCEEDS resistance (i.e., chin fails to protect)
       if (Math.random() > chinResistance) {
@@ -1253,6 +1267,10 @@ export class CombatResolver {
       } else if (staminaPercent < 0.4) {
         flashChance *= 1.1;
       }
+
+      // ZERO STAMINA VULNERABILITY: Apply KO multiplier for exhausted fighters
+      // This stacks with the above low stamina modifier for truly devastating effect at 0%
+      flashChance *= zeroStaminaKOMultiplier;
 
       // Power punches have higher KO chance
       if (hit.punchType && (hit.punchType.includes('hook') || hit.punchType.includes('uppercut') || hit.punchType === 'cross')) {

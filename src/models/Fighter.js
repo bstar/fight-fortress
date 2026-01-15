@@ -1014,6 +1014,17 @@ export class Fighter {
         this.modifiedAttributes.mental.chin *= (1 + penalty / 100);
       }
     }
+
+    // Apply zero stamina vulnerability - additional chin penalty when completely exhausted
+    // This makes fighters at/near zero stamina extremely vulnerable to knockouts
+    const staminaPercent = this.getStaminaPercent();
+    if (staminaPercent <= 0.10) {
+      // Calculate severity: 0 at 10%, 1 at 0%
+      const severityFactor = 1 - (staminaPercent / 0.10);
+      // Up to -30 chin at 0% stamina
+      const zeroStaminaChinPenalty = -30 * severityFactor;
+      this.modifiedAttributes.mental.chin *= (1 + zeroStaminaChinPenalty / 100);
+    }
   }
 
   /**
