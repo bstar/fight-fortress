@@ -1,0 +1,98 @@
+# Roberto "El Maestro" Martinez
+# Mexican out-boxer with slick movement and technical mastery
+
+identity:
+  name: "Roberto Martinez"
+  nickname: "El Maestro"
+  nationality: "Mexico"
+  hometown: "Mexico City"
+
+physical:
+  height: 188
+  weight: 95
+  reach: 193
+  age: 29
+  stance: orthodox
+  bodyType: lean
+
+style:
+  primary: out-boxer
+  defensive: philly-shell
+  offensive: jab-and-move
+
+power:
+  powerLeft: 62
+  powerRight: 70
+  knockoutPower: 58
+  bodyPunching: 68
+  punchingStamina: 75
+
+speed:
+  handSpeed: 82
+  footSpeed: 85
+  reflexes: 82
+  firstStep: 80
+  combinationSpeed: 78
+
+stamina:
+  cardio: 85
+  recoveryRate: 80
+  workRate: 68
+  secondWind: 65
+  paceControl: 82
+
+defense:
+  headMovement: 85
+  blocking: 70
+  parrying: 80
+  shoulderRoll: 82
+  clinchDefense: 72
+  clinchOffense: 55
+  ringAwareness: 85
+
+offense:
+  jabAccuracy: 85
+  powerAccuracy: 70
+  bodyAccuracy: 75
+  punchSelection: 82
+  feinting: 80
+  counterPunching: 82
+  combinationPunching: 72
+
+technical:
+  footwork: 88
+  distanceManagement: 88
+  insideFighting: 58
+  outsideFighting: 88
+  ringGeneralship: 85
+  adaptability: 78
+  fightIQ: 85
+
+mental:
+  chin: 68
+  heart: 72
+  killerInstinct: 62
+  composure: 85
+  intimidation: 60
+  confidence: 78
+  experience: 80
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Nacho Beristain"
+    strategySkill: 92
+    communication: 85
+    adaptability: 88
+    specialty: "counter-punching"
+  cutman:
+    name: "Miguel Diaz"
+    cutTreatment: 88
+    swellingTreatment: 85
+    speed: 82
+
+record:
+  wins: 30
+  losses: 2
+  draws: 1
+  kos: 14

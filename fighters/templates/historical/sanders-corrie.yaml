@@ -1,0 +1,100 @@
+# Corrie Sanders - "The Sniper"
+# South African southpaw with blazing hand speed
+# Famous for KO'ing Wladimir Klitschko in 2003
+# 6'4" 223 lbs - fast hands, power in both hands
+
+identity:
+  name: "Corrie Sanders"
+  nickname: "The Sniper"
+  nationality: "South Africa"
+  hometown: "Pretoria, Gauteng"
+
+physical:
+  height: 193
+  weight: 101
+  reach: 203
+  age: 37
+  stance: southpaw
+  bodyType: lean
+
+style:
+  primary: boxer-puncher
+  defensive: distance
+  offensive: combo-puncher
+
+power:
+  powerLeft: 92
+  powerRight: 85
+  knockoutPower: 90
+  bodyPunching: 72
+  punchingStamina: 70
+
+speed:
+  handSpeed: 92
+  footSpeed: 78
+  reflexes: 80
+  firstStep: 85
+  combinationSpeed: 88
+
+stamina:
+  cardio: 68
+  recoveryRate: 65
+  workRate: 72
+  secondWind: 55
+  paceControl: 62
+
+defense:
+  headMovement: 70
+  blocking: 68
+  parrying: 62
+  shoulderRoll: 55
+  clinchDefense: 60
+  clinchOffense: 58
+  ringAwareness: 70
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 85
+  bodyAccuracy: 70
+  punchSelection: 75
+  feinting: 68
+  counterPunching: 82
+  combinationPunching: 85
+
+technical:
+  footwork: 72
+  distanceManagement: 75
+  insideFighting: 62
+  outsideFighting: 80
+  ringGeneralship: 68
+  adaptability: 65
+  fightIQ: 72
+
+mental:
+  chin: 62
+  heart: 70
+  killerInstinct: 85
+  composure: 65
+  intimidation: 72
+  confidence: 75
+  experience: 78
+  clutchFactor: 80
+
+corner:
+  headTrainer:
+    name: "Thinus Strydom"
+    strategySkill: 72
+    communication: 70
+    adaptability: 68
+    specialty: "power-punching"
+  cutman:
+    name: "Nick Durandt"
+    cutTreatment: 75
+    swellingTreatment: 72
+    speed: 70
+
+record:
+  wins: 42
+  losses: 4
+  draws: 0
+  kos: 31

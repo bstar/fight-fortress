@@ -1,0 +1,102 @@
+# Lennox Lewis - "The Lion"
+# British/Canadian, three-time heavyweight champion
+# PRIME Lewis (1999-2001) - Undisputed champion, beat Holyfield twice, KO'd Tyson
+# Technically excellent with great jab, size, and ring IQ
+# 6'5" 245 lbs - used size and reach intelligently, Emanuel Steward masterpiece
+
+identity:
+  name: "Lennox Lewis"
+  nickname: "The Lion"
+  nationality: "United Kingdom"
+  hometown: "London, England"
+
+physical:
+  height: 196
+  weight: 111
+  reach: 213
+  age: 30
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: boxer-puncher
+  defensive: distance
+  offensive: jab-and-move
+
+power:
+  powerLeft: 82
+  powerRight: 94              # Devastating right hand - KO'd Tyson, Rahman, Golota
+  knockoutPower: 92           # 32 KOs in 41 wins, elite heavyweight power - stopped Holyfield
+  bodyPunching: 78
+  punchingStamina: 80
+
+speed:
+  handSpeed: 82               # Quick hands for a big man
+  footSpeed: 75               # Moved well for 6'5"
+  reflexes: 78
+  firstStep: 75
+  combinationSpeed: 78
+
+stamina:
+  cardio: 80
+  recoveryRate: 78
+  workRate: 72
+  secondWind: 75
+  paceControl: 85
+
+defense:
+  headMovement: 72
+  blocking: 82
+  parrying: 75
+  shoulderRoll: 55
+  clinchDefense: 78
+  clinchOffense: 75
+  ringAwareness: 85
+
+offense:
+  jabAccuracy: 90
+  powerAccuracy: 82
+  bodyAccuracy: 75
+  punchSelection: 85
+  feinting: 78
+  counterPunching: 80
+  combinationPunching: 78
+
+technical:
+  footwork: 78
+  distanceManagement: 90
+  insideFighting: 72
+  outsideFighting: 92
+  ringGeneralship: 88
+  adaptability: 82
+  fightIQ: 90
+
+mental:
+  chin: 82               # Decent chin but vulnerable when caught clean - KO'd cold by McCall, Rahman with single shots
+  heart: 82              # Solid heart - came back from adversity (Rahman rematch, Vitali fight)
+  killerInstinct: 82     # Would finish opponents when he had them hurt
+  composure: 88          # Very calm, methodical fighter - rarely rattled
+  focus: 72              # KEY WEAKNESS: Mental lapses cost him McCall and Rahman fights
+  intimidation: 85       # Imposing 6'5" presence
+  confidence: 88
+  experience: 90         # Olympic gold, faced everyone
+  clutchFactor: 85       # Won the big fights - Holyfield II, Tyson, Rahman rematch
+
+corner:
+  headTrainer:
+    name: "Emanuel Steward"
+    strategySkill: 95
+    communication: 92
+    adaptability: 90
+    specialty: "jab-technique"
+  cutman:
+    name: "Stitch Duran"
+    cutTreatment: 95
+    swellingTreatment: 92
+    speed: 90
+
+record:
+  wins: 41
+  losses: 2
+  draws: 1
+  kos: 32

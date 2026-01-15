@@ -1,0 +1,100 @@
+# Primo Carnera - "The Ambling Alp"
+# Italian giant, heavyweight champion 1933-34
+# Enormous size but limited boxing skills and questionable chin
+# 6'6" 260+ lbs - one of the largest heavyweight champions ever
+
+identity:
+  name: "Primo Carnera"
+  nickname: "The Ambling Alp"
+  nationality: "Italy"
+  hometown: "Sequals, Friuli"
+
+physical:
+  height: 198
+  weight: 118
+  reach: 217
+  age: 27
+  stance: orthodox
+  bodyType: stocky
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 78
+  powerRight: 85
+  knockoutPower: 82
+  bodyPunching: 70
+  punchingStamina: 58
+
+speed:
+  handSpeed: 52
+  footSpeed: 45
+  reflexes: 48
+  firstStep: 42
+  combinationSpeed: 48
+
+stamina:
+  cardio: 62
+  recoveryRate: 55
+  workRate: 58
+  secondWind: 45
+  paceControl: 50
+
+defense:
+  headMovement: 38
+  blocking: 65
+  parrying: 40
+  shoulderRoll: 25
+  clinchDefense: 55
+  clinchOffense: 72
+  ringAwareness: 50
+
+offense:
+  jabAccuracy: 55
+  powerAccuracy: 58
+  bodyAccuracy: 52
+  punchSelection: 48
+  feinting: 35
+  counterPunching: 42
+  combinationPunching: 45
+
+technical:
+  footwork: 42
+  distanceManagement: 50
+  insideFighting: 68
+  outsideFighting: 48
+  ringGeneralship: 45
+  adaptability: 40
+  fightIQ: 45
+
+mental:
+  chin: 55
+  heart: 68
+  killerInstinct: 62
+  composure: 55
+  intimidation: 85
+  confidence: 65
+  experience: 70
+  clutchFactor: 50
+
+corner:
+  headTrainer:
+    name: "Billy Defoe"
+    strategySkill: 60
+    communication: 55
+    adaptability: 50
+    specialty: "power-punching"
+  cutman:
+    name: "Whitey Bimstein"
+    cutTreatment: 70
+    swellingTreatment: 68
+    speed: 65
+
+record:
+  wins: 88
+  losses: 14
+  draws: 0
+  kos: 72

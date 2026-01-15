@@ -1,0 +1,102 @@
+# Mike Tyson - "Iron Mike" / "Kid Dynamite"
+# PEAK Tyson (1986-1990) - Youngest heavyweight champion ever at 20
+# Cus D'Amato's masterpiece - devastating peek-a-boo style
+# 37-0 (33 KOs) before Douglas loss - absolutely terrifying
+# 5'10" 218 lbs - short but explosive, closes distance in a blink
+
+identity:
+  name: "Mike Tyson"
+  nickname: "Iron Mike"
+  nationality: "USA"
+  hometown: "Brooklyn, New York"
+
+physical:
+  height: 178
+  weight: 99
+  reach: 180
+  age: 23
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: inside-fighter
+  defensive: peek-a-boo
+  offensive: combo-puncher
+
+power:
+  powerLeft: 95
+  powerRight: 98
+  knockoutPower: 99
+  bodyPunching: 92
+  punchingStamina: 85
+
+speed:
+  handSpeed: 95
+  footSpeed: 88
+  reflexes: 92
+  firstStep: 98
+  combinationSpeed: 95
+
+stamina:
+  cardio: 88
+  recoveryRate: 85
+  workRate: 92
+  secondWind: 80
+  paceControl: 75
+
+defense:
+  headMovement: 95
+  blocking: 85
+  parrying: 72
+  shoulderRoll: 60
+  clinchDefense: 78
+  clinchOffense: 88
+  ringAwareness: 85
+
+offense:
+  jabAccuracy: 88
+  powerAccuracy: 92
+  bodyAccuracy: 90
+  punchSelection: 90
+  feinting: 85
+  counterPunching: 90
+  combinationPunching: 96
+
+technical:
+  footwork: 88
+  distanceManagement: 82
+  insideFighting: 98
+  outsideFighting: 68
+  ringGeneralship: 85
+  adaptability: 75
+  fightIQ: 88
+
+mental:
+  chin: 90               # Prime Tyson rarely got hurt - only went down once before Douglas
+  heart: 88              # Raised from 82 - Prime Tyson under D'Amato was mentally tougher
+  killerInstinct: 99
+  composure: 82          # Raised from 75 - Prime Tyson was composed until Douglas loss
+  focus: 85              # Raised from 82 - D'Amato discipline
+  intimidation: 99
+  confidence: 95
+  experience: 75
+  clutchFactor: 82
+
+corner:
+  headTrainer:
+    name: "Kevin Rooney"
+    strategySkill: 90
+    communication: 85
+    adaptability: 82
+    specialty: "peek-a-boo"
+  cutman:
+    name: "Matt Baranski"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 37
+  losses: 0
+  draws: 0
+  kos: 33

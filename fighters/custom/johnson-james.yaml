@@ -1,0 +1,98 @@
+# James "The Hammer" Johnson
+# American slugger with devastating power and iron chin
+
+identity:
+  name: "James Johnson"
+  nickname: "The Hammer"
+  nationality: "USA"
+  hometown: "Detroit"
+
+physical:
+  height: 178
+  weight: 66.8
+  reach: 180
+  age: 27
+  stance: orthodox
+  bodyType: stocky
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 85
+  powerRight: 95
+  knockoutPower: 92
+  bodyPunching: 82
+  punchingStamina: 72
+
+speed:
+  handSpeed: 75
+  footSpeed: 70
+  reflexes: 72
+  firstStep: 75
+  combinationSpeed: 70
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 85
+  secondWind: 78
+  paceControl: 65
+
+defense:
+  headMovement: 65
+  blocking: 82
+  parrying: 60
+  shoulderRoll: 45
+  clinchDefense: 75
+  clinchOffense: 82
+  ringAwareness: 68
+
+offense:
+  jabAccuracy: 72
+  powerAccuracy: 82
+  bodyAccuracy: 75
+  punchSelection: 70
+  feinting: 60
+  counterPunching: 68
+  combinationPunching: 75
+
+technical:
+  footwork: 68
+  distanceManagement: 65
+  insideFighting: 88
+  outsideFighting: 58
+  ringGeneralship: 65
+  adaptability: 70
+  fightIQ: 72
+
+mental:
+  chin: 92
+  heart: 95
+  killerInstinct: 90
+  composure: 72
+  intimidation: 88
+  confidence: 88
+  experience: 75
+  clutchFactor: 85
+
+corner:
+  headTrainer:
+    name: "Emanuel Steward Jr."
+    strategySkill: 82
+    communication: 78
+    adaptability: 75
+    specialty: "power-punching"
+  cutman:
+    name: "Stitch Duran"
+    cutTreatment: 90
+    swellingTreatment: 88
+    speed: 85
+
+record:
+  wins: 28
+  losses: 3
+  draws: 0
+  kos: 25

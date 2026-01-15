@@ -1,0 +1,39 @@
+{
+  "name": "fight-fortress",
+  "version": "0.1.0",
+  "description": "Fight Fortress - A boxing simulation with Dwarf Fortress-level complexity",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "fight": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "tui": "node src/tui.js",
+    "test": "node --test tests/",
+    "generate": "node src/index.js generate",
+    "simulate": "node src/index.js simulate"
+  },
+  "keywords": [
+    "boxing",
+    "simulation",
+    "cli",
+    "game",
+    "sports",
+    "fight-fortress",
+    "dwarf-fortress",
+    "complex",
+    "realistic"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

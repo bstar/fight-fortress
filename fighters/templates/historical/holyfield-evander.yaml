@@ -1,0 +1,102 @@
+# Evander Holyfield - "The Real Deal"
+# Four-time heavyweight champion, warrior mentality
+# Originally cruiserweight, moved up with incredible conditioning
+# PRIME Holyfield (1990-1993) - Unified champion, beat Buster Douglas, Foreman, etc.
+# 6'2" 215 lbs - undersized but all heart, relentless pressure
+
+identity:
+  name: "Evander Holyfield"
+  nickname: "The Real Deal"
+  nationality: "USA"
+  hometown: "Atlanta, Georgia"
+
+physical:
+  height: 188
+  weight: 97
+  reach: 190
+  age: 28
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: swarmer
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 85
+  powerRight: 90
+  knockoutPower: 88      # KO'd Douglas, stopped Foreman - elite power for cruiserweight moving up
+  bodyPunching: 88
+  punchingStamina: 90
+
+speed:
+  handSpeed: 88          # Prime Holyfield was fast
+  footSpeed: 85
+  reflexes: 85
+  firstStep: 78          # Reduced from 88 - Holyfield was NOT a quick starter
+  combinationSpeed: 90
+
+stamina:
+  cardio: 90               # Reduced from 95 - elite but not superhuman
+  recoveryRate: 88         # Reduced from 90
+  workRate: 92
+  secondWind: 88
+  paceControl: 78
+
+defense:
+  headMovement: 80       # Better than typical swarmer - he slipped a lot
+  blocking: 82
+  parrying: 72
+  shoulderRoll: 55
+  clinchDefense: 85
+  clinchOffense: 88      # Excellent clinch fighter
+  ringAwareness: 85
+
+offense:
+  jabAccuracy: 80
+  powerAccuracy: 82
+  bodyAccuracy: 85
+  punchSelection: 80
+  feinting: 72
+  counterPunching: 75
+  combinationPunching: 88
+
+technical:
+  footwork: 78
+  distanceManagement: 75
+  insideFighting: 88
+  outsideFighting: 72
+  ringGeneralship: 82
+  adaptability: 85
+  fightIQ: 85
+
+mental:
+  chin: 93               # All-time great chin - took bombs from Tyson, Bowe, Foreman, Lewis and kept coming
+  heart: 92              # Reduced from 98 - still elite warrior but knockdowns stick more
+  killerInstinct: 82     # Reduced from 90 - Holyfield won through attrition, not fast finishes
+  composure: 88
+  focus: 92              # Extremely disciplined and focused - never had mental lapses
+  intimidation: 82
+  confidence: 95
+  experience: 92
+  clutchFactor: 98       # Legendary in big moments
+
+corner:
+  headTrainer:
+    name: "Don Turner"
+    strategySkill: 88
+    communication: 85
+    adaptability: 88
+    specialty: "conditioning"
+  cutman:
+    name: "Ace Marotta"
+    cutTreatment: 88
+    swellingTreatment: 85
+    speed: 82
+
+record:
+  wins: 44
+  losses: 10
+  draws: 2
+  kos: 29
