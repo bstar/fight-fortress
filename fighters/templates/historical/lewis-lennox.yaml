@@ -38,11 +38,11 @@ speed:
   combinationSpeed: 78
 
 stamina:
-  cardio: 72               # Reduced - had conditioning issues vs Vitali, tired vs Holyfield I
-  recoveryRate: 74
+  cardio: 76               # Decent - could go 12 rounds when paced, but faded when pushed
+  recoveryRate: 78         # Good recovery between exchanges
   workRate: 65             # Low output fighter - conserved energy through pacing
-  secondWind: 70
-  paceControl: 85          # Excellent energy management when disciplined
+  secondWind: 72           # Average second wind
+  paceControl: 82          # Strong energy management - Steward taught him to pace well
 
 defense:
   headMovement: 72

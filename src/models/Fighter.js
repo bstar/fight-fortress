@@ -146,6 +146,9 @@ export class Fighter {
       clutchFactor: 60
     });
 
+    // Tactics - fighting style tendencies including dirty fighting
+    this.tactics = this.initTactics(config.tactics);
+
     // Corner crew
     this.corner = this.initCorner(config.corner);
 
@@ -191,6 +194,30 @@ export class Fighter {
    */
   clampAttribute(value) {
     return Math.max(1, Math.min(100, value));
+  }
+
+  /**
+   * Initialize tactics including dirty fighting tendencies
+   * All values 0-100, with 0 meaning never uses, 100 meaning constantly uses
+   */
+  initTactics(config) {
+    return {
+      // Overall dirtiness - affects all foul tendencies
+      dirtiness: config?.dirtiness || 0,
+
+      // Specific foul tendencies (0-100)
+      headbuttTendency: config?.headbuttTendency || 0,
+      lowBlowTendency: config?.lowBlowTendency || 0,
+      rabbitPunchTendency: config?.rabbitPunchTendency || 0,
+      holdingTendency: config?.holdingTendency || 0,
+      elbowTendency: config?.elbowTendency || 0,
+      pushTendency: config?.pushTendency || 0,
+
+      // Other tactical tendencies
+      clinchingTendency: config?.clinchingTendency || 30,  // Default some clinching
+      showboating: config?.showboating || 0,
+      targetCuts: config?.targetCuts || false  // Intentionally target opponent's cuts
+    };
   }
 
   /**
@@ -519,22 +546,50 @@ export class Fighter {
 
   /**
    * Apply between-round recovery
+   * Great conditioning (cardio, recoveryRate, heart, secondWind) really shines here
    */
   applyBetweenRoundRecovery() {
-    // Stamina recovery
-    const baseRecovery = this.maxStamina * (this.stamina.recoveryRate / 100) * 0.4;
+    // Base stamina recovery - cardio is the main driver
+    const cardioBase = this.stamina.cardio / 100;  // 0.5-1.0
+    const recoveryBase = this.stamina.recoveryRate / 100;  // 0.5-1.0
+    const baseRecovery = this.maxStamina * ((cardioBase + recoveryBase) / 2) * 0.35;
+
+    // Second wind kicks in when low - legendary attribute for warriors
+    let secondWindBonus = 0;
+    const staminaPercent = this.currentStamina / this.maxStamina;
+    if (staminaPercent < 0.5) {
+      // Second wind matters more when you're gassed
+      secondWindBonus = (this.stamina.secondWind / 100) * 0.15 * (1 - staminaPercent);
+    }
+
+    // Heart determines how much you push through accumulated damage
+    const heartMod = 0.8 + (this.mental.heart / 100) * 0.4;  // 0.8-1.2
+
+    // Corner work
     const cornerBonus = (this.corner.headTrainer.strategySkill / 100) * 0.1;
-    const bodyPenalty = 1 - (this.bodyDamage / 200);
+
+    // Body damage still hurts recovery significantly
+    const bodyPenalty = 1 - (this.bodyDamage / 150);
+
+    // Age factor
     const ageMod = this.getAgeRecoveryModifier();
 
-    let recovery = baseRecovery * (1 + cornerBonus) * bodyPenalty * ageMod;
-    recovery = Math.min(recovery, this.maxStamina * 0.5);
+    // Calculate total recovery
+    let recovery = baseRecovery * heartMod * (1 + cornerBonus + secondWindBonus) * bodyPenalty * ageMod;
+
+    // Cap at 60% max stamina recovery (up from 50% to reward great conditioning)
+    recovery = Math.min(recovery, this.maxStamina * 0.60);
 
     this.currentStamina = Math.min(this.maxStamina, this.currentStamina + recovery);
 
-    // Minimal damage recovery
-    this.headDamage *= 0.9; // 10% recovery
-    this.bodyDamage *= 0.95; // 5% recovery
+    // Damage recovery - heart helps clear your head between rounds
+    const heartRecovery = 0.85 + (this.mental.heart / 100) * 0.1;  // 0.85-0.95 multiplier
+    this.headDamage *= heartRecovery;  // Better heart = more head clearance
+    this.bodyDamage *= 0.95;  // Body damage persists more
+
+    // Clear buzzed/hurt state
+    this.isBuzzed = false;
+    this.buzzedDuration = 0;
 
     // Update stamina tier
     this.updateStaminaTier();
@@ -670,6 +725,10 @@ export class Fighter {
     // Clear buzzed if transitioning to hurt
     this.isBuzzed = false;
     this.buzzedDuration = 0;
+
+    // Getting hurt drains significant stamina - survival mode is exhausting
+    this.spendStamina(15);
+
     this.addDebuff({
       type: 'hurt',
       duration,
@@ -691,6 +750,10 @@ export class Fighter {
   setBuzzed(damage, punchType) {
     // Don't buzz if already hurt or knocked down
     if (this.isHurt || this.state === FighterState.KNOCKED_DOWN) return;
+
+    // Getting buzzed drains stamina - severity based on damage
+    const buzzStaminaDrain = 8 + (damage * 1.5);
+    this.spendStamina(buzzStaminaDrain);
 
     // Calculate severity (1-3) based on damage
     const severity = damage >= 5 ? 3 : (damage >= 3.5 ? 2 : 1);

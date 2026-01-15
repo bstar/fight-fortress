@@ -1,12 +1,14 @@
 /**
  * GameMenu - Game-style interactive menu system
  * Arrow-key navigation, fighter selection with preview, VS screens
+ * Fully themed using the themes system
  */
 
 import blessed from 'blessed';
 import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
+import { THEMES, getThemeList, DEFAULT_THEME } from './themes.js';
 
 export class GameMenu {
   constructor() {
@@ -19,10 +21,19 @@ export class GameMenu {
     this.fightOptions = {
       rounds: 12,
       speed: 3,
-      display: 'hbo'  // 'hbo' or 'arcade'
+      display: 'arcade',  // 'hbo' or 'arcade'
+      theme: DEFAULT_THEME
     };
+    this.availableThemes = getThemeList();
     this.onStartFight = null;
     this.onExit = null;
+  }
+
+  /**
+   * Get current theme colors
+   */
+  get theme() {
+    return THEMES[this.fightOptions.theme] || THEMES[DEFAULT_THEME];
   }
 
   /**
@@ -81,11 +92,12 @@ export class GameMenu {
   /**
    * Create a stat bar visualization
    */
-  createStatBar(value, maxWidth = 20, color = 'green') {
+  createStatBar(value, maxWidth = 20, color = null) {
+    const barColor = color || this.theme.health;
     const filled = Math.round((value / 100) * maxWidth);
     const empty = maxWidth - filled;
     const bar = '█'.repeat(filled) + '░'.repeat(empty);
-    return `{${color}-fg}${bar}{/${color}-fg}`;
+    return `{${barColor}-fg}${bar}{/${barColor}-fg}`;
   }
 
   /**
@@ -105,10 +117,13 @@ export class GameMenu {
     this.selectedIndex = 0;
     this.clearScreen();
 
+    const t = this.theme;
+
     const menuItems = [
       { label: 'START FIGHT', action: 'startFight', icon: '⚔' },
       { label: 'QUICK FIGHT', action: 'quickFight', icon: '⚡' },
       { label: 'VIEW ROSTER', action: 'viewRoster', icon: '📋' },
+      { label: 'THEME', action: 'selectTheme', icon: '🎨' },
       { label: 'EXIT', action: 'exit', icon: '🚪' }
     ];
 
@@ -119,7 +134,7 @@ export class GameMenu {
       left: 0,
       width: '100%',
       height: '100%',
-      style: { bg: '#1a1a2e' }
+      style: { bg: t.background }
     });
 
     // Title box with ASCII art
@@ -132,7 +147,7 @@ export class GameMenu {
       tags: true,
       content: this.getAsciiTitle(),
       style: {
-        fg: '#e94560',
+        fg: t.fighterA,
         bold: true
       }
     });
@@ -145,8 +160,8 @@ export class GameMenu {
       width: 40,
       height: 1,
       tags: true,
-      content: '{center}{gray-fg}Boxing Simulation Engine{/gray-fg}{/center}',
-      style: { fg: 'gray' }
+      content: `{center}{${t.commentary}-fg}Boxing Simulation Engine{/${t.commentary}-fg}{/center}`,
+      style: { fg: t.commentary }
     });
 
     // Menu container
@@ -156,11 +171,10 @@ export class GameMenu {
       left: 'center',
       width: 40,
       height: menuItems.length * 3 + 2,
-      style: { bg: '#16213e' },
       border: { type: 'line' },
       style: {
-        border: { fg: '#0f3460' },
-        bg: '#16213e'
+        border: { fg: t.border },
+        bg: t.background
       }
     });
 
@@ -174,8 +188,8 @@ export class GameMenu {
         height: 3,
         tags: true,
         style: {
-          bg: index === this.selectedIndex ? '#e94560' : '#16213e',
-          fg: index === this.selectedIndex ? 'white' : '#aaa'
+          bg: index === this.selectedIndex ? t.fighterA : t.background,
+          fg: index === this.selectedIndex ? t.background : t.foreground
         }
       });
 
@@ -191,7 +205,7 @@ export class GameMenu {
       width: 60,
       height: 1,
       tags: true,
-      content: '{center}{gray-fg}↑/↓ Navigate  •  ENTER Select  •  Q Quit{/gray-fg}{/center}'
+      content: `{center}{${t.commentary}-fg}↑/↓ Navigate  •  ENTER Select  •  Q Quit{/${t.commentary}-fg}{/center}`
     });
 
     // Key bindings
@@ -224,12 +238,13 @@ export class GameMenu {
    * Update a menu item's appearance
    */
   updateMenuItem(box, item, selected) {
+    const t = this.theme;
     const icon = item.icon || '>';
     const prefix = selected ? '  ►  ' : '     ';
     const suffix = selected ? '  ◄' : '';
     box.setContent(`\n${prefix}${icon}  ${item.label}${suffix}`);
-    box.style.bg = selected ? '#e94560' : '#16213e';
-    box.style.fg = selected ? 'white' : '#aaa';
+    box.style.bg = selected ? t.fighterA : t.background;
+    box.style.fg = selected ? t.background : t.foreground;
   }
 
   /**
@@ -272,6 +287,9 @@ export class GameMenu {
       case 'viewRoster':
         this.showRoster();
         break;
+      case 'selectTheme':
+        this.showThemeSelection();
+        break;
       case 'exit':
         this.handleExit();
         break;
@@ -287,6 +305,8 @@ export class GameMenu {
     this.selectedIndex = 0;
     this.clearScreen();
 
+    const t = this.theme;
+
     // Remove old key bindings
     this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape']);
 
@@ -297,10 +317,11 @@ export class GameMenu {
       left: 0,
       width: '100%',
       height: '100%',
-      style: { bg: '#1a1a2e' }
+      style: { bg: t.background }
     });
 
     // Title
+    const slotColor = slot === 'A' ? t.fighterA : t.fighterB;
     const title = blessed.box({
       parent: this.screen,
       top: 1,
@@ -308,8 +329,8 @@ export class GameMenu {
       width: 50,
       height: 3,
       tags: true,
-      content: `{center}{bold}SELECT FIGHTER ${slot}{/bold}\n{gray-fg}${slot === 'A' ? 'Red Corner' : 'Blue Corner'}{/gray-fg}{/center}`,
-      style: { fg: slot === 'A' ? '#e94560' : '#4a90d9' }
+      content: `{center}{bold}SELECT FIGHTER ${slot}{/bold}\n{${t.commentary}-fg}${slot === 'A' ? 'Red Corner' : 'Blue Corner'}{/${t.commentary}-fg}{/center}`,
+      style: { fg: slotColor }
     });
 
     // Fighter list (left side)
@@ -323,17 +344,17 @@ export class GameMenu {
       border: { type: 'line' },
       label: ' FIGHTERS ',
       style: {
-        border: { fg: '#0f3460' },
-        bg: '#16213e',
-        selected: { bg: '#e94560', fg: 'white' },
-        item: { fg: '#aaa' }
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
       },
       keys: true,
       vi: true,
       mouse: true,
       scrollbar: {
         ch: '│',
-        style: { fg: '#e94560' }
+        style: { fg: t.fighterA }
       }
     });
 
@@ -341,8 +362,8 @@ export class GameMenu {
     this.fighters.forEach((fighter, idx) => {
       const record = `${fighter.record.wins}-${fighter.record.losses}`;
       const isSelected = (slot === 'B' && this.selectedFighterA?.path === fighter.path);
-      const prefix = isSelected ? '{gray-fg}[SELECTED] ' : '';
-      const suffix = isSelected ? '{/gray-fg}' : '';
+      const prefix = isSelected ? `{${t.commentary}-fg}[SELECTED] ` : '';
+      const suffix = isSelected ? `{/${t.commentary}-fg}` : '';
       this.fighterList.addItem(`${prefix}${fighter.name} (${record})${suffix}`);
     });
 
@@ -357,9 +378,9 @@ export class GameMenu {
       border: { type: 'line' },
       label: ' FIGHTER PROFILE ',
       style: {
-        border: { fg: '#0f3460' },
-        bg: '#16213e',
-        fg: 'white'
+        border: { fg: t.border },
+        bg: t.background,
+        fg: t.foreground
       }
     });
 
@@ -371,7 +392,7 @@ export class GameMenu {
       width: 70,
       height: 1,
       tags: true,
-      content: '{center}{gray-fg}↑/↓ Browse  •  ENTER Select  •  ESC Back{/gray-fg}{/center}'
+      content: `{center}{${t.commentary}-fg}↑/↓ Browse  •  ENTER Select  •  ESC Back{/${t.commentary}-fg}{/center}`
     });
 
     // Update preview when selection changes
@@ -420,6 +441,7 @@ export class GameMenu {
     const fighter = this.fighters[index];
     if (!fighter) return;
 
+    const t = this.theme;
     const data = fighter.data;
     const phys = data.physical || {};
     const style = data.style || {};
@@ -440,26 +462,26 @@ export class GameMenu {
     const weightLbs = Math.round((phys.weight || 90) * 2.205);
 
     const content = `
-{bold}{#e94560-fg}${fighter.name}{/#e94560-fg}{/bold}
-{gray-fg}"${fighter.nickname || 'The Fighter'}"{/gray-fg}
+{bold}{${t.fighterA}-fg}${fighter.name}{/${t.fighterA}-fg}{/bold}
+{${t.commentary}-fg}"${fighter.nickname || 'The Fighter'}"{/${t.commentary}-fg}
 
-{yellow-fg}RECORD:{/yellow-fg} ${record.wins || 0}W - ${record.losses || 0}L - ${record.draws || 0}D (${record.kos || 0} KOs)
-{yellow-fg}STYLE:{/yellow-fg}  ${style.primary || 'Orthodox'}
+{${t.round}-fg}RECORD:{/${t.round}-fg} ${record.wins || 0}W - ${record.losses || 0}L - ${record.draws || 0}D (${record.kos || 0} KOs)
+{${t.round}-fg}STYLE:{/${t.round}-fg}  ${style.primary || 'Orthodox'}
 
-{cyan-fg}━━━ PHYSICAL ━━━{/cyan-fg}
+{${t.stamina}-fg}━━━ PHYSICAL ━━━{/${t.stamina}-fg}
 Height: ${heightFt}'${heightIn}" (${phys.height || 180}cm)
 Weight: ${weightLbs} lbs (${phys.weight || 90}kg)
 Reach:  ${phys.reach || 180}cm
 Stance: ${phys.stance || 'Orthodox'}
 
-{cyan-fg}━━━ ATTRIBUTES ━━━{/cyan-fg}
-Power     ${this.createStatBar(power.powerRight || 70, 15)}  ${power.powerRight || 70}
-Speed     ${this.createStatBar(speed.handSpeed || 70, 15, 'yellow')}  ${speed.handSpeed || 70}
-Defense   ${this.createStatBar(defense.headMovement || 70, 15, 'blue')}  ${defense.headMovement || 70}
-Chin      ${this.createStatBar(mental.chin || 70, 15, 'magenta')}  ${mental.chin || 70}
-Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart || 70}
+{${t.stamina}-fg}━━━ ATTRIBUTES ━━━{/${t.stamina}-fg}
+Power     ${this.createStatBar(power.powerRight || 70, 15, t.health)}  ${power.powerRight || 70}
+Speed     ${this.createStatBar(speed.handSpeed || 70, 15, t.round)}  ${speed.handSpeed || 70}
+Defense   ${this.createStatBar(defense.headMovement || 70, 15, t.stamina)}  ${defense.headMovement || 70}
+Chin      ${this.createStatBar(mental.chin || 70, 15, t.block)}  ${mental.chin || 70}
+Heart     ${this.createStatBar(mental.heart || 70, 15, t.fighterA)}  ${mental.heart || 70}
 
-{bold}{yellow-fg}OVERALL: ${overall}{/yellow-fg}{/bold}
+{bold}{${t.round}-fg}OVERALL: ${overall}{/${t.round}-fg}{/bold}
 `;
 
     this.fighterPreview.setContent(content);
@@ -473,6 +495,8 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
     this.currentView = 'options';
     this.clearScreen();
 
+    const t = this.theme;
+
     // Remove old key bindings
     this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape']);
 
@@ -483,7 +507,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       left: 0,
       width: '100%',
       height: '100%',
-      style: { bg: '#1a1a2e' }
+      style: { bg: t.background }
     });
 
     // VS Header
@@ -495,7 +519,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       height: 7,
       tags: true,
       content: this.getVsHeader(),
-      style: { bg: '#1a1a2e' }
+      style: { bg: t.background }
     });
 
     // Options container
@@ -509,8 +533,8 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       border: { type: 'line' },
       label: ' FIGHT OPTIONS ',
       style: {
-        border: { fg: '#0f3460' },
-        bg: '#16213e'
+        border: { fg: t.border },
+        bg: t.background
       }
     });
 
@@ -552,7 +576,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       width: 20,
       height: 1,
       tags: true,
-      content: '{center}{bold}{green-fg}[ START FIGHT ]{/green-fg}{/bold}{/center}'
+      content: `{center}{bold}{${t.health}-fg}[ START FIGHT ]{/${t.health}-fg}{/bold}{/center}`
     });
 
     this.optionIndex = 0;
@@ -566,7 +590,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       width: 70,
       height: 1,
       tags: true,
-      content: '{center}{gray-fg}←/→ Adjust  •  ↑/↓ Navigate  •  ENTER Start  •  ESC Back{/gray-fg}{/center}'
+      content: `{center}{${t.commentary}-fg}←/→ Adjust  •  ↑/↓ Navigate  •  ENTER Start  •  ESC Back{/${t.commentary}-fg}{/center}`
     });
 
     // Key bindings
@@ -587,19 +611,20 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
    * Get VS header display
    */
   getVsHeader() {
+    const t = this.theme;
     const a = this.selectedFighterA;
     const b = this.selectedFighterB;
     const recA = `${a.record.wins}-${a.record.losses}`;
     const recB = `${b.record.wins}-${b.record.losses}`;
 
     return `{center}
-{bold}{red-fg}${a.name.toUpperCase()}{/red-fg}{/bold}
-{gray-fg}(${recA}) "${a.nickname}"{/gray-fg}
+{bold}{${t.fighterA}-fg}${a.name.toUpperCase()}{/${t.fighterA}-fg}{/bold}
+{${t.commentary}-fg}(${recA}) "${a.nickname}"{/${t.commentary}-fg}
 
-{bold}{yellow-fg}━━━  VS  ━━━{/yellow-fg}{/bold}
+{bold}{${t.round}-fg}━━━  VS  ━━━{/${t.round}-fg}{/bold}
 
-{bold}{blue-fg}${b.name.toUpperCase()}{/blue-fg}{/bold}
-{gray-fg}(${recB}) "${b.nickname}"{/gray-fg}
+{bold}{${t.fighterB}-fg}${b.name.toUpperCase()}{/${t.fighterB}-fg}{/bold}
+{${t.commentary}-fg}(${recB}) "${b.nickname}"{/${t.commentary}-fg}
 {/center}`;
   }
 
@@ -607,17 +632,18 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
    * Update options display
    */
   updateOptionsDisplay() {
+    const t = this.theme;
     const roundsSelected = this.optionIndex === 0;
     const speedSelected = this.optionIndex === 1;
     const displaySelected = this.optionIndex === 2;
     const startSelected = this.optionIndex === 3;
 
-    const roundsPrefix = roundsSelected ? '{yellow-fg}► ' : '  ';
-    const roundsSuffix = roundsSelected ? ' ◄{/yellow-fg}' : '';
-    const speedPrefix = speedSelected ? '{yellow-fg}► ' : '  ';
-    const speedSuffix = speedSelected ? ' ◄{/yellow-fg}' : '';
-    const displayPrefix = displaySelected ? '{yellow-fg}► ' : '  ';
-    const displaySuffix = displaySelected ? ' ◄{/yellow-fg}' : '';
+    const roundsPrefix = roundsSelected ? `{${t.round}-fg}► ` : '  ';
+    const roundsSuffix = roundsSelected ? ` ◄{/${t.round}-fg}` : '';
+    const speedPrefix = speedSelected ? `{${t.round}-fg}► ` : '  ';
+    const speedSuffix = speedSelected ? ` ◄{/${t.round}-fg}` : '';
+    const displayPrefix = displaySelected ? `{${t.round}-fg}► ` : '  ';
+    const displaySuffix = displaySelected ? ` ◄{/${t.round}-fg}` : '';
 
     this.roundsValue.setContent(
       `${roundsPrefix}Rounds:  ◀  {bold}${this.fightOptions.rounds}{/bold}  ▶${roundsSuffix}`
@@ -629,17 +655,16 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
 
     // Display mode names
     const displayName = this.fightOptions.display === 'arcade' ? 'ARCADE' : 'CLASSIC';
-    const displayColor = this.fightOptions.display === 'arcade' ? '{#ff4444-fg}' : '{cyan-fg}';
-    const displayColorEnd = this.fightOptions.display === 'arcade' ? '{/#ff4444-fg}' : '{/cyan-fg}';
+    const displayColor = this.fightOptions.display === 'arcade' ? t.fighterA : t.stamina;
 
     this.displayValue.setContent(
-      `${displayPrefix}Display: ◀  ${displayColor}{bold}${displayName}{/bold}${displayColorEnd}  ▶${displaySuffix}`
+      `${displayPrefix}Display: ◀  {${displayColor}-fg}{bold}${displayName}{/bold}{/${displayColor}-fg}  ▶${displaySuffix}`
     );
 
     if (startSelected) {
-      this.startButton.setContent('{center}{bold}{#1a1a2e-bg}{green-fg}[ ★ START FIGHT ★ ]{/green-fg}{/#1a1a2e-bg}{/bold}{/center}');
+      this.startButton.setContent(`{center}{bold}{${t.health}-fg}[ ★ START FIGHT ★ ]{/${t.health}-fg}{/bold}{/center}`);
     } else {
-      this.startButton.setContent('{center}{gray-fg}[ START FIGHT ]{/gray-fg}{/center}');
+      this.startButton.setContent(`{center}{${t.commentary}-fg}[ START FIGHT ]{/${t.commentary}-fg}{/center}`);
     }
 
     this.screen.render();
@@ -701,7 +726,8 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
         this.selectedFighterB.path,
         this.fightOptions.rounds,
         this.fightOptions.speed,
-        this.fightOptions.display
+        this.fightOptions.display,
+        this.fightOptions.theme
       );
     }
   }
@@ -716,13 +742,17 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
     if (defaultA && defaultB) {
       this.selectedFighterA = defaultA;
       this.selectedFighterB = defaultB;
-      this.fightOptions = { rounds: 10, speed: 3, display: 'hbo' };
+      this.fightOptions.rounds = 10;
+      this.fightOptions.speed = 3;
+      this.fightOptions.display = 'arcade';
       this.launchFight();
     } else if (this.fighters.length >= 2) {
       // Use first two fighters if defaults not found
       this.selectedFighterA = this.fighters[0];
       this.selectedFighterB = this.fighters[1];
-      this.fightOptions = { rounds: 10, speed: 3, display: 'hbo' };
+      this.fightOptions.rounds = 10;
+      this.fightOptions.speed = 3;
+      this.fightOptions.display = 'arcade';
       this.launchFight();
     }
   }
@@ -734,6 +764,8 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
     this.currentView = 'roster';
     this.clearScreen();
 
+    const t = this.theme;
+
     // Remove old key bindings
     this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape']);
 
@@ -744,7 +776,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       left: 0,
       width: '100%',
       height: '100%',
-      style: { bg: '#1a1a2e' }
+      style: { bg: t.background }
     });
 
     // Title
@@ -755,7 +787,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       width: 30,
       height: 1,
       tags: true,
-      content: '{center}{bold}{yellow-fg}FIGHTER ROSTER{/yellow-fg}{/bold}{/center}'
+      content: `{center}{bold}{${t.round}-fg}FIGHTER ROSTER{/${t.round}-fg}{/bold}{/center}`
     });
 
     // Fighter list
@@ -769,10 +801,10 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       border: { type: 'line' },
       label: ' FIGHTERS ',
       style: {
-        border: { fg: '#0f3460' },
-        bg: '#16213e',
-        selected: { bg: '#e94560', fg: 'white' },
-        item: { fg: '#aaa' }
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
       },
       keys: true,
       vi: true,
@@ -795,8 +827,8 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       border: { type: 'line' },
       label: ' PROFILE ',
       style: {
-        border: { fg: '#0f3460' },
-        bg: '#16213e'
+        border: { fg: t.border },
+        bg: t.background
       }
     });
 
@@ -820,30 +852,30 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, 'red')}  ${mental.heart |
       const weightLbs = Math.round((phys.weight || 90) * 2.205);
 
       preview.setContent(`
-{bold}{#e94560-fg}${fighter.name}{/#e94560-fg}{/bold}
-{gray-fg}"${fighter.nickname}"{/gray-fg}
+{bold}{${t.fighterA}-fg}${fighter.name}{/${t.fighterA}-fg}{/bold}
+{${t.commentary}-fg}"${fighter.nickname}"{/${t.commentary}-fg}
 
-{yellow-fg}RECORD:{/yellow-fg} ${record.wins}W - ${record.losses}L - ${record.draws}D (${record.kos} KOs)
+{${t.round}-fg}RECORD:{/${t.round}-fg} ${record.wins}W - ${record.losses}L - ${record.draws}D (${record.kos} KOs)
 
-{cyan-fg}━━━ FIGHTING STYLE ━━━{/cyan-fg}
+{${t.stamina}-fg}━━━ FIGHTING STYLE ━━━{/${t.stamina}-fg}
 Primary:   ${style.primary || '-'}
 Defensive: ${style.defensive || '-'}
 Offensive: ${style.offensive || '-'}
 
-{cyan-fg}━━━ PHYSICAL ━━━{/cyan-fg}
+{${t.stamina}-fg}━━━ PHYSICAL ━━━{/${t.stamina}-fg}
 Height: ${heightFt}'${heightIn}" | Weight: ${weightLbs}lbs | Reach: ${phys.reach}cm
 
-{cyan-fg}━━━ KEY ATTRIBUTES ━━━{/cyan-fg}
-Power      ${this.createStatBar(power.powerRight || 70, 12)}  ${power.powerRight || '-'}
-KO Power   ${this.createStatBar(power.knockoutPower || 70, 12)}  ${power.knockoutPower || '-'}
-Hand Speed ${this.createStatBar(speed.handSpeed || 70, 12, 'yellow')}  ${speed.handSpeed || '-'}
-Reflexes   ${this.createStatBar(speed.reflexes || 70, 12, 'yellow')}  ${speed.reflexes || '-'}
-Head Mvmt  ${this.createStatBar(defense.headMovement || 70, 12, 'blue')}  ${defense.headMovement || '-'}
-Chin       ${this.createStatBar(mental.chin || 70, 12, 'magenta')}  ${mental.chin || '-'}
-Heart      ${this.createStatBar(mental.heart || 70, 12, 'red')}  ${mental.heart || '-'}
-Fight IQ   ${this.createStatBar(data.technical?.fightIQ || 70, 12, 'cyan')}  ${data.technical?.fightIQ || '-'}
+{${t.stamina}-fg}━━━ KEY ATTRIBUTES ━━━{/${t.stamina}-fg}
+Power      ${this.createStatBar(power.powerRight || 70, 12, t.health)}  ${power.powerRight || '-'}
+KO Power   ${this.createStatBar(power.knockoutPower || 70, 12, t.health)}  ${power.knockoutPower || '-'}
+Hand Speed ${this.createStatBar(speed.handSpeed || 70, 12, t.round)}  ${speed.handSpeed || '-'}
+Reflexes   ${this.createStatBar(speed.reflexes || 70, 12, t.round)}  ${speed.reflexes || '-'}
+Head Mvmt  ${this.createStatBar(defense.headMovement || 70, 12, t.stamina)}  ${defense.headMovement || '-'}
+Chin       ${this.createStatBar(mental.chin || 70, 12, t.block)}  ${mental.chin || '-'}
+Heart      ${this.createStatBar(mental.heart || 70, 12, t.fighterA)}  ${mental.heart || '-'}
+Fight IQ   ${this.createStatBar(data.technical?.fightIQ || 70, 12, t.stamina)}  ${data.technical?.fightIQ || '-'}
 
-{cyan-fg}━━━ CORNER ━━━{/cyan-fg}
+{${t.stamina}-fg}━━━ CORNER ━━━{/${t.stamina}-fg}
 Trainer: ${corner.headTrainer?.name || 'Unknown'}
 Cutman:  ${corner.cutman?.name || 'Unknown'}
 `);
@@ -861,11 +893,161 @@ Cutman:  ${corner.cutman?.name || 'Unknown'}
       width: 50,
       height: 1,
       tags: true,
-      content: '{center}{gray-fg}↑/↓ Browse  •  ESC Back{/gray-fg}{/center}'
+      content: `{center}{${t.commentary}-fg}↑/↓ Browse  •  ESC Back{/${t.commentary}-fg}{/center}`
     });
 
     rosterList.key(['escape', 'q'], () => this.showMainMenu());
     rosterList.focus();
+    this.screen.render();
+  }
+
+  /**
+   * Show theme selection screen
+   * @param {number} startIndex - Optional index to start selection at
+   */
+  showThemeSelection(startIndex = null) {
+    this.currentView = 'theme';
+    this.clearScreen();
+
+    const t = this.theme;
+
+    // Remove old key bindings
+    this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape', 'right', 'l']);
+
+    // Background
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    // Title
+    blessed.box({
+      parent: this.screen,
+      top: 1,
+      left: 'center',
+      width: 30,
+      height: 1,
+      tags: true,
+      content: `{center}{bold}{${t.round}-fg}SELECT THEME{/${t.round}-fg}{/bold}{/center}`
+    });
+
+    // Theme list
+    const themeList = blessed.list({
+      parent: this.screen,
+      top: 4,
+      left: 'center',
+      width: 50,
+      height: this.availableThemes.length + 2,
+      tags: true,
+      border: { type: 'line' },
+      label: ' THEMES ',
+      style: {
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
+      },
+      keys: true,
+      vi: true,
+      mouse: true
+    });
+
+    // Populate theme list
+    this.availableThemes.forEach(theme => {
+      const isActive = theme.id === this.fightOptions.theme;
+      const prefix = isActive ? '★ ' : '  ';
+      const suffix = isActive ? ' (active)' : '';
+      themeList.addItem(`${prefix}${theme.name}${suffix}`);
+    });
+
+    // Select current theme or use provided start index
+    const currentIdx = startIndex !== null
+      ? startIndex
+      : this.availableThemes.findIndex(th => th.id === this.fightOptions.theme);
+    if (currentIdx >= 0) {
+      themeList.select(currentIdx);
+    }
+
+    // Theme preview box
+    const previewBox = blessed.box({
+      parent: this.screen,
+      top: 5 + this.availableThemes.length + 2,
+      left: 'center',
+      width: 60,
+      height: 12,
+      tags: true,
+      border: { type: 'line' },
+      label: ' PREVIEW ',
+      style: {
+        border: { fg: t.border },
+        bg: t.background
+      }
+    });
+
+    // Update preview when selection changes
+    const updatePreview = (idx) => {
+      const themeInfo = this.availableThemes[idx];
+      if (!themeInfo) return;
+
+      const colors = THEMES[themeInfo.id];
+
+      // Update preview box background to show the theme
+      previewBox.style.bg = colors.background;
+      previewBox.style.border.fg = colors.border;
+
+      previewBox.setContent(`
+  {bold}{${colors.foreground}-fg}${colors.name}{/${colors.foreground}-fg}{/bold}
+
+  {${colors.fighterA}-fg}■ Fighter A{/${colors.fighterA}-fg}   {${colors.fighterB}-fg}■ Fighter B{/${colors.fighterB}-fg}
+
+  {${colors.health}-fg}████████{/${colors.health}-fg} Health   {${colors.stamina}-fg}████████{/${colors.stamina}-fg} Stamina
+
+  {${colors.punch}-fg}●{/${colors.punch}-fg} Punch  {${colors.block}-fg}●{/${colors.block}-fg} Block  {${colors.evade}-fg}●{/${colors.evade}-fg} Evade  {${colors.ko}-fg}●{/${colors.ko}-fg} KO
+
+  {${colors.commentary}-fg}Commentary text sample{/${colors.commentary}-fg}
+`);
+      this.screen.render();
+    };
+
+    themeList.on('select item', () => updatePreview(themeList.selected));
+    updatePreview(currentIdx >= 0 ? currentIdx : 0);
+
+    // Controls
+    blessed.box({
+      parent: this.screen,
+      bottom: 1,
+      left: 'center',
+      width: 60,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}↑/↓ Browse  •  ENTER Select  •  ESC Back{/${t.commentary}-fg}{/center}`
+    });
+
+    // Key bindings - Apply theme immediately and refresh
+    themeList.key(['enter', 'space'], () => {
+      const selectedTheme = this.availableThemes[themeList.selected];
+      if (selectedTheme && selectedTheme.id !== this.fightOptions.theme) {
+        this.fightOptions.theme = selectedTheme.id;
+        // Re-render theme selection with new theme applied, preserving position
+        this.showThemeSelection(themeList.selected);
+      }
+    });
+
+    // Right arrow also applies theme (for quick cycling)
+    themeList.key(['right', 'l'], () => {
+      const selectedTheme = this.availableThemes[themeList.selected];
+      if (selectedTheme && selectedTheme.id !== this.fightOptions.theme) {
+        this.fightOptions.theme = selectedTheme.id;
+        this.showThemeSelection(themeList.selected);
+      }
+    });
+
+    themeList.key(['escape', 'q'], () => this.showMainMenu());
+    themeList.focus();
     this.screen.render();
   }
 
@@ -887,8 +1069,8 @@ Cutman:  ${corner.cutman?.name || 'Unknown'}
    */
   run() {
     return new Promise((resolve) => {
-      this.onStartFight = (pathA, pathB, rounds, speed, display) => {
-        resolve({ pathA, pathB, rounds, speed, display });
+      this.onStartFight = (pathA, pathB, rounds, speed, display, theme) => {
+        resolve({ pathA, pathB, rounds, speed, display, theme });
       };
       this.onExit = () => {
         resolve(null);

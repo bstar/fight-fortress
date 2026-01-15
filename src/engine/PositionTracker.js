@@ -506,6 +506,38 @@ export class PositionTracker {
   }
 
   /**
+   * Separate fighters to a target distance (used by referee breaks)
+   * Pushes both fighters back from center point between them
+   */
+  separateFighters(targetDistance) {
+    if (!this.fighterA || !this.fighterB) return;
+
+    // Get center point between fighters
+    const centerX = (this.fighterA.position.x + this.fighterB.position.x) / 2;
+    const centerY = (this.fighterA.position.y + this.fighterB.position.y) / 2;
+
+    // Get angle from A to B
+    const dx = this.fighterB.position.x - this.fighterA.position.x;
+    const dy = this.fighterB.position.y - this.fighterA.position.y;
+    const angle = Math.atan2(dy, dx);
+
+    // Position fighters at target distance apart, centered
+    const halfDist = targetDistance / 2;
+    this.fighterA.position = {
+      x: centerX - Math.cos(angle) * halfDist,
+      y: centerY - Math.sin(angle) * halfDist
+    };
+    this.fighterB.position = {
+      x: centerX + Math.cos(angle) * halfDist,
+      y: centerY + Math.sin(angle) * halfDist
+    };
+
+    // Keep both fighters facing each other
+    this.fighterA.facing = angle;
+    this.fighterB.facing = angle + Math.PI;
+  }
+
+  /**
    * Check if fighter is in corner
    */
   isInCorner(fighter) {

@@ -7,94 +7,94 @@ import { FighterState, OffensiveSubState, DefensiveSubState, MovementSubState } 
 import { ActionType, PunchType } from './FighterAI.js';
 
 // Stamina costs by action type
-// BALANCED: Boxers should end at ~50-70%, pressure fighters at ~30-50%
-// Even the most active fighters shouldn't gas completely in 12 rounds
+// DYNAMIC: Stamina should fluctuate dramatically - high costs, high recovery
+// Throwing punches drains you fast, but rest recovers quickly
+// This makes energy management a visible, tactical element
 const STAMINA_COSTS = {
-  // Punches - moderate costs, balanced with recovery
+  // Punches - Balanced costs for visible but sustainable drain
   punches: {
-    [PunchType.JAB]: 0.22,            // Efficient but not free
-    [PunchType.CROSS]: 0.45,          // Power punches cost more
-    [PunchType.LEAD_HOOK]: 0.40,
-    [PunchType.REAR_HOOK]: 0.55,
-    [PunchType.LEAD_UPPERCUT]: 0.38,
-    [PunchType.REAR_UPPERCUT]: 0.60,
-    [PunchType.BODY_JAB]: 0.22,
-    [PunchType.BODY_CROSS]: 0.45,
-    [PunchType.BODY_HOOK_LEAD]: 0.40,
-    [PunchType.BODY_HOOK_REAR]: 0.55
+    [PunchType.JAB]: 0.35,
+    [PunchType.CROSS]: 0.80,
+    [PunchType.LEAD_HOOK]: 0.70,
+    [PunchType.REAR_HOOK]: 0.95,
+    [PunchType.LEAD_UPPERCUT]: 0.65,
+    [PunchType.REAR_UPPERCUT]: 1.0,
+    [PunchType.BODY_JAB]: 0.40,
+    [PunchType.BODY_CROSS]: 0.85,
+    [PunchType.BODY_HOOK_LEAD]: 0.75,
+    [PunchType.BODY_HOOK_REAR]: 1.0
   },
 
-  // Combination bonus costs - moderate increase
+  // Combination bonus costs
   combination: {
-    2: 0.1,
-    3: 0.2,
-    4: 0.3,
-    5: 0.4
+    2: 0.15,
+    3: 0.35,
+    4: 0.60,
+    5: 1.0
   },
 
-  // Defensive actions (per second) - LOW ongoing costs
-  // Main stamina drain should be from punches, not passive defense
+  // Defensive actions (per second) - light ongoing cost
   defense: {
-    [DefensiveSubState.HIGH_GUARD]: 0.12,     // Holding hands up - sustainable
-    [DefensiveSubState.PHILLY_SHELL]: 0.06,   // Very efficient defense
-    [DefensiveSubState.HEAD_MOVEMENT]: 0.25,  // Active - costs more
-    [DefensiveSubState.DISTANCE]: 0.10,       // Footwork-based
-    [DefensiveSubState.PARRYING]: 0.15        // Active hands
+    [DefensiveSubState.HIGH_GUARD]: 0.1,      // Holding guard up
+    [DefensiveSubState.PHILLY_SHELL]: 0.05,   // Efficient shoulder roll
+    [DefensiveSubState.HEAD_MOVEMENT]: 0.2,   // Active bobbing/weaving
+    [DefensiveSubState.DISTANCE]: 0.08,       // Footwork-based
+    [DefensiveSubState.PARRYING]: 0.15        // Active hand defense
   },
 
-  // Movement (per second) - LOW ongoing costs
-  // Moving shouldn't gas you out, throwing punches should
+  // Movement (per second) - light movement costs
   movement: {
-    forward: 0.08,        // Walking forward
-    backward: 0.06,       // Backing up
-    lateral: 0.10,        // Side to side
-    circling: 0.15,       // Circling opponent
-    cutting: 0.20,        // Ring cutting
-    retreating: 0.10,     // Quick retreat
-    burst: 0.35           // Explosive movement
+    forward: 0.08,        // Pressing forward
+    backward: 0.05,       // Backing up
+    lateral: 0.1,         // Side to side
+    circling: 0.12,       // Circling opponent
+    cutting: 0.2,         // Ring cutting
+    retreating: 0.1,      // Quick retreat
+    burst: 0.3            // Explosive movement
   },
 
-  // Baseline fight cost - ensures everyone tires over 12 rounds
-  // Even defensive fighters expend energy staying alert, moving, ready
-  baseline: 0.07,  // Per second, always applied - balanced with punch costs
+  // Baseline fight cost - constant energy expenditure
+  // Being in a boxing match is exhausting even when not throwing punches
+  baseline: 0.12,  // Per second - moderate drain just for being active (~22/round)
 
   // Other
   clinch: {
-    initiation: 0.6,
-    holding: 0.15,
+    initiation: 0.5,
+    holding: 0.1,         // Clinching is for rest
     breaking: 0.8
   },
 
-  // Damage effects
+  // Damage effects - getting hit saps energy, hard shots drain more
   damage: {
-    gettingHit: 0.06,     // Getting hit drains you
-    beingHurt: 1.0,       // Per second while hurt
-    knockdownRecovery: 8.0
+    gettingHitBase: 0.3,       // Base drain per hit
+    gettingHitPerPower: 0.02,  // Additional drain per power point (30 power = +0.6)
+    bodyHitMultiplier: 1.5,    // Body shots drain 50% more stamina
+    beingHurt: 1.5,            // Per second while hurt
+    knockdownRecovery: 10.0
   }
 };
 
-// Recovery rates - REDUCED so everyone tires over 12 rounds
-// Even distance fighters should tire somewhat, pressure fighters more so
+// Recovery rates - Recovery requires truly resting, not just defending
 const RECOVERY_RATES = {
-  // State-based recovery multipliers - BALANCED for 12-round fights
-  // Target: Boxers end ~50-70%, Pressure fighters end ~30-50%
+  // State-based recovery multipliers
+  // Only meaningful recovery when truly passive - can't recover while engaged
   states: {
-    [FighterState.NEUTRAL]: 0.4,      // Moderate recovery when neutral
-    [FighterState.DEFENSIVE]: 0.25,   // Reduced - defensive boxing still tires you
-    [FighterState.TIMING]: 0.2,       // Counter-punchers stay alert - less recovery
-    [FighterState.MOVING]: 0.15,      // Moving takes energy
-    [FighterState.OFFENSIVE]: 0.4,    // Increased - pressure fighters need recovery too
-    [FighterState.CLINCH]: 0.55,      // Clinching is for recovery
+    [FighterState.NEUTRAL]: 1.0,      // Standard recovery when neutral
+    [FighterState.DEFENSIVE]: 0.9,    // Good recovery while defending
+    [FighterState.TIMING]: 0.6,       // Counter-punchers stay ready - moderate
+    [FighterState.MOVING]: 0.4,       // Moving takes energy but allows some recovery
+    [FighterState.OFFENSIVE]: 0.2,    // Minimal recovery when attacking
+    [FighterState.CLINCH]: 1.5,       // Clinching is for recovery (holding on)
     [FighterState.HURT]: 0.0          // No recovery when hurt
   },
 
-  // Defensive sub-state recovery - reduced for balance
+  // Defensive sub-state recovery - REPLACES state modifier, doesn't multiply
   defensiveSubStates: {
-    [DefensiveSubState.HIGH_GUARD]: 0.5,    // Holding guard up
-    [DefensiveSubState.PHILLY_SHELL]: 0.6,  // Efficient style
-    [DefensiveSubState.HEAD_MOVEMENT]: 0.3, // Active defense costs energy
-    [DefensiveSubState.DISTANCE]: 0.4,      // Footwork-based
-    [DefensiveSubState.PARRYING]: 0.35      // Active defense
+    [DefensiveSubState.HIGH_GUARD]: 0.9,    // Holding guard - decent recovery
+    [DefensiveSubState.PHILLY_SHELL]: 1.0,  // Efficient style - best defensive recovery
+    [DefensiveSubState.HEAD_MOVEMENT]: 0.4, // Active bobbing - minimal recovery
+    [DefensiveSubState.DISTANCE]: 0.7,      // Using legs - some recovery
+    [DefensiveSubState.PARRYING]: 0.5       // Active hands - less recovery
   }
 };
 
@@ -128,16 +128,15 @@ export class StaminaManager {
 
   /**
    * Calculate stamina cost for current action
+   * DYNAMIC: High costs create visible drain during exchanges
    */
   calculateCost(fighter, decision, deltaTime) {
     let cost = 0;
 
     // BASELINE COST - just being in the fight drains energy
-    // Mental focus, staying ready, heat, tension - it all adds up
-    // This ensures even "economical" boxers tire over 12 rounds
     cost += STAMINA_COSTS.baseline * deltaTime;
 
-    // Action cost
+    // Action cost - punches are expensive!
     if (decision.action) {
       cost += this.calculateActionCost(decision.action, fighter);
     }
@@ -145,30 +144,42 @@ export class StaminaManager {
     // State cost (ongoing)
     cost += this.calculateStateCost(fighter, deltaTime);
 
-    // Damage cost (if hurt)
+    // Damage cost (if hurt) - being hurt is exhausting
     if (fighter.isHurt) {
       cost += STAMINA_COSTS.damage.beingHurt * deltaTime;
     }
 
-    // Work rate reduces costs - high workRate fighters can sustain output
-    // Elite workRate (92) = ~65% cost reduction, average (70) = ~25% reduction
-    // This is crucial for pressure fighters to go 12 rounds
-    const workRateMod = Math.max(0.35, 1 - (fighter.stamina.workRate - 50) * 0.016);
+    // Work rate reduces costs dramatically
+    // Elite workRate (92) = 50% cost reduction (built for sustained output)
+    // Average workRate (70) = 20% cost reduction
+    // Poor workRate (50) = no reduction
+    const workRateMod = Math.max(0.50, 1 - (fighter.stamina.workRate - 50) * 0.012);
     cost *= workRateMod;
 
     // Pace control helps manage energy expenditure
-    // High paceControl fighters are smarter about when to exert
-    const paceControlMod = Math.max(0.7, 1 - (fighter.stamina.paceControl - 50) * 0.006);
+    // High paceControl (90) = 30% additional reduction
+    // This represents knowing when to breathe, when to take off
+    const paceControlMod = Math.max(0.70, 1 - (fighter.stamina.paceControl - 50) * 0.0075);
     cost *= paceControlMod;
 
-    // Body damage increases costs significantly
-    const bodyDamageMod = 1 + (fighter.bodyDamage / 150);
+    // Cardio affects efficiency too - better conditioned = more efficient
+    const cardioMod = Math.max(0.80, 1 - (fighter.stamina.cardio - 50) * 0.005);
+    cost *= cardioMod;
+
+    // Body damage increases costs significantly - body work pays off
+    const bodyDamageMod = 1 + (fighter.bodyDamage / 120);
     cost *= bodyDamageMod;
 
-    // Fatigue increases costs - tired fighters burn more energy
+    // Fatigue spiral - tired fighters burn even more energy
     const fatigueLevel = 1 - fighter.getStaminaPercent();
-    const fatigueMod = 1 + (fatigueLevel * 0.25); // Increased from 0.15
+    const fatigueMod = 1 + (fatigueLevel * 0.4);
     cost *= fatigueMod;
+
+    // MINIMUM DRAIN FLOOR - always drain at least this much per second
+    // Being in a boxing match is exhausting no matter what you're doing
+    // This ensures fighters can NEVER pin at 100% stamina
+    const minimumDrain = 0.08 * deltaTime;  // ~0.08/sec minimum drain
+    cost = Math.max(cost, minimumDrain);
 
     return Math.max(0, cost);
   }
@@ -191,13 +202,14 @@ export class StaminaManager {
     const baseCost = this.calculateActionCost(action, fighter);
 
     // Apply fighter-specific modifiers (same as calculateCost)
-    const workRateMod = Math.max(0.35, 1 - (fighter.stamina.workRate - 50) * 0.016);
-    const paceControlMod = Math.max(0.7, 1 - (fighter.stamina.paceControl - 50) * 0.006);
-    const bodyDamageMod = 1 + (fighter.bodyDamage / 150);
+    const workRateMod = Math.max(0.50, 1 - (fighter.stamina.workRate - 50) * 0.012);
+    const paceControlMod = Math.max(0.70, 1 - (fighter.stamina.paceControl - 50) * 0.0075);
+    const cardioMod = Math.max(0.80, 1 - (fighter.stamina.cardio - 50) * 0.005);
+    const bodyDamageMod = 1 + (fighter.bodyDamage / 120);
     const fatigueLevel = 1 - fighter.getStaminaPercent();
-    const fatigueMod = 1 + (fatigueLevel * 0.25);
+    const fatigueMod = 1 + (fatigueLevel * 0.4);
 
-    const finalCost = baseCost * workRateMod * paceControlMod * bodyDamageMod * fatigueMod;
+    const finalCost = baseCost * workRateMod * paceControlMod * cardioMod * bodyDamageMod * fatigueMod;
 
     // Fighter must have enough stamina to perform the action
     const canPerform = fighter.currentStamina >= finalCost;
@@ -336,35 +348,101 @@ export class StaminaManager {
   }
 
   /**
+   * Calculate stamina cost from getting hit
+   * Hard shots drain more stamina - body shots are especially draining
+   */
+  calculateHitStaminaCost(damage, location, attacker) {
+    // Base cost from getting hit
+    let cost = STAMINA_COSTS.damage.gettingHitBase;
+
+    // Add cost based on damage dealt (harder shots drain more)
+    cost += damage * STAMINA_COSTS.damage.gettingHitPerPower;
+
+    // Body shots drain extra stamina
+    const isBody = location === 'body';
+    if (isBody) {
+      cost *= STAMINA_COSTS.damage.bodyHitMultiplier;
+    }
+
+    return cost;
+  }
+
+  /**
    * Calculate stamina recovery for this tick
+   * Recovery should be meaningful but not instant - fighters need to truly rest to recover
+   * Recovery is SLOW - you can't out-recover the cost of fighting
+   *
+   * KEY: Recovery efficiency decreases as stamina increases - prevents pinning at 100%
    */
   calculateRecovery(fighter, decision, deltaTime) {
-    // Base recovery rate from cardio - GENEROUS for sustainable fights
-    // High cardio fighters (90+) recover significantly faster
-    // This helps pressure fighters who have elite conditioning
-    const baseRate = fighter.stamina.cardio * 0.018;  // Increased from 0.015
+    // Base recovery rate from cardio
+    // Elite cardio (90) ~= 0.72/sec base, Average (70) ~= 0.56/sec, Poor (50) ~= 0.40/sec
+    const baseRate = fighter.stamina.cardio * 0.008;
 
-    // State modifier - now all states have some recovery
+    // State modifier - only recover meaningfully when truly resting
     const stateMod = this.getStateRecoveryModifier(fighter);
 
-    // Body damage reduces recovery
-    const bodyDamageMod = 1 - (fighter.bodyDamage / 250);
+    // Attribute bonuses - ADDITIVE not multiplicative to prevent stacking abuse
+    const paceControlBonus = (fighter.stamina.paceControl - 50) * 0.005;
+    const recoveryBonus = (fighter.stamina.recoveryRate - 50) * 0.005;
+    const attributeBonus = 1 + Math.min(0.35, paceControlBonus + recoveryBonus);
 
-    // Head damage slightly reduces recovery
-    const headDamageMod = 1 - (fighter.headDamage / 500);
+    // Body damage reduces recovery significantly
+    const bodyDamageMod = 1 - (fighter.bodyDamage / 150);
+
+    // Head damage reduces recovery
+    const headDamageMod = 1 - (fighter.headDamage / 300);
 
     // Age factor
     const ageMod = this.getAgeRecoveryModifier(fighter.physical.age);
 
-    // Calculate total recovery
-    let recovery = baseRate * stateMod * bodyDamageMod * headDamageMod * ageMod * deltaTime;
+    // STAMINA CEILING - Recovery efficiency drops as stamina increases
+    // This prevents fighters from pinning at 100%
+    // At 50% stamina: 100% efficiency (full recovery rate)
+    // At 75% stamina: 60% efficiency
+    // At 90% stamina: 25% efficiency
+    // At 95% stamina: 10% efficiency
+    // At 100% stamina: 0% efficiency (no recovery when full)
+    const staminaPercent = fighter.getStaminaPercent();
+    const ceilingEfficiency = this.getRecoveryCeilingEfficiency(staminaPercent);
 
-    // Only zero recovery when hurt (survival mode)
+    // Calculate total recovery
+    let recovery = baseRate * stateMod * attributeBonus * bodyDamageMod * headDamageMod * ageMod * ceilingEfficiency * deltaTime;
+
+    // Zero recovery when hurt (survival mode)
     if (fighter.state === FighterState.HURT) {
       recovery = 0;
     }
 
     return Math.max(0, recovery);
+  }
+
+  /**
+   * Get recovery efficiency based on current stamina level
+   * Creates a "ceiling effect" - harder to recover as you approach 100%
+   * This prevents fighters from pinning at max stamina
+   */
+  getRecoveryCeilingEfficiency(staminaPercent) {
+    // Below 50%: full efficiency
+    if (staminaPercent <= 0.50) return 1.0;
+
+    // 50-70%: gradual decline (100% -> 80%)
+    if (staminaPercent <= 0.70) {
+      return 1.0 - (staminaPercent - 0.50) * 1.0; // 1.0 at 50%, 0.8 at 70%
+    }
+
+    // 70-85%: steeper decline (80% -> 40%)
+    if (staminaPercent <= 0.85) {
+      return 0.8 - (staminaPercent - 0.70) * 2.67; // 0.8 at 70%, 0.4 at 85%
+    }
+
+    // 85-95%: steep decline (40% -> 10%)
+    if (staminaPercent <= 0.95) {
+      return 0.4 - (staminaPercent - 0.85) * 3.0; // 0.4 at 85%, 0.1 at 95%
+    }
+
+    // 95-100%: nearly impossible to recover (10% -> 0%)
+    return Math.max(0, 0.1 - (staminaPercent - 0.95) * 2.0);
   }
 
   /**
@@ -374,15 +452,13 @@ export class StaminaManager {
     const state = fighter.state;
     const subState = fighter.subState;
 
-    // Base state modifier
-    let modifier = RECOVERY_RATES.states[state] || 0;
-
-    // Sub-state modifier for defensive
+    // For defensive state, use sub-state modifier directly (not multiplied)
     if (state === FighterState.DEFENSIVE && subState) {
-      modifier *= RECOVERY_RATES.defensiveSubStates[subState] || 0.5;
+      return RECOVERY_RATES.defensiveSubStates[subState] || 0.5;
     }
 
-    return modifier;
+    // Otherwise use base state modifier
+    return RECOVERY_RATES.states[state] || 0;
   }
 
   /**
@@ -399,29 +475,34 @@ export class StaminaManager {
 
   /**
    * Calculate between-round recovery
+   * DYNAMIC: Significant recovery between rounds - the minute break matters
    */
   calculateBetweenRoundRecovery(fighter) {
-    // Base from recovery rate attribute - BALANCED for gradual fatigue
-    // A fighter with 75 recoveryRate should recover ~34% of max stamina between rounds
-    // This allows fights to go 12 rounds while still building fatigue
-    const baseRecovery = fighter.maxStamina * (fighter.stamina.recoveryRate / 100) * 0.45;
+    // Base from recovery rate attribute - GENEROUS for dramatic round-to-round swings
+    // Elite recovery (90) = can recover ~50% of max between rounds
+    // Average recovery (70) = can recover ~35% of max
+    // Poor recovery (50) = can recover ~25% of max
+    const baseRecovery = fighter.maxStamina * (fighter.stamina.recoveryRate / 100) * 0.55;
 
-    // Corner effectiveness bonus (up to 12% extra)
+    // Cardio bonus - well-conditioned fighters recover better between rounds
+    const cardioBonus = 1 + (fighter.stamina.cardio - 50) * 0.008;
+
+    // Corner effectiveness bonus (up to 15% extra)
     const cornerBonus = fighter.corner?.headTrainer?.strategySkill
-      ? (fighter.corner.headTrainer.strategySkill / 100) * 0.12
+      ? (fighter.corner.headTrainer.strategySkill / 100) * 0.15
       : 0;
 
-    // Body damage penalty - body work wears you down
-    const bodyPenalty = 1 - (fighter.bodyDamage / 250);
+    // Body damage penalty - body work accumulates and hurts recovery
+    const bodyPenalty = 1 - (fighter.bodyDamage / 200);
 
     // Age factor
     const ageMod = this.getAgeRecoveryModifier(fighter.physical.age);
 
     // Calculate total
-    let recovery = baseRecovery * (1 + cornerBonus) * bodyPenalty * ageMod;
+    let recovery = baseRecovery * cardioBonus * (1 + cornerBonus) * bodyPenalty * ageMod;
 
-    // Cap at 55% of max - can recover decently but not fully
-    recovery = Math.min(recovery, fighter.maxStamina * 0.55);
+    // Cap at 60% of max - significant recovery but can't fully reset
+    recovery = Math.min(recovery, fighter.maxStamina * 0.60);
 
     return recovery;
   }

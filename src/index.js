@@ -230,8 +230,11 @@ async function runFight(args) {
       const simulation = createSimulation(fighterA, fighterB, fightConfig);
 
       // Create and initialize TUI based on display mode
-      const displayMode = options.display || 'hbo';
-      const tui = displayMode === 'arcade' ? new ArcadeTUI() : new SimpleTUI();
+      const displayMode = options.display || 'arcade';
+      const themeName = options.theme || 'cosmic';
+      const tui = displayMode === 'arcade'
+        ? new ArcadeTUI({ theme: themeName })
+        : new SimpleTUI();
       tui.initialize();
 
       // Connect TUI to simulation for round prompts
@@ -242,6 +245,9 @@ async function runFight(args) {
 
       // Run simulation
       await simulation.start();
+
+      // Wait for user to exit the TUI
+      await tui.waitForExit();
     }
 
   } catch (error) {
@@ -546,29 +552,17 @@ async function runGameMenu() {
     }
 
     // User selected a fight - run it
+    // TUI will wait for user input before returning
     await runFight([
       result.pathA,
       result.pathB,
       '--rounds', String(result.rounds),
       '--speed', String(result.speed),
-      '--display', result.display || 'hbo'
+      '--display', result.display || 'arcade',
+      '--theme', result.theme || 'cosmic'
     ]);
 
-    // After fight ends, ask if they want to continue
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
-    const answer = await new Promise(resolve => {
-      rl.question('\n  Press Enter to return to menu (or Q to quit): ', resolve);
-    });
-    rl.close();
-
-    if (answer.toLowerCase() === 'q') {
-      console.log('\n  Thanks for using Fight Fortress!\n');
-      return;
-    }
+    // Loop back to menu automatically after fight ends
   }
 }
 
@@ -982,6 +976,8 @@ function parseOptions(args) {
       options.count = parseInt(args[++i], 10);
     } else if (arg === '--display' && args[i + 1]) {
       options.display = args[++i];  // 'hbo' or 'arcade'
+    } else if (arg === '--theme' && args[i + 1]) {
+      options.theme = args[++i];  // cosmic, catppuccin, tokyoNight, gruvbox, rosePine
     }
   }
 

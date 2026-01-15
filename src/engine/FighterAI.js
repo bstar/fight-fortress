@@ -54,11 +54,11 @@ const STYLE_WEIGHTS = {
 
   'swarmer': {
     stateWeights: {
-      [FighterState.OFFENSIVE]: 0.52,  // Swarmers are relentlessly offensive
+      [FighterState.OFFENSIVE]: 0.54,  // Swarmers are relentlessly offensive
       [FighterState.DEFENSIVE]: 0.05,
       [FighterState.TIMING]: 0.03,
-      [FighterState.MOVING]: 0.30,  // Swarmers constantly closing distance
-      [FighterState.CLINCH]: 0.10
+      [FighterState.MOVING]: 0.32,  // Swarmers constantly closing distance
+      [FighterState.CLINCH]: 0.06   // Swarmers want to punch, not hold
     },
     punchWeights: {
       [PunchType.JAB]: 0.20,
@@ -75,11 +75,11 @@ const STYLE_WEIGHTS = {
 
   'slugger': {
     stateWeights: {
-      [FighterState.OFFENSIVE]: 0.45,  // Sluggers are aggressive but need to pick shots
+      [FighterState.OFFENSIVE]: 0.47,  // Sluggers are aggressive but need to pick shots
       [FighterState.DEFENSIVE]: 0.10,
       [FighterState.TIMING]: 0.08,     // Some timing to set up bombs
-      [FighterState.MOVING]: 0.27,     // Sluggers stalk and cut off ring
-      [FighterState.CLINCH]: 0.10
+      [FighterState.MOVING]: 0.29,     // Sluggers stalk and cut off ring
+      [FighterState.CLINCH]: 0.06      // Sluggers want to trade, not hold
     },
     punchWeights: {
       // Sluggers use jabs but favor power when they throw
@@ -135,11 +135,11 @@ const STYLE_WEIGHTS = {
 
   'inside-fighter': {
     stateWeights: {
-      [FighterState.OFFENSIVE]: 0.48,  // Inside fighters explode offensively when close
+      [FighterState.OFFENSIVE]: 0.50,  // Inside fighters explode offensively when close
       [FighterState.DEFENSIVE]: 0.07,
       [FighterState.TIMING]: 0.03,
-      [FighterState.MOVING]: 0.27,  // Inside fighters constantly closing distance
-      [FighterState.CLINCH]: 0.15
+      [FighterState.MOVING]: 0.32,  // Inside fighters constantly closing distance
+      [FighterState.CLINCH]: 0.08   // Reduced - refs break clinches fast
     },
     punchWeights: {
       [PunchType.JAB]: 0.10,
@@ -488,6 +488,32 @@ export class FighterAI {
    */
   applyStateModifiers(weights, fighter, opponent, situation) {
     // =========================================================================
+    // HIGH STAMINA AGGRESSION
+    // Fresh fighters should be comfortable letting their hands go
+    // More offensive, more power shots, more combinations
+    // =========================================================================
+    if (situation.staminaPercent >= 0.80) {
+      // Fresh fighter - be aggressive, throw big shots
+      const freshBonus = (situation.staminaPercent - 0.80) / 0.20; // 0 at 80%, 1 at 100%
+
+      // Increase offensive output significantly when fresh
+      weights[FighterState.OFFENSIVE] *= 1.3 + (freshBonus * 0.4); // 1.3x to 1.7x
+      weights[FighterState.TIMING] *= 0.8; // Less waiting around
+      weights[FighterState.DEFENSIVE] *= 0.7 - (freshBonus * 0.2); // 0.7x to 0.5x
+
+      // Work rate amplifies this - high work rate fighters take advantage of full tank
+      const workRateBonus = (fighter.stamina?.workRate || 70) / 100;
+      weights[FighterState.OFFENSIVE] *= 1 + (workRateBonus * 0.3);
+
+      // Aggressive styles get extra boost when fresh
+      const style = fighter.style?.primary || 'boxer-puncher';
+      if (style === 'swarmer' || style === 'slugger') {
+        weights[FighterState.OFFENSIVE] *= 1.2;
+        weights[FighterState.MOVING] *= 1.1; // Press forward
+      }
+    }
+
+    // =========================================================================
     // CONTEXT-AWARE STAMINA CONSERVATION
     // Starts at 50% stamina but behavior depends on fight context
     // Fighters protect leads when ahead, push harder when behind
@@ -659,7 +685,7 @@ export class FighterAI {
       // Long reach fighter got stuck inside - need to create distance!
       // This is critical - Lewis should escape inside rather than trade
       weights[FighterState.MOVING] *= 2.0;
-      weights[FighterState.CLINCH] *= 1.5; // Can use clinch to reset
+      weights[FighterState.CLINCH] *= 1.1; // Slight clinch preference but refs break it fast
       weights[FighterState.OFFENSIVE] *= 0.7; // Less effective inside
     } else if (reachAdvantage < -15 && situation.distance < 3) {
       // Short reach fighter inside - their sweet spot
@@ -670,18 +696,17 @@ export class FighterAI {
     if (situation.distance < 3) {
       if (fighter.style.primary === 'out-boxer') {
         weights[FighterState.MOVING] *= 1.5;
-        weights[FighterState.CLINCH] *= 1.3;
+        // Out-boxers prefer to move rather than clinch
       } else if (fighter.style.primary === 'boxer-puncher' && reachAdvantage > 10) {
         // Boxer-puncher with reach doesn't want to be inside
         weights[FighterState.MOVING] *= 1.4;
-        weights[FighterState.CLINCH] *= 1.2;
       }
     }
 
-    // In corner or on ropes - need to escape
+    // In corner or on ropes - need to escape (not clinch - ref will just break it)
     if (situation.inCorner || situation.onRopes) {
-      weights[FighterState.MOVING] *= 1.5;
-      weights[FighterState.CLINCH] *= 1.3;
+      weights[FighterState.MOVING] *= 1.8;
+      weights[FighterState.OFFENSIVE] *= 1.2; // Punch your way out
     }
 
     // Championship rounds - use clutch factor
@@ -712,14 +737,14 @@ export class FighterAI {
       // More cautious - decrease offense, increase defense
       weights[FighterState.OFFENSIVE] *= 1 + aggrMod;  // aggrMod is negative, so this reduces
       weights[FighterState.DEFENSIVE] *= 1 - aggrMod;  // aggrMod is negative, so this increases
-      weights[FighterState.CLINCH] *= 1 - aggrMod * 0.3;  // More likely to clinch when scared
+      // Scared fighters try to survive with defense, not clinching (refs break it fast)
     }
 
     // Defense modifier affects defensive effectiveness preference
     if (defMod < 0) {
-      // Poor defense - might want to stay busy or clinch instead
+      // Poor defense - might want to stay busy or avoid exchanges
       weights[FighterState.DEFENSIVE] *= 1 + defMod;
-      weights[FighterState.CLINCH] *= 1 - defMod * 0.5;
+      weights[FighterState.MOVING] *= 1 - defMod * 0.3; // Move more if defense is poor
     }
   }
 
@@ -862,8 +887,8 @@ export class FighterAI {
       // Reduce offensive capability significantly
       offensiveMultiplier *= 0.5 + (criticalMultiplier * 0.3);
 
-      // Increase clinching for recovery
-      clinchMultiplier *= 1.5;
+      // Slight clinch increase but ref breaks them fast anyway
+      clinchMultiplier *= 1.15;
 
       // Defensive priority
       defensiveMultiplier *= 1.3;
@@ -872,7 +897,7 @@ export class FighterAI {
     // Zero stamina - forced into survival mode
     if (staminaPercent <= 0.05) {
       offensiveMultiplier *= 0.3;
-      clinchMultiplier *= 2.0;
+      clinchMultiplier *= 1.3; // Some clinching but ref won't allow much
       defensiveMultiplier *= 1.5;
       movementMultiplier *= 0.5; // Can barely move
     }
@@ -917,7 +942,7 @@ export class FighterAI {
     return {
       offensiveMultiplier: Math.max(0.2, Math.min(2.0, offensiveMultiplier)),
       defensiveMultiplier: Math.max(0.5, Math.min(2.0, defensiveMultiplier)),
-      clinchMultiplier: Math.max(0.3, Math.min(3.0, clinchMultiplier)),
+      clinchMultiplier: Math.max(0.3, Math.min(1.5, clinchMultiplier)), // Reduced - refs break clinches fast
       timingMultiplier: Math.max(0.4, Math.min(1.8, timingMultiplier)),
       movementMultiplier: Math.max(0.3, Math.min(1.5, movementMultiplier))
     };
@@ -1150,6 +1175,44 @@ export class FighterAI {
         return this.generateCombination(fighter, opponent, situation);
     }
 
+    // HIGH STAMINA = POWER PUNCH PREFERENCE
+    // Fresh fighters throw bigger, more energy-expensive punches
+    if (situation.staminaPercent >= 0.75) {
+      const freshBonus = (situation.staminaPercent - 0.75) / 0.25; // 0 at 75%, 1 at 100%
+
+      // Boost all power punches when fresh
+      punchWeights[PunchType.CROSS] *= 1.3 + (freshBonus * 0.5);       // 1.3x to 1.8x
+      punchWeights[PunchType.REAR_HOOK] *= 1.3 + (freshBonus * 0.5);
+      punchWeights[PunchType.REAR_UPPERCUT] *= 1.2 + (freshBonus * 0.4);
+      punchWeights[PunchType.LEAD_HOOK] *= 1.2 + (freshBonus * 0.3);
+      punchWeights[PunchType.BODY_HOOK_REAR] *= 1.2 + (freshBonus * 0.4);
+
+      // Reduce jab preference when fresh - why poke when you can blast?
+      punchWeights[PunchType.JAB] *= 0.7 - (freshBonus * 0.2); // 0.7x to 0.5x
+      punchWeights[PunchType.BODY_JAB] *= 0.8;
+
+      // Power punchers get extra boost when fresh
+      const knockoutPower = fighter.power?.knockoutPower || 70;
+      if (knockoutPower >= 80) {
+        punchWeights[PunchType.CROSS] *= 1.2;
+        punchWeights[PunchType.REAR_HOOK] *= 1.2;
+      }
+    }
+
+    // LOW STAMINA = JAB MORE, POWER LESS
+    // Tired fighters conserve energy with lighter punches
+    if (situation.staminaPercent < 0.40) {
+      const fatigueLevel = 1 - (situation.staminaPercent / 0.40); // 0 at 40%, 1 at 0%
+
+      // Reduce power punch preference when tired
+      punchWeights[PunchType.CROSS] *= 1 - (fatigueLevel * 0.4);
+      punchWeights[PunchType.REAR_HOOK] *= 1 - (fatigueLevel * 0.5);
+      punchWeights[PunchType.REAR_UPPERCUT] *= 1 - (fatigueLevel * 0.5);
+
+      // Favor jabs when tired - less energy cost
+      punchWeights[PunchType.JAB] *= 1 + (fatigueLevel * 0.5);
+    }
+
     // Modify weights based on distance
     if (situation.distance < 3) {
       // Inside - favor hooks and uppercuts
@@ -1178,10 +1241,45 @@ export class FighterAI {
 
   /**
    * Generate a combination
+   * Combo length varies based on stamina - fresh fighters throw longer combos
    */
   generateCombination(fighter, opponent, situation) {
     const comboPunches = [];
-    const comboLength = 2 + Math.floor(Math.random() * 3); // 2-4 punches
+
+    // STAMINA AFFECTS COMBO LENGTH
+    // Fresh (80%+): 3-6 punch combos - let hands go
+    // Good (50-80%): 2-4 punch combos - normal
+    // Tired (<50%): 2-3 punch combos - conserve energy
+    // Gassed (<25%): 2 punch combos only - survival
+    let minLength = 2;
+    let maxLength = 4;
+    const staminaPercent = situation.staminaPercent ?? 1;
+
+    if (staminaPercent >= 0.80) {
+      // Fresh - throw big combinations
+      minLength = 3;
+      maxLength = 6;
+    } else if (staminaPercent >= 0.50) {
+      // Normal range
+      minLength = 2;
+      maxLength = 4;
+    } else if (staminaPercent >= 0.25) {
+      // Tired - shorter combos
+      minLength = 2;
+      maxLength = 3;
+    } else {
+      // Gassed - minimal combos
+      minLength = 2;
+      maxLength = 2;
+    }
+
+    // Work rate allows longer combos at any stamina level
+    const workRate = fighter.stamina?.workRate || 70;
+    if (workRate >= 85) {
+      maxLength += 1;
+    }
+
+    const comboLength = minLength + Math.floor(Math.random() * (maxLength - minLength + 1));
 
     // Start with jab or lead hook
     if (situation.distance > 3.5) {
@@ -1194,26 +1292,22 @@ export class FighterAI {
     for (let i = 1; i < comboLength; i++) {
       const lastPunch = comboPunches[i - 1];
 
+      // When fresh, include more power punches in combinations
+      const includePowerShots = staminaPercent >= 0.70;
+
       // Logical follow-ups
       if (lastPunch === PunchType.JAB) {
-        comboPunches.push(this.selectFrom([
-          PunchType.CROSS,
-          PunchType.JAB,
-          PunchType.LEAD_HOOK,
-          PunchType.BODY_CROSS
-        ]));
+        const options = [PunchType.CROSS, PunchType.JAB, PunchType.LEAD_HOOK];
+        if (includePowerShots) options.push(PunchType.BODY_CROSS, PunchType.REAR_HOOK);
+        comboPunches.push(this.selectFrom(options));
       } else if (lastPunch === PunchType.CROSS) {
-        comboPunches.push(this.selectFrom([
-          PunchType.LEAD_HOOK,
-          PunchType.BODY_HOOK_LEAD,
-          PunchType.JAB
-        ]));
+        const options = [PunchType.LEAD_HOOK, PunchType.JAB];
+        if (includePowerShots) options.push(PunchType.BODY_HOOK_LEAD, PunchType.REAR_UPPERCUT);
+        comboPunches.push(this.selectFrom(options));
       } else if (lastPunch === PunchType.LEAD_HOOK) {
-        comboPunches.push(this.selectFrom([
-          PunchType.CROSS,
-          PunchType.REAR_HOOK,
-          PunchType.REAR_UPPERCUT
-        ]));
+        const options = [PunchType.CROSS];
+        if (includePowerShots) options.push(PunchType.REAR_HOOK, PunchType.REAR_UPPERCUT, PunchType.BODY_HOOK_REAR);
+        comboPunches.push(this.selectFrom(options));
       } else {
         comboPunches.push(this.selectFrom([
           PunchType.JAB,

@@ -19,6 +19,10 @@ export class SimpleTUI {
     this.isPaused = false;
     this.commentaryLines = [];
     this.commentaryGenerator = new CommentaryGenerator();
+
+    // Fight end state
+    this.fightEnded = false;
+    this.exitResolver = null;
   }
 
   /**
@@ -241,11 +245,31 @@ export class SimpleTUI {
    */
   setupKeys() {
     this.screen.key(['q', 'C-c', 'escape'], () => {
-      this.cleanup();
-      process.exit(0);
+      if (this.fightEnded) {
+        // Fight is over - cleanup and return to menu
+        this.cleanup();
+        if (this.exitResolver) {
+          this.exitResolver();
+        }
+      } else {
+        // Fight still in progress - exit program
+        this.cleanup();
+        process.exit(0);
+      }
     });
 
-    this.screen.key(['p', 'space'], () => {
+    // Any key returns to menu after fight ends
+    this.screen.key(['enter', 'space'], () => {
+      if (this.fightEnded) {
+        this.cleanup();
+        if (this.exitResolver) {
+          this.exitResolver();
+        }
+        return;
+      }
+    });
+
+    this.screen.key(['p'], () => {
       if (this.simulation) {
         if (this.simulation.isPaused) {
           this.simulation.resume();
@@ -870,8 +894,19 @@ export class SimpleTUI {
     // Display official scorecards
     this.displayScorecards(data);
 
-    this.updateStatus('Fight Complete - Press [Q] to exit');
+    this.fightEnded = true;
+    this.updateStatus('Fight Complete - Press any key to return to menu');
     this.screen.render();
+  }
+
+  /**
+   * Wait for user to exit after fight ends
+   * Returns a promise that resolves when user presses a key
+   */
+  waitForExit() {
+    return new Promise((resolve) => {
+      this.exitResolver = resolve;
+    });
   }
 
   /**

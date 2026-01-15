@@ -82,6 +82,18 @@ mental:
   experience: 92
   clutchFactor: 98       # Legendary in big moments
 
+# Tactics - Holyfield was notorious for using his head as a weapon
+# Multiple opponents complained about his "accidental" headbutts
+tactics:
+  dirtiness: 55          # Not overtly dirty but very willing to use "veteran" tactics
+  headbuttTendency: 70   # His trademark - opened cuts on Tyson, Lewis, Bowe
+  lowBlowTendency: 20    # Occasional
+  rabbitPunchTendency: 25
+  holdingTendency: 45    # Would hold when hurt or tired
+  elbowTendency: 15
+  pushTendency: 30       # Used physicality inside
+  clinchingTendency: 50  # Liked to clinch and work inside
+
 corner:
   headTrainer:
     name: "Don Turner"

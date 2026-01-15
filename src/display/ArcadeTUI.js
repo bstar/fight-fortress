@@ -6,9 +6,10 @@
 
 import blessed from 'blessed';
 import { CommentaryGenerator } from './CommentaryGenerator.js';
+import { getTheme, DEFAULT_THEME, getThemeList } from './themes.js';
 
 export class ArcadeTUI {
-  constructor() {
+  constructor(options = {}) {
     this.screen = null;
     this.boxes = {};
     this.fight = null;
@@ -20,11 +21,34 @@ export class ArcadeTUI {
     this.commentaryGenerator = new CommentaryGenerator();
     this.actionLog = [];
 
+    // Theme
+    this.themeName = options.theme || DEFAULT_THEME;
+    this.theme = getTheme(this.themeName);
+
     // Visual effects state
     this.lastHit = { fighter: null, time: 0, damage: 0, type: '' };
     this.comboCount = { A: 0, B: 0 };
     this.comboTimer = { A: 0, B: 0 };
     this.flashEffect = { A: false, B: false };
+
+    // Fight end state
+    this.fightEnded = false;
+    this.exitResolver = null;
+  }
+
+  /**
+   * Set theme by name
+   */
+  setTheme(themeName) {
+    this.themeName = themeName;
+    this.theme = getTheme(themeName);
+  }
+
+  /**
+   * Get available themes
+   */
+  static getAvailableThemes() {
+    return getThemeList();
   }
 
   initialize() {
@@ -40,6 +64,8 @@ export class ArcadeTUI {
   }
 
   createLayout() {
+    const t = this.theme; // Shorthand for theme
+
     // Dark background
     blessed.box({
       parent: this.screen,
@@ -47,7 +73,7 @@ export class ArcadeTUI {
       left: 0,
       width: '100%',
       height: '100%',
-      style: { bg: '#0a0a12' }
+      style: { bg: t.background }
     });
 
     // ══════════════════════════════════════════════════════
@@ -87,15 +113,15 @@ export class ArcadeTUI {
       style: { bg: '#08081a' }
     });
 
-    // Health bar A
-    this.boxes.healthA = blessed.box({
+    // STAMINA bar A (PRIMARY - more prominent, top position)
+    this.boxes.staminaA = blessed.box({
       parent: this.screen,
       top: 2,
       left: 0,
       width: '45%',
       height: 2,
       tags: true,
-      style: { bg: '#0f0505' }
+      style: { bg: '#050a0f' }
     });
 
     // Timer (center)
@@ -109,36 +135,36 @@ export class ArcadeTUI {
       style: { bg: '#0a0a12' }
     });
 
-    // Health bar B
-    this.boxes.healthB = blessed.box({
+    // STAMINA bar B (PRIMARY - more prominent)
+    this.boxes.staminaB = blessed.box({
       parent: this.screen,
       top: 2,
       left: '55%',
       width: '45%',
       height: 2,
       tags: true,
-      style: { bg: '#05050f' }
+      style: { bg: '#050a0f' }
     });
 
-    // Stamina bars
-    this.boxes.staminaA = blessed.box({
+    // Health bars (SECONDARY - smaller, below stamina)
+    this.boxes.healthA = blessed.box({
       parent: this.screen,
       top: 4,
       left: 0,
       width: '45%',
       height: 1,
       tags: true,
-      style: { bg: '#0a0a12' }
+      style: { bg: '#0a0505' }
     });
 
-    this.boxes.staminaB = blessed.box({
+    this.boxes.healthB = blessed.box({
       parent: this.screen,
       top: 4,
       left: '55%',
       width: '45%',
       height: 1,
       tags: true,
-      style: { bg: '#0a0a12' }
+      style: { bg: '#0a0505' }
     });
 
     // ══════════════════════════════════════════════════════
@@ -310,8 +336,27 @@ export class ArcadeTUI {
 
   setupKeys() {
     this.screen.key(['q', 'C-c', 'escape'], () => {
-      this.cleanup();
-      process.exit(0);
+      if (this.fightEnded) {
+        // Fight is over - cleanup and return to menu
+        this.cleanup();
+        if (this.exitResolver) {
+          this.exitResolver();
+        }
+      } else {
+        // Fight still in progress - exit program
+        this.cleanup();
+        process.exit(0);
+      }
+    });
+
+    // Any key returns to menu after fight ends
+    this.screen.key(['enter', 'space'], () => {
+      if (this.fightEnded) {
+        this.cleanup();
+        if (this.exitResolver) {
+          this.exitResolver();
+        }
+      }
     });
 
     this.screen.key(['p', 'space'], () => {
@@ -353,6 +398,7 @@ export class ArcadeTUI {
   // ══════════════════════════════════════════════════════
 
   createHealthBar(percent, width, isLeft, flash = false) {
+    // Health bar - SECONDARY display (smaller, below stamina)
     const filled = Math.round(percent * width);
     const empty = width - filled;
 
@@ -363,11 +409,11 @@ export class ArcadeTUI {
 
     if (flash) color = '#ffffff';
 
-    const filledChar = '█';
-    const emptyChar = '░';
+    const filledChar = '▬';
+    const emptyChar = '─';
 
     const filledStr = `{${color}-fg}${filledChar.repeat(Math.max(0, filled))}{/${color}-fg}`;
-    const emptyStr = `{#333-fg}${emptyChar.repeat(Math.max(0, empty))}{/#333-fg}`;
+    const emptyStr = `{#222-fg}${emptyChar.repeat(Math.max(0, empty))}{/#222-fg}`;
 
     if (isLeft) {
       return filledStr + emptyStr;
@@ -377,15 +423,19 @@ export class ArcadeTUI {
   }
 
   createStaminaBar(percent, width, isLeft) {
+    // Stamina bar - PRIMARY display (larger, more prominent)
     const filled = Math.round(percent * width);
     const empty = width - filled;
 
-    let color = '#00ccff';
-    if (percent < 0.25) color = '#ff4444';
-    else if (percent < 0.5) color = '#ffaa00';
+    // More dramatic color transitions for stamina
+    let color = '#00ddff';  // Bright cyan when full
+    if (percent < 0.15) color = '#ff2222';      // Critical red
+    else if (percent < 0.30) color = '#ff6600'; // Danger orange
+    else if (percent < 0.50) color = '#ffcc00'; // Warning yellow
+    else if (percent < 0.70) color = '#88ff00'; // Good green-yellow
 
-    const filledChar = '▬';
-    const emptyChar = '─';
+    const filledChar = '░';  // Light shade for stamina (vs solid █ for health)
+    const emptyChar = ' ';
 
     const filledStr = `{${color}-fg}${filledChar.repeat(Math.max(0, filled))}{/${color}-fg}`;
     const emptyStr = `{#222-fg}${emptyChar.repeat(Math.max(0, empty))}{/#222-fg}`;
@@ -441,6 +491,7 @@ export class ArcadeTUI {
   }
 
   updateHealthBars(stateA, stateB) {
+    // Health bar - SECONDARY (single line, below stamina)
     const healthA = 1 - (stateA?.damage?.headPercent ?? 0);
     const healthB = 1 - (stateB?.damage?.headPercent ?? 0);
     const width = Math.floor(this.screen.width * 0.42);
@@ -448,24 +499,40 @@ export class ArcadeTUI {
     const barA = this.createHealthBar(healthA, width, true, this.flashEffect.A);
     const barB = this.createHealthBar(healthB, width, false, this.flashEffect.B);
 
-    this.boxes.healthA.setContent(
-      ` ${barA}\n` +
-      ` {bold}${Math.round(healthA * 100)}%{/bold} {gray-fg}HP{/gray-fg}`
-    );
-
-    this.boxes.healthB.setContent(
-      `${barB} \n` +
-      `{right}{gray-fg}HP{/gray-fg} {bold}${Math.round(healthB * 100)}%{/bold} {/right}`
-    );
+    this.boxes.healthA.setContent(` ${barA} {gray-fg}HP{/gray-fg} {bold}${Math.round(healthA * 100)}%{/bold}`);
+    this.boxes.healthB.setContent(`{right}{bold}${Math.round(healthB * 100)}%{/bold} {gray-fg}HP{/gray-fg} ${barB} {/right}`);
   }
 
   updateStaminaBars(stateA, stateB) {
+    // Stamina bar - PRIMARY (two lines, prominent display)
     const stamA = stateA?.stamina?.percent ?? 1;
     const stamB = stateB?.stamina?.percent ?? 1;
     const width = Math.floor(this.screen.width * 0.42);
 
-    this.boxes.staminaA.setContent(` ${this.createStaminaBar(stamA, width, true)} {gray-fg}STM{/gray-fg}`);
-    this.boxes.staminaB.setContent(`{right}{gray-fg}STM{/gray-fg} ${this.createStaminaBar(stamB, width, false)} {/right}`);
+    const barA = this.createStaminaBar(stamA, width, true);
+    const barB = this.createStaminaBar(stamB, width, false);
+
+    // Add tier indicator for visual feedback
+    const tierA = this.getStaminaTierLabel(stamA);
+    const tierB = this.getStaminaTierLabel(stamB);
+
+    this.boxes.staminaA.setContent(
+      ` ${barA}\n` +
+      ` {bold}${Math.round(stamA * 100)}%{/bold} {gray-fg}ENERGY{/gray-fg} ${tierA}`
+    );
+
+    this.boxes.staminaB.setContent(
+      `${barB} \n` +
+      `{right}${tierB} {gray-fg}ENERGY{/gray-fg} {bold}${Math.round(stamB * 100)}%{/bold} {/right}`
+    );
+  }
+
+  getStaminaTierLabel(percent) {
+    if (percent >= 0.8) return '{#00ddff-fg}FRESH{/#00ddff-fg}';
+    if (percent >= 0.6) return '{#88ff00-fg}GOOD{/#88ff00-fg}';
+    if (percent >= 0.4) return '{#ffcc00-fg}TIRED{/#ffcc00-fg}';
+    if (percent >= 0.25) return '{#ff6600-fg}GASSED{/#ff6600-fg}';
+    return '{#ff2222-fg}EMPTY{/#ff2222-fg}';
   }
 
   updateFighterPanel(id, state) {
@@ -730,6 +797,9 @@ export class ArcadeTUI {
     sim.on('hurt', (data) => this.onHurt(data));
     sim.on('recovery', (data) => this.onRecovery(data));
     sim.on('count', (data) => this.onCount(data));
+    sim.on('foul', (data) => this.onFoul(data));
+    sim.on('pointDeduction', (data) => this.onPointDeduction(data));
+    sim.on('refereeCommand', (data) => this.onRefereeCommand(data));
     sim.on('fightEnding', (data) => this.onFightEnding(data));
     sim.on('fightEnd', (data) => this.onFightEnd(data));
   }
@@ -992,6 +1062,84 @@ export class ArcadeTUI {
   }
 
   /**
+   * Handle foul event
+   */
+  onFoul(data) {
+    const attacker = data.attacker === 'A' ? this.fight.fighterA : this.fight.fighterB;
+    const target = data.attacker === 'A' ? this.fight.fighterB : this.fight.fighterA;
+    const color = '#ffaa00'; // Warning yellow
+
+    // Only show detected fouls
+    if (!data.detected) {
+      // Undetected foul - subtle indication
+      this.addAction(`{#666666-fg}${attacker.getShortName()} ${data.description}...{/#666666-fg}`);
+      return;
+    }
+
+    // Detected foul
+    this.addCommentary('');
+    this.addCommentary(`{bold}{${color}-fg}⚠ FOUL! ${data.foulName.toUpperCase()} ⚠{/${color}-fg}{/bold}`);
+    this.addCommentary(`${attacker.getShortName()} ${data.description}!`);
+
+    if (data.intentional) {
+      this.addCommentary(`{#ff4444-fg}That looked intentional!{/#ff4444-fg}`);
+    }
+
+    this.addAction(`{${color}-fg}⚠ ${data.foulName}!{/${color}-fg}`);
+
+    // Show damage if significant
+    if (data.damage > 3) {
+      this.addCommentary(`{#ff4444-fg}${target.getShortName()} is hurt by the foul!{/#ff4444-fg}`);
+    }
+
+    if (data.cutCaused) {
+      this.addCommentary(`{#ff0000-fg}The foul opens a cut!{/#ff0000-fg}`);
+    }
+
+    // Consequence
+    if (data.warning) {
+      this.addCommentary(`Referee issues a warning to ${attacker.getShortName()}`);
+    }
+
+    this.screen.render();
+  }
+
+  /**
+   * Handle point deduction
+   */
+  onPointDeduction(data) {
+    const fighter = data.fighter === 'A' ? this.fight.fighterA : this.fight.fighterB;
+
+    this.addCommentary('');
+    this.addCommentary(`{bold}{#ff0000-fg}★ POINT DEDUCTED ★{/#ff0000-fg}{/bold}`);
+    this.addCommentary(`${fighter.getShortName()} loses a point for ${data.reason}`);
+    this.addCommentary(`Total deductions: ${data.totalDeductions}`);
+
+    this.addAction(`{#ff0000-fg}★ -1 POINT: ${fighter.getShortName()} ★{/#ff0000-fg}`);
+
+    this.screen.render();
+  }
+
+  /**
+   * Handle referee commands (BREAK, BOX, etc.)
+   */
+  onRefereeCommand(data) {
+    const color = data.type === 'BREAK' ? '#ffaa00' : '#88ff88';
+
+    // Show referee command in action feed
+    this.addAction(`{${color}-fg}{bold}REF: "${data.text}"{/bold}{/${color}-fg}`);
+
+    // For BREAK command, also show in commentary
+    if (data.type === 'BREAK') {
+      this.addCommentary(`{#ffaa00-fg}${data.refName}: "${data.text}" - Fighters separated{/#ffaa00-fg}`);
+    } else if (data.type === 'WORK') {
+      this.addCommentary(`{#aaaaaa-fg}${data.refName}: "${data.text}"{/#aaaaaa-fg}`);
+    }
+
+    this.screen.render();
+  }
+
+  /**
    * Handle referee count during knockdown - arcade style big numbers
    */
   onCount(data) {
@@ -1145,8 +1293,19 @@ export class ArcadeTUI {
       this.addCommentary(`{bold}{#ffcc00-fg}★ DRAW ★{/#ffcc00-fg}{/bold}`);
     }
 
-    this.updateStatus('{green-fg}{bold}FIGHT OVER{/bold} - Press [Q] to exit{/green-fg}');
+    this.fightEnded = true;
+    this.updateStatus('{green-fg}{bold}FIGHT OVER{/bold} - Press any key to return to menu{/green-fg}');
     this.screen.render();
+  }
+
+  /**
+   * Wait for user to exit after fight ends
+   * Returns a promise that resolves when user presses a key
+   */
+  waitForExit() {
+    return new Promise((resolve) => {
+      this.exitResolver = resolve;
+    });
   }
 
   // ══════════════════════════════════════════════════════

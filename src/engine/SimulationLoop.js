@@ -5,9 +5,11 @@
 
 import { FightStatus, StoppageType } from '../models/Fight.js';
 import { FighterState } from '../models/Fighter.js';
+import { Referee } from '../models/Referee.js';
 import { EventEmitter } from 'events';
 import { FightRenderer } from '../display/FightRenderer.js';
 import { FightEffectsManager } from './FightEffectsManager.js';
+import { FoulManager, FoulType } from './FoulManager.js';
 
 export class SimulationLoop extends EventEmitter {
   constructor(fight, options = {}) {
@@ -45,6 +47,21 @@ export class SimulationLoop extends EventEmitter {
 
     // Fight effects manager for buffs/debuffs
     this.effectsManager = new FightEffectsManager();
+
+    // Foul manager for dirty fighting tactics
+    this.foulManager = new FoulManager();
+
+    // Create proper referee (use fight's referee config or default)
+    this.referee = fight.referee instanceof Referee
+      ? fight.referee
+      : Referee.createPreset('default');
+
+    // Clinch tracking
+    this.clinchState = {
+      active: false,
+      startTime: null,
+      duration: 0
+    };
 
     // Simulation state
     this.isRunning = false;
@@ -459,8 +476,15 @@ export class SimulationLoop extends EventEmitter {
     const decisionA = this.getAIDecision('A');
     const decisionB = this.getAIDecision('B');
 
+    // Check for strategic fouls
+    await this.checkForFouls('A', decisionA);
+    await this.checkForFouls('B', decisionB);
+
     // Process state updates
     this.processStateUpdates(decisionA, decisionB);
+
+    // Check for clinch and referee separation
+    await this.checkClinchState();
 
     // Resolve combat interactions
     const combatResult = this.resolveCombat(decisionA, decisionB);
@@ -588,6 +612,182 @@ export class SimulationLoop extends EventEmitter {
   }
 
   /**
+   * Check for strategic fouls from a fighter
+   */
+  async checkForFouls(fighterId, decision) {
+    const fighter = this.fight.getFighter(fighterId);
+    const opponentId = fighterId === 'A' ? 'B' : 'A';
+    const opponent = this.fight.getFighter(opponentId);
+    const round = this.fight.getCurrentRound();
+
+    // Build situation for foul decision
+    const situation = {
+      staminaPercent: fighter.getStaminaPercent(),
+      distance: this.positionTracker?.getDistance() || 3,
+      round: this.fight.currentRound,
+      scoreDiff: this.estimateScoreDiff(fighterId)
+    };
+
+    // Check if fighter attempts a foul
+    const foulType = this.foulManager.shouldAttemptFoul(fighter, opponent, situation, fighterId);
+    if (!foulType) return;
+
+    // Execute the foul
+    const result = this.foulManager.executeFoul(
+      foulType,
+      fighter,
+      opponent,
+      fighterId,
+      this.fight.referee
+    );
+
+    if (!result) return;
+
+    // Apply effects
+    this.foulManager.applyFoulEffects(result, fighter, opponent);
+
+    // Emit foul event
+    const foulEvent = {
+      type: 'FOUL',
+      foulType: result.type,
+      foulName: result.name,
+      attacker: fighterId,
+      target: opponentId,
+      detected: result.detected,
+      intentional: result.intentional,
+      warning: result.warning,
+      pointDeduction: result.pointDeduction,
+      disqualification: result.disqualification,
+      damage: result.damage,
+      cutCaused: result.cutCaused,
+      description: result.description,
+      round: round?.number,
+      time: round?.currentTime
+    };
+
+    this.emit('foul', foulEvent);
+    this.renderEvent(foulEvent);
+
+    // Handle consequences
+    if (result.disqualification) {
+      this.fight.stopFight(StoppageType.DQ, opponentId);
+    } else if (result.pointDeduction) {
+      // Emit point deduction event (FoulManager already tracks deductions)
+      this.emit('pointDeduction', {
+        fighter: fighterId,
+        reason: result.name,
+        totalDeductions: this.foulManager.getPointDeductions(fighterId)
+      });
+    }
+
+    // Brief pause for fouls to register visually
+    if (this.options.realTime && result.detected) {
+      await this.sleep(500);
+    }
+  }
+
+  /**
+   * Estimate score difference for a fighter (positive = ahead, negative = behind)
+   */
+  estimateScoreDiff(fighterId) {
+    const fighter = this.fight.getFighter(fighterId);
+    const opponentId = fighterId === 'A' ? 'B' : 'A';
+    const opponent = this.fight.getFighter(opponentId);
+
+    // Simple heuristic: punches landed + knockdowns
+    const fighterScore = (fighter.fightStats?.punchesLanded || 0) +
+      (fighter.fightStats?.knockdownsScored || 0) * 50;
+    const opponentScore = (opponent.fightStats?.punchesLanded || 0) +
+      (opponent.fightStats?.knockdownsScored || 0) * 50;
+
+    return Math.round((fighterScore - opponentScore) / 20); // Rough round estimate
+  }
+
+  /**
+   * Check clinch state and have referee break it up if needed
+   */
+  async checkClinchState() {
+    const fighterA = this.fight.fighterA;
+    const fighterB = this.fight.fighterB;
+
+    // Check if either fighter is in clinch state
+    const inClinch = fighterA.state === FighterState.CLINCH ||
+                     fighterB.state === FighterState.CLINCH;
+
+    if (inClinch) {
+      // Track clinch duration
+      if (!this.clinchState.active) {
+        this.clinchState.active = true;
+        this.clinchState.startTime = Date.now();
+        this.clinchState.duration = 0;
+      } else {
+        this.clinchState.duration += this.options.tickRate;
+      }
+
+      // Check if referee should break it
+      const breakResult = this.referee.checkClinchBreak(
+        this.clinchState.duration,
+        fighterA,
+        fighterB
+      );
+
+      if (breakResult.command === 'WORK') {
+        // Referee tells fighters to work - emit command
+        const cmd = this.referee.issueCommand('WORK');
+        this.emit('refereeCommand', {
+          type: 'WORK',
+          text: cmd.text,
+          refName: this.referee.name
+        });
+      }
+
+      if (breakResult.shouldBreak) {
+        // Referee breaks the clinch
+        const cmd = this.referee.issueCommand('BREAK');
+        this.emit('refereeCommand', {
+          type: 'BREAK',
+          text: cmd.text,
+          refName: this.referee.name
+        });
+
+        // Force fighters out of clinch state
+        fighterA.transitionTo(FighterState.NEUTRAL);
+        fighterB.transitionTo(FighterState.NEUTRAL);
+
+        // Reset clinch tracking
+        this.clinchState.active = false;
+        this.clinchState.duration = 0;
+        this.referee.resetClinch();
+
+        // Create separation - push fighters apart
+        if (this.positionTracker) {
+          this.positionTracker.separateFighters(3.5); // Push to medium range
+        }
+
+        // Small pause for break command
+        if (this.options.realTime) {
+          await this.sleep(breakResult.delay * 1000);
+        }
+
+        // Resume with BOX command
+        const boxCmd = this.referee.issueCommand('BOX');
+        this.emit('refereeCommand', {
+          type: 'BOX',
+          text: boxCmd.text,
+          refName: this.referee.name
+        });
+      }
+    } else {
+      // Not in clinch - reset tracking
+      if (this.clinchState.active) {
+        this.clinchState.active = false;
+        this.clinchState.duration = 0;
+        this.referee.resetClinch();
+      }
+    }
+  }
+
+  /**
    * Resolve combat interactions
    */
   resolveCombat(decisionA, decisionB) {
@@ -672,6 +872,12 @@ export class SimulationLoop extends EventEmitter {
 
       // Apply damage
       target.takeDamage(damage, hit.location);
+
+      // Apply stamina drain from getting hit - hard shots drain more
+      if (this.staminaManager) {
+        const staminaDrain = this.staminaManager.calculateHitStaminaCost(damage, hit.location, attacker);
+        target.spendStamina(staminaDrain);
+      }
 
       // Record stats
       const isJab = hit.punchType === 'jab' || hit.punchType === 'body_jab';
@@ -900,12 +1106,31 @@ export class SimulationLoop extends EventEmitter {
     const round = this.fight.getCurrentRound();
     const fighter = this.fight.getFighter(knockdown.target);
     const attacker = this.fight.getFighter(knockdown.attacker);
-    const isFlash = knockdown.flash === true;
+
+    // For flash knockdowns, determine recovery BEFORE emitting event
+    // A "flash knockdown" only counts as such if the fighter ACTUALLY gets up quickly
+    // If they don't recover, it's just a regular knockdown that leads to KO
+    let isFlash = knockdown.flash === true;
+    let flashWillRecover = true;
+
+    if (isFlash) {
+      // Pre-calculate if they'll recover from the flash knockdown
+      flashWillRecover = this.willRecoverFromFlash(fighter);
+      if (!flashWillRecover) {
+        // Fighter won't get up - this is actually a regular knockdown, not a flash
+        isFlash = false;
+      }
+    }
 
     fighter.knockdownsThisRound++;
     fighter.knockdownsTotal++;
     attacker.fightStats.knockdownsScored++;
     fighter.fightStats.knockdownsSuffered++;
+
+    // MASSIVE stamina drain from getting dropped - this is devastating
+    // Flash knockdowns drain less but still significant
+    const knockdownStaminaDrain = isFlash ? 25 : 40;
+    fighter.spendStamina(knockdownStaminaDrain);
 
     // Transition to appropriate state
     fighter.transitionTo(isFlash ? FighterState.FLASH_DOWN : FighterState.KNOCKED_DOWN);
@@ -934,9 +1159,9 @@ export class SimulationLoop extends EventEmitter {
       return;
     }
 
-    // Process count - flash knockdowns have quick recovery
+    // Process count - flash knockdowns have quick recovery (already confirmed they'll recover)
     const recoveryResult = isFlash
-      ? await this.processFlashKnockdown(fighter, knockdown)
+      ? await this.processFlashKnockdown(fighter, knockdown, true) // Pass pre-determined recovery
       : await this.processKnockdownCount(fighter, knockdown);
 
     if (!recoveryResult.recovered) {
@@ -979,39 +1204,32 @@ export class SimulationLoop extends EventEmitter {
   }
 
   /**
-   * Process flash knockdown - fighter gets up very quickly (count 2-4)
-   * Flash knockdowns are when a fighter gets caught but isn't truly hurt
-   * HOWEVER - some fighters (low heart) can still fail to get up even from flash KDs
+   * Check if fighter will recover from a flash knockdown
+   * Called BEFORE emitting the event so we know whether to call it flash or regular
    */
-  async processFlashKnockdown(fighter, knockdown) {
-    const countSpeed = this.fight.referee.tendencies.countSpeed || 1.0;
+  willRecoverFromFlash(fighter) {
     const heart = fighter.mental.heart;
-    const chin = fighter.mental.chin;
 
-    // CRITICAL: Flash knockdowns can still result in KO for fighters with low heart
-    // Lennox Lewis (heart 82) historically never got up when knocked down
-    // High heart fighters (90+) almost always get up from flash KDs
-    // Low heart fighters (< 85) have real chance of staying down
-
+    // Calculate recovery chance based on heart
     let flashRecoveryChance;
     if (heart >= 95) {
-      flashRecoveryChance = 0.98; // Almost always get up
+      flashRecoveryChance = 0.98;
     } else if (heart >= 90) {
-      flashRecoveryChance = 0.92; // Very likely to get up
+      flashRecoveryChance = 0.92;
     } else if (heart >= 85) {
-      flashRecoveryChance = 0.80; // Usually get up
+      flashRecoveryChance = 0.80;
     } else if (heart >= 80) {
-      flashRecoveryChance = 0.55; // Coin flip
+      flashRecoveryChance = 0.55;
     } else if (heart >= 75) {
-      flashRecoveryChance = 0.35; // Unlikely
+      flashRecoveryChance = 0.35;
     } else {
-      flashRecoveryChance = 0.20; // Rarely gets up
+      flashRecoveryChance = 0.20;
     }
 
-    // Prior knockdowns in fight reduce recovery chance
-    const priorKnockdowns = fighter.knockdownsThisRound + (fighter.totalKnockdowns || 0);
+    // Prior knockdowns reduce recovery chance
+    const priorKnockdowns = (fighter.knockdownsThisRound || 0) + (fighter.totalKnockdowns || 0);
     if (priorKnockdowns >= 2) {
-      flashRecoveryChance *= 0.5; // Each additional KD makes it harder
+      flashRecoveryChance *= 0.5;
     } else if (priorKnockdowns >= 1) {
       flashRecoveryChance *= 0.75;
     }
@@ -1025,18 +1243,20 @@ export class SimulationLoop extends EventEmitter {
     }
 
     // Roll for recovery
-    if (Math.random() > flashRecoveryChance) {
-      // Fighter doesn't get up - flash KD becomes a real KO
-      // Count to 10 dramatically
-      for (let i = 1; i <= 10; i++) {
-        this.emit('count', { fighter: knockdown.target, count: i });
-        if (this.options.realTime) {
-          await this.sleep(countSpeed * 1000);
-        }
-      }
-      return { recovered: false, count: 10 };
-    }
+    return Math.random() < flashRecoveryChance;
+  }
 
+  /**
+   * Process flash knockdown - fighter gets up very quickly (count 2-4)
+   * Flash knockdowns are when a fighter gets caught but pops right back up
+   * Recovery is pre-determined by willRecoverFromFlash() before this is called
+   */
+  async processFlashKnockdown(fighter, knockdown, willRecover = true) {
+    const countSpeed = this.fight.referee.tendencies.countSpeed || 1.0;
+    const heart = fighter.mental.heart;
+    const chin = fighter.mental.chin;
+
+    // Flash knockdowns always recover (we only call this if willRecoverFromFlash returned true)
     // Fighter recovers - quick count 2-4
     const recoveryBonus = (chin + heart) / 200; // 0.5-1.0 range
     const targetCount = Math.max(2, Math.min(4, Math.round(4 - recoveryBonus * 2)));
