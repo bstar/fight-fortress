@@ -15,9 +15,11 @@ import {
   PositionTracker
 } from './engine/index.js';
 import { ConfigLoader } from './utils/index.js';
-import { SimpleTUI } from './display/SimpleTUI.js';
-import { ArcadeTUI } from './display/ArcadeTUI.js';
-import { GameMenu } from './display/GameMenu.js';
+// Ink-based components (fluid layout system)
+import { InkGameMenu } from './display/ink/InkGameMenu.js';
+import { InkArcadeTUI } from './display/ink/InkArcadeTUI.js';
+import { InkUniverseTUI } from './display/ink/InkUniverseTUI.js';
+import { SaveManager } from './universe/persistence/SaveManager.js';
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -232,9 +234,8 @@ async function runFight(args) {
       // Create and initialize TUI based on display mode
       const displayMode = options.display || 'arcade';
       const themeName = options.theme || 'cosmic';
-      const tui = displayMode === 'arcade'
-        ? new ArcadeTUI({ theme: themeName })
-        : new SimpleTUI();
+      // Use Ink-based TUI (fluid layouts)
+      const tui = new InkArcadeTUI({ theme: themeName });
       tui.initialize();
 
       // Connect TUI to simulation for round prompts
@@ -538,12 +539,43 @@ async function runBatchTest(args) {
 }
 
 /**
+ * Run Universe Mode with the InkUniverseTUI
+ */
+async function runUniverseMode(universe, saveManager, theme) {
+  while (true) {
+    const universeTUI = new InkUniverseTUI(universe, saveManager, theme);
+    const result = await universeTUI.run();
+
+    if (result.exit) {
+      // User chose to exit universe mode
+      return;
+    }
+
+    if (result.replayData) {
+      // User wants to replay a fight
+      await runFightReplay({
+        replayData: result.replayData,
+        theme: result.theme || theme,
+        rounds: result.replayData.rounds || 12,
+        speed: 3,
+        display: 'arcade'
+      });
+      // After replay, continue back to universe TUI
+      continue;
+    }
+
+    // Shouldn't reach here, but just in case
+    return;
+  }
+}
+
+/**
  * Game-style Interactive Menu
- * Uses blessed for arrow-key navigation and fighter selection
+ * Uses Ink for fluid React-based layouts
  */
 async function runGameMenu() {
   while (true) {
-    const menu = new GameMenu();
+    const menu = new InkGameMenu();
     const result = await menu.run();
 
     if (!result) {
@@ -551,12 +583,19 @@ async function runGameMenu() {
       return;
     }
 
+    // Check if this is universe mode
+    if (result.mode === 'universe' && result.universe) {
+      // Launch Universe TUI
+      const saveManager = new SaveManager();
+      await runUniverseMode(result.universe, saveManager, result.theme || 'cosmic');
+      continue;
+    }
+
     // Check if this is a fight replay from universe mode
     if (result.replayData) {
       await runFightReplay(result);
-    } else {
+    } else if (result.pathA && result.pathB) {
       // User selected a fight - run it
-      // TUI will wait for user input before returning
       await runFight([
         result.pathA,
         result.pathB,
@@ -627,11 +666,9 @@ async function runFightReplay(result) {
     const simulation = createSimulation(fighterA, fighterB, fightConfig);
 
     // Create and initialize TUI based on display mode
-    const displayMode = display || 'arcade';
     const themeName = theme || 'cosmic';
-    const tui = displayMode === 'arcade'
-      ? new ArcadeTUI({ theme: themeName })
-      : new SimpleTUI();
+    // Use Ink-based TUI (fluid layouts)
+    const tui = new InkArcadeTUI({ theme: themeName });
     tui.initialize();
 
     // Connect TUI to simulation for round prompts
