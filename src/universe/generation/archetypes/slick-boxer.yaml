@@ -1,0 +1,216 @@
+# Slick Boxer Archetype
+# Technical wizard with excellent defense, movement, and ring IQ
+
+name: "Slick Boxer"
+description: "Technical master with superb defense, footwork, and ring intelligence"
+
+physical:
+  height:
+    min: 175
+    max: 195
+  weight:
+    min: 75
+    max: 105
+  reach:
+    modifier: 3  # Slightly longer reach advantage
+  bodyType:
+    options: ["lean", "lanky", "average"]
+    weights: [45, 35, 20]
+
+style:
+  primary:
+    options: ["out-boxer", "counter-puncher", "boxer-puncher"]
+    weights: [50, 30, 20]
+  defensive:
+    options: ["philly-shell", "distance", "slick", "head-movement"]
+    weights: [30, 30, 25, 15]
+  offensive:
+    options: ["jab-and-move", "counter-shots", "combo-puncher"]
+    weights: [45, 35, 20]
+
+attributes:
+  power:
+    powerLeft:
+      base: 62
+      variance: 10
+    powerRight:
+      base: 68
+      variance: 10
+    knockoutPower:
+      base: 58
+      variance: 12
+    bodyPunching:
+      base: 65
+      variance: 10
+    punchingStamina:
+      base: 75
+      variance: 8
+
+  speed:
+    handSpeed:
+      base: 80
+      variance: 8
+    footSpeed:
+      base: 82
+      variance: 7
+    reflexes:
+      base: 82
+      variance: 7
+    firstStep:
+      base: 78
+      variance: 8
+    combinationSpeed:
+      base: 78
+      variance: 8
+
+  stamina:
+    cardio:
+      base: 78
+      variance: 8
+    recoveryRate:
+      base: 75
+      variance: 8
+    workRate:
+      base: 70
+      variance: 10
+    secondWind:
+      base: 70
+      variance: 10
+    paceControl:
+      base: 80
+      variance: 7
+
+  defense:
+    headMovement:
+      base: 85
+      variance: 7
+    blocking:
+      base: 72
+      variance: 8
+    parrying:
+      base: 78
+      variance: 8
+    shoulderRoll:
+      base: 75
+      variance: 10
+    clinchDefense:
+      base: 72
+      variance: 8
+    clinchOffense:
+      base: 58
+      variance: 10
+    ringAwareness:
+      base: 82
+      variance: 7
+
+  offense:
+    jabAccuracy:
+      base: 85
+      variance: 6
+    powerAccuracy:
+      base: 72
+      variance: 8
+    bodyAccuracy:
+      base: 75
+      variance: 8
+    punchSelection:
+      base: 82
+      variance: 7
+    feinting:
+      base: 80
+      variance: 8
+    counterPunching:
+      base: 82
+      variance: 7
+    combinationPunching:
+      base: 75
+      variance: 8
+
+  technical:
+    footwork:
+      base: 88
+      variance: 6
+    distanceManagement:
+      base: 85
+      variance: 6
+    insideFighting:
+      base: 58
+      variance: 12
+    outsideFighting:
+      base: 88
+      variance: 6
+    ringGeneralship:
+      base: 82
+      variance: 7
+    adaptability:
+      base: 78
+      variance: 8
+    fightIQ:
+      base: 85
+      variance: 6
+
+  mental:
+    chin:
+      base: 68
+      variance: 12
+    heart:
+      base: 68
+      variance: 12
+    killerInstinct:
+      base: 60
+      variance: 12
+    composure:
+      base: 82
+      variance: 7
+    intimidation:
+      base: 55
+      variance: 12
+    confidence:
+      base: 78
+      variance: 8
+    experience:
+      base: 50
+      variance: 10
+    clutchFactor:
+      base: 72
+      variance: 10
+
+personality:
+  ambition:
+    base: 70
+    variance: 18
+  riskTolerance:
+    base: 45
+    variance: 20
+  loyalty:
+    base: 60
+    variance: 20
+  workEthic:
+    base: 75
+    variance: 15
+
+development:
+  peakAgePhysical:
+    min: 27
+    max: 31
+  peakAgeMental:
+    min: 30
+    max: 35
+  growthModifier: 1.05  # Slightly faster development (technical skill)
+
+nicknames:
+  - "The Magician"
+  - "Sweet"
+  - "Sugar"
+  - "The Wizard"
+  - "Slick"
+  - "The Surgeon"
+  - "Pretty Boy"
+  - "The Artist"
+  - "Silky"
+  - "The Professor"
+  - "Flash"
+  - "The Matador"
+  - "The Technician"
+  - "Smooth"
+  - "The Ghost"

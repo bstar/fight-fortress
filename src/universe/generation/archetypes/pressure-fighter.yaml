@@ -1,0 +1,216 @@
+# Pressure Fighter Archetype
+# Relentless aggressor who smothers opponents with volume and pressure
+
+name: "Pressure Fighter"
+description: "Relentless aggressor who overwhelms with volume, conditioning, and constant pressure"
+
+physical:
+  height:
+    min: 168
+    max: 188
+  weight:
+    min: 65
+    max: 100
+  reach:
+    modifier: -2  # Typically shorter reach, gets inside
+  bodyType:
+    options: ["stocky", "muscular", "average"]
+    weights: [40, 40, 20]
+
+style:
+  primary:
+    options: ["swarmer", "inside-fighter", "volume-puncher"]
+    weights: [40, 35, 25]
+  defensive:
+    options: ["high-guard", "peek-a-boo", "blocking"]
+    weights: [40, 35, 25]
+  offensive:
+    options: ["body-snatcher", "combo-puncher", "pressure"]
+    weights: [35, 35, 30]
+
+attributes:
+  power:
+    powerLeft:
+      base: 70
+      variance: 10
+    powerRight:
+      base: 72
+      variance: 10
+    knockoutPower:
+      base: 65
+      variance: 12
+    bodyPunching:
+      base: 82
+      variance: 8
+    punchingStamina:
+      base: 85
+      variance: 7
+
+  speed:
+    handSpeed:
+      base: 75
+      variance: 8
+    footSpeed:
+      base: 72
+      variance: 10
+    reflexes:
+      base: 70
+      variance: 10
+    firstStep:
+      base: 78
+      variance: 8
+    combinationSpeed:
+      base: 80
+      variance: 7
+
+  stamina:
+    cardio:
+      base: 88
+      variance: 6
+    recoveryRate:
+      base: 82
+      variance: 8
+    workRate:
+      base: 90
+      variance: 5
+    secondWind:
+      base: 80
+      variance: 8
+    paceControl:
+      base: 70
+      variance: 10
+
+  defense:
+    headMovement:
+      base: 68
+      variance: 10
+    blocking:
+      base: 78
+      variance: 8
+    parrying:
+      base: 60
+      variance: 12
+    shoulderRoll:
+      base: 50
+      variance: 12
+    clinchDefense:
+      base: 75
+      variance: 8
+    clinchOffense:
+      base: 80
+      variance: 7
+    ringAwareness:
+      base: 72
+      variance: 8
+
+  offense:
+    jabAccuracy:
+      base: 72
+      variance: 8
+    powerAccuracy:
+      base: 68
+      variance: 10
+    bodyAccuracy:
+      base: 82
+      variance: 7
+    punchSelection:
+      base: 68
+      variance: 10
+    feinting:
+      base: 55
+      variance: 12
+    counterPunching:
+      base: 60
+      variance: 10
+    combinationPunching:
+      base: 85
+      variance: 6
+
+  technical:
+    footwork:
+      base: 72
+      variance: 8
+    distanceManagement:
+      base: 65
+      variance: 10
+    insideFighting:
+      base: 88
+      variance: 6
+    outsideFighting:
+      base: 55
+      variance: 12
+    ringGeneralship:
+      base: 70
+      variance: 10
+    adaptability:
+      base: 65
+      variance: 10
+    fightIQ:
+      base: 70
+      variance: 10
+
+  mental:
+    chin:
+      base: 78
+      variance: 10
+    heart:
+      base: 88
+      variance: 6
+    killerInstinct:
+      base: 78
+      variance: 8
+    composure:
+      base: 72
+      variance: 10
+    intimidation:
+      base: 70
+      variance: 10
+    confidence:
+      base: 78
+      variance: 8
+    experience:
+      base: 50
+      variance: 10
+    clutchFactor:
+      base: 75
+      variance: 10
+
+personality:
+  ambition:
+    base: 75
+    variance: 15
+  riskTolerance:
+    base: 75
+    variance: 15
+  loyalty:
+    base: 65
+    variance: 20
+  workEthic:
+    base: 85
+    variance: 10
+
+development:
+  peakAgePhysical:
+    min: 25
+    max: 29
+  peakAgeMental:
+    min: 27
+    max: 32
+  growthModifier: 1.0
+
+nicknames:
+  - "The Machine"
+  - "Relentless"
+  - "The Terminator"
+  - "Iron"
+  - "The Bull"
+  - "The Warrior"
+  - "Pitbull"
+  - "The Motor"
+  - "Nonstop"
+  - "The Grinder"
+  - "El Toro"
+  - "The Engine"
+  - "Marvelous"
+  - "Action"
+  - "The Predator"

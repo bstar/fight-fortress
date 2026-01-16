@@ -1,0 +1,216 @@
+# Brawler Archetype
+# Tough, durable warrior who fights on heart and chin rather than skill
+
+name: "Brawler"
+description: "Tough, durable warrior who relies on heart, chin, and willpower over technical skill"
+
+physical:
+  height:
+    min: 170
+    max: 192
+  weight:
+    min: 75
+    max: 115
+  reach:
+    modifier: -1  # Often shorter armed
+  bodyType:
+    options: ["stocky", "muscular", "thick"]
+    weights: [40, 35, 25]
+
+style:
+  primary:
+    options: ["slugger", "brawler", "inside-fighter"]
+    weights: [40, 40, 20]
+  defensive:
+    options: ["high-guard", "blocking", "walk-through"]
+    weights: [40, 40, 20]
+  offensive:
+    options: ["wild-swings", "haymakers", "all-out"]
+    weights: [35, 35, 30]
+
+attributes:
+  power:
+    powerLeft:
+      base: 75
+      variance: 10
+    powerRight:
+      base: 80
+      variance: 10
+    knockoutPower:
+      base: 78
+      variance: 10
+    bodyPunching:
+      base: 72
+      variance: 10
+    punchingStamina:
+      base: 70
+      variance: 10
+
+  speed:
+    handSpeed:
+      base: 62
+      variance: 12
+    footSpeed:
+      base: 58
+      variance: 12
+    reflexes:
+      base: 58
+      variance: 12
+    firstStep:
+      base: 60
+      variance: 12
+    combinationSpeed:
+      base: 60
+      variance: 12
+
+  stamina:
+    cardio:
+      base: 72
+      variance: 10
+    recoveryRate:
+      base: 78
+      variance: 8
+    workRate:
+      base: 75
+      variance: 10
+    secondWind:
+      base: 80
+      variance: 8
+    paceControl:
+      base: 55
+      variance: 15
+
+  defense:
+    headMovement:
+      base: 50
+      variance: 15
+    blocking:
+      base: 68
+      variance: 10
+    parrying:
+      base: 45
+      variance: 15
+    shoulderRoll:
+      base: 40
+      variance: 15
+    clinchDefense:
+      base: 65
+      variance: 10
+    clinchOffense:
+      base: 72
+      variance: 10
+    ringAwareness:
+      base: 55
+      variance: 12
+
+  offense:
+    jabAccuracy:
+      base: 55
+      variance: 12
+    powerAccuracy:
+      base: 60
+      variance: 12
+    bodyAccuracy:
+      base: 62
+      variance: 10
+    punchSelection:
+      base: 50
+      variance: 15
+    feinting:
+      base: 40
+      variance: 15
+    counterPunching:
+      base: 50
+      variance: 12
+    combinationPunching:
+      base: 58
+      variance: 12
+
+  technical:
+    footwork:
+      base: 50
+      variance: 15
+    distanceManagement:
+      base: 48
+      variance: 15
+    insideFighting:
+      base: 72
+      variance: 10
+    outsideFighting:
+      base: 45
+      variance: 15
+    ringGeneralship:
+      base: 50
+      variance: 12
+    adaptability:
+      base: 52
+      variance: 12
+    fightIQ:
+      base: 52
+      variance: 12
+
+  mental:
+    chin:
+      base: 88
+      variance: 6
+    heart:
+      base: 92
+      variance: 5
+    killerInstinct:
+      base: 80
+      variance: 8
+    composure:
+      base: 58
+      variance: 12
+    intimidation:
+      base: 75
+      variance: 10
+    confidence:
+      base: 72
+      variance: 10
+    experience:
+      base: 50
+      variance: 10
+    clutchFactor:
+      base: 82
+      variance: 8
+
+personality:
+  ambition:
+    base: 60
+    variance: 20
+  riskTolerance:
+    base: 85
+    variance: 10
+  loyalty:
+    base: 75
+    variance: 15
+  workEthic:
+    base: 60
+    variance: 20
+
+development:
+  peakAgePhysical:
+    min: 25
+    max: 29
+  peakAgeMental:
+    min: 26
+    max: 30
+  growthModifier: 0.85  # Limited technical growth
+
+nicknames:
+  - "The Warrior"
+  - "Granite"
+  - "The Zombie"
+  - "Iron"
+  - "The Gladiator"
+  - "Rocky"
+  - "The Brawler"
+  - "Stone"
+  - "The Juggernaut"
+  - "Tough"
+  - "The Anvil"
+  - "Dangerous"
+  - "Wild Man"
+  - "The Tank"
+  - "Fearless"

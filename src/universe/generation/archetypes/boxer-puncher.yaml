@@ -1,0 +1,216 @@
+# Boxer-Puncher Archetype
+# Complete fighter with balanced skills - can box and bang equally well
+
+name: "Boxer-Puncher"
+description: "Complete fighter with balanced skills who can box technically or trade with power"
+
+physical:
+  height:
+    min: 175
+    max: 195
+  weight:
+    min: 70
+    max: 110
+  reach:
+    modifier: 1  # Slight reach advantage
+  bodyType:
+    options: ["athletic", "muscular", "average"]
+    weights: [45, 35, 20]
+
+style:
+  primary:
+    options: ["boxer-puncher", "out-boxer", "slugger"]
+    weights: [60, 25, 15]
+  defensive:
+    options: ["high-guard", "distance", "philly-shell"]
+    weights: [40, 35, 25]
+  offensive:
+    options: ["combo-puncher", "set-up-power", "versatile"]
+    weights: [40, 35, 25]
+
+attributes:
+  power:
+    powerLeft:
+      base: 75
+      variance: 8
+    powerRight:
+      base: 80
+      variance: 8
+    knockoutPower:
+      base: 78
+      variance: 8
+    bodyPunching:
+      base: 75
+      variance: 8
+    punchingStamina:
+      base: 75
+      variance: 8
+
+  speed:
+    handSpeed:
+      base: 76
+      variance: 8
+    footSpeed:
+      base: 74
+      variance: 8
+    reflexes:
+      base: 75
+      variance: 8
+    firstStep:
+      base: 74
+      variance: 8
+    combinationSpeed:
+      base: 76
+      variance: 8
+
+  stamina:
+    cardio:
+      base: 76
+      variance: 8
+    recoveryRate:
+      base: 75
+      variance: 8
+    workRate:
+      base: 74
+      variance: 8
+    secondWind:
+      base: 72
+      variance: 10
+    paceControl:
+      base: 76
+      variance: 8
+
+  defense:
+    headMovement:
+      base: 75
+      variance: 8
+    blocking:
+      base: 76
+      variance: 8
+    parrying:
+      base: 72
+      variance: 8
+    shoulderRoll:
+      base: 68
+      variance: 10
+    clinchDefense:
+      base: 72
+      variance: 8
+    clinchOffense:
+      base: 72
+      variance: 8
+    ringAwareness:
+      base: 76
+      variance: 8
+
+  offense:
+    jabAccuracy:
+      base: 78
+      variance: 7
+    powerAccuracy:
+      base: 76
+      variance: 8
+    bodyAccuracy:
+      base: 75
+      variance: 8
+    punchSelection:
+      base: 78
+      variance: 7
+    feinting:
+      base: 72
+      variance: 8
+    counterPunching:
+      base: 75
+      variance: 8
+    combinationPunching:
+      base: 78
+      variance: 7
+
+  technical:
+    footwork:
+      base: 76
+      variance: 8
+    distanceManagement:
+      base: 76
+      variance: 8
+    insideFighting:
+      base: 74
+      variance: 8
+    outsideFighting:
+      base: 76
+      variance: 8
+    ringGeneralship:
+      base: 76
+      variance: 8
+    adaptability:
+      base: 78
+      variance: 7
+    fightIQ:
+      base: 78
+      variance: 7
+
+  mental:
+    chin:
+      base: 76
+      variance: 8
+    heart:
+      base: 76
+      variance: 8
+    killerInstinct:
+      base: 78
+      variance: 8
+    composure:
+      base: 76
+      variance: 8
+    intimidation:
+      base: 70
+      variance: 10
+    confidence:
+      base: 78
+      variance: 8
+    experience:
+      base: 50
+      variance: 10
+    clutchFactor:
+      base: 76
+      variance: 8
+
+personality:
+  ambition:
+    base: 75
+    variance: 15
+  riskTolerance:
+    base: 60
+    variance: 20
+  loyalty:
+    base: 60
+    variance: 20
+  workEthic:
+    base: 75
+    variance: 15
+
+development:
+  peakAgePhysical:
+    min: 27
+    max: 31
+  peakAgeMental:
+    min: 29
+    max: 34
+  growthModifier: 1.0
+
+nicknames:
+  - "The Complete"
+  - "Total"
+  - "The Real Deal"
+  - "Golden"
+  - "The Natural"
+  - "Supreme"
+  - "The Prince"
+  - "Perfect"
+  - "All-Around"
+  - "The Chosen One"
+  - "Dynamic"
+  - "The Showman"
+  - "Classic"
+  - "The Total Package"
+  - "Complete"

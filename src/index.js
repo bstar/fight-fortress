@@ -551,18 +551,104 @@ async function runGameMenu() {
       return;
     }
 
-    // User selected a fight - run it
-    // TUI will wait for user input before returning
-    await runFight([
-      result.pathA,
-      result.pathB,
-      '--rounds', String(result.rounds),
-      '--speed', String(result.speed),
-      '--display', result.display || 'arcade',
-      '--theme', result.theme || 'cosmic'
-    ]);
+    // Check if this is a fight replay from universe mode
+    if (result.replayData) {
+      await runFightReplay(result);
+    } else {
+      // User selected a fight - run it
+      // TUI will wait for user input before returning
+      await runFight([
+        result.pathA,
+        result.pathB,
+        '--rounds', String(result.rounds),
+        '--speed', String(result.speed),
+        '--display', result.display || 'arcade',
+        '--theme', result.theme || 'cosmic'
+      ]);
+    }
 
     // Loop back to menu automatically after fight ends
+  }
+}
+
+/**
+ * Run a fight replay from universe mode using fighter snapshots
+ */
+async function runFightReplay(result) {
+  const { replayData, rounds, speed, display, theme } = result;
+
+  try {
+    // Create fighters from snapshot data
+    const fighterA = new Fighter({
+      identity: replayData.fighterA.identity,
+      physical: replayData.fighterA.physical,
+      style: replayData.fighterA.style,
+      power: replayData.fighterA.power,
+      speed: replayData.fighterA.speed,
+      stamina: replayData.fighterA.stamina,
+      defense: replayData.fighterA.defense,
+      offense: replayData.fighterA.offense,
+      technical: replayData.fighterA.technical,
+      mental: replayData.fighterA.mental,
+      tactics: replayData.fighterA.tactics,
+      corner: replayData.fighterA.corner,
+      record: replayData.fighterA.record
+    });
+
+    const fighterB = new Fighter({
+      identity: replayData.fighterB.identity,
+      physical: replayData.fighterB.physical,
+      style: replayData.fighterB.style,
+      power: replayData.fighterB.power,
+      speed: replayData.fighterB.speed,
+      stamina: replayData.fighterB.stamina,
+      defense: replayData.fighterB.defense,
+      offense: replayData.fighterB.offense,
+      technical: replayData.fighterB.technical,
+      mental: replayData.fighterB.mental,
+      tactics: replayData.fighterB.tactics,
+      corner: replayData.fighterB.corner,
+      record: replayData.fighterB.record
+    });
+
+    console.log(`\nREPLAY: ${fighterA.name} vs ${fighterB.name}\n`);
+
+    // Create fight configuration
+    const fightConfig = {
+      rounds: rounds || replayData.rounds || 10,
+      simulation: {
+        speedMultiplier: speed || 3,
+        realTime: true,
+        enableRenderer: false,
+        enableLogging: true
+      }
+    };
+
+    const simulation = createSimulation(fighterA, fighterB, fightConfig);
+
+    // Create and initialize TUI based on display mode
+    const displayMode = display || 'arcade';
+    const themeName = theme || 'cosmic';
+    const tui = displayMode === 'arcade'
+      ? new ArcadeTUI({ theme: themeName })
+      : new SimpleTUI();
+    tui.initialize();
+
+    // Connect TUI to simulation for round prompts
+    simulation.setTUI(tui);
+
+    // Start the fight with selected TUI
+    tui.startFight(simulation.fight, simulation);
+
+    // Run simulation
+    await simulation.start();
+
+    // Wait for user to exit the TUI
+    await tui.waitForExit();
+
+  } catch (error) {
+    console.error(`Error running fight replay: ${error.message}`);
+    if (error.stack) console.error(error.stack);
   }
 }
 

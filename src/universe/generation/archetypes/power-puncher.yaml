@@ -1,0 +1,222 @@
+# Power Puncher Archetype
+# Heavy-handed knockout artist with devastating power but typically slower
+
+name: "Power Puncher"
+description: "Heavy-handed knockout artist who relies on devastating power to end fights"
+
+physical:
+  height:
+    min: 178
+    max: 198
+  weight:
+    min: 85
+    max: 115
+  reach:
+    modifier: 0  # Standard reach for height
+  bodyType:
+    options: ["muscular", "stocky", "average"]
+    weights: [50, 35, 15]
+
+style:
+  primary:
+    options: ["slugger", "boxer-puncher"]
+    weights: [60, 40]
+  defensive:
+    options: ["high-guard", "peek-a-boo", "blocking"]
+    weights: [45, 35, 20]
+  offensive:
+    options: ["headhunter", "power-shots", "body-snatcher"]
+    weights: [50, 30, 20]
+
+# Attribute ranges: base is center, variance is +/- range
+# Actual value = base + random(-variance, +variance) * talentModifier
+attributes:
+  power:
+    powerLeft:
+      base: 78
+      variance: 8
+    powerRight:
+      base: 88
+      variance: 7
+    knockoutPower:
+      base: 85
+      variance: 8
+    bodyPunching:
+      base: 72
+      variance: 10
+    punchingStamina:
+      base: 65
+      variance: 10
+
+  speed:
+    handSpeed:
+      base: 68
+      variance: 10
+    footSpeed:
+      base: 62
+      variance: 10
+    reflexes:
+      base: 65
+      variance: 10
+    firstStep:
+      base: 60
+      variance: 10
+    combinationSpeed:
+      base: 62
+      variance: 10
+
+  stamina:
+    cardio:
+      base: 65
+      variance: 12
+    recoveryRate:
+      base: 70
+      variance: 10
+    workRate:
+      base: 58
+      variance: 12
+    secondWind:
+      base: 55
+      variance: 15
+    paceControl:
+      base: 55
+      variance: 12
+
+  defense:
+    headMovement:
+      base: 60
+      variance: 12
+    blocking:
+      base: 72
+      variance: 8
+    parrying:
+      base: 55
+      variance: 10
+    shoulderRoll:
+      base: 45
+      variance: 10
+    clinchDefense:
+      base: 65
+      variance: 10
+    clinchOffense:
+      base: 68
+      variance: 10
+    ringAwareness:
+      base: 60
+      variance: 10
+
+  offense:
+    jabAccuracy:
+      base: 62
+      variance: 10
+    powerAccuracy:
+      base: 72
+      variance: 8
+    bodyAccuracy:
+      base: 65
+      variance: 10
+    punchSelection:
+      base: 60
+      variance: 12
+    feinting:
+      base: 50
+      variance: 12
+    counterPunching:
+      base: 58
+      variance: 12
+    combinationPunching:
+      base: 60
+      variance: 10
+
+  technical:
+    footwork:
+      base: 55
+      variance: 12
+    distanceManagement:
+      base: 58
+      variance: 10
+    insideFighting:
+      base: 70
+      variance: 8
+    outsideFighting:
+      base: 55
+      variance: 12
+    ringGeneralship:
+      base: 55
+      variance: 12
+    adaptability:
+      base: 55
+      variance: 12
+    fightIQ:
+      base: 58
+      variance: 12
+
+  mental:
+    chin:
+      base: 75
+      variance: 12
+    heart:
+      base: 70
+      variance: 12
+    killerInstinct:
+      base: 85
+      variance: 8
+    composure:
+      base: 60
+      variance: 12
+    intimidation:
+      base: 75
+      variance: 10
+    confidence:
+      base: 72
+      variance: 10
+    experience:
+      base: 50
+      variance: 10
+    clutchFactor:
+      base: 68
+      variance: 12
+
+# Personality tendencies
+personality:
+  ambition:
+    base: 65
+    variance: 20
+  riskTolerance:
+    base: 70
+    variance: 15
+  loyalty:
+    base: 50
+    variance: 25
+  workEthic:
+    base: 55
+    variance: 20
+
+# Peak age ranges for this archetype
+development:
+  peakAgePhysical:
+    min: 26
+    max: 30
+  peakAgeMental:
+    min: 28
+    max: 33
+  # How quickly they develop relative to baseline
+  growthModifier: 0.9  # Slightly slower development
+
+# Nickname patterns for this archetype
+nicknames:
+  - "The Hammer"
+  - "The Destroyer"
+  - "Thunder"
+  - "The Punisher"
+  - "Dynamite"
+  - "Iron Fist"
+  - "The Executioner"
+  - "The Beast"
+  - "Knockout"
+  - "The Hitman"
+  - "Boom Boom"
+  - "The Tank"
+  - "Hands of Stone"
+  - "The Wrecking Ball"
+  - "Big Bang"

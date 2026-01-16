@@ -9,6 +9,11 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
 import { THEMES, getThemeList, DEFAULT_THEME } from './themes.js';
+import { Universe } from '../universe/models/Universe.js';
+import { FighterGenerator } from '../universe/generation/FighterGenerator.js';
+import { WeekProcessor } from '../universe/simulation/WeekProcessor.js';
+import { SaveManager } from '../universe/persistence/SaveManager.js';
+import { UniverseTUI } from './UniverseTUI.js';
 
 export class GameMenu {
   constructor() {
@@ -122,6 +127,7 @@ export class GameMenu {
     const menuItems = [
       { label: 'START FIGHT', action: 'startFight', icon: '⚔' },
       { label: 'QUICK FIGHT', action: 'quickFight', icon: '⚡' },
+      { label: 'UNIVERSE MODE', action: 'universeMode', icon: '🌍' },
       { label: 'VIEW ROSTER', action: 'viewRoster', icon: '📋' },
       { label: 'THEME', action: 'selectTheme', icon: '🎨' },
       { label: 'EXIT', action: 'exit', icon: '🚪' }
@@ -283,6 +289,9 @@ export class GameMenu {
         break;
       case 'quickFight':
         this.startQuickFight();
+        break;
+      case 'universeMode':
+        this.showUniverseMenu();
         break;
       case 'viewRoster':
         this.showRoster();
@@ -1052,6 +1061,824 @@ Cutman:  ${corner.cutman?.name || 'Unknown'}
   }
 
   /**
+   * Show Universe Mode menu
+   */
+  showUniverseMenu() {
+    this.currentView = 'universe';
+    this.clearScreen();
+
+    const t = this.theme;
+
+    // Remove old key bindings
+    this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape']);
+
+    // Background
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    // Title
+    blessed.box({
+      parent: this.screen,
+      top: 2,
+      left: 'center',
+      width: 50,
+      height: 5,
+      tags: true,
+      content: `{center}{bold}{${t.fighterA}-fg}
+╔═══════════════════════════════════════╗
+║         UNIVERSE MODE                 ║
+╚═══════════════════════════════════════╝
+{/${t.fighterA}-fg}{/bold}{/center}`,
+      style: { fg: t.fighterA }
+    });
+
+    // Check for existing saves
+    this.saveManager = new SaveManager('.');
+    const saves = this.saveManager.listSaves();
+
+    // Menu options
+    const menuOptions = [
+      { label: 'NEW UNIVERSE', action: 'newUniverse', icon: '✨' },
+    ];
+
+    if (saves.length > 0) {
+      menuOptions.push({ label: 'LOAD UNIVERSE', action: 'loadUniverse', icon: '📂' });
+    }
+
+    menuOptions.push({ label: 'BACK', action: 'back', icon: '←' });
+
+    // Menu container
+    const menuContainer = blessed.box({
+      parent: this.screen,
+      top: 9,
+      left: 'center',
+      width: 40,
+      height: menuOptions.length * 3 + 2,
+      border: { type: 'line' },
+      style: {
+        border: { fg: t.border },
+        bg: t.background
+      }
+    });
+
+    this.universeMenuIndex = 0;
+    this.universeMenuItems = menuOptions.map((item, index) => {
+      const box = blessed.box({
+        parent: menuContainer,
+        top: index * 3,
+        left: 0,
+        width: '100%-2',
+        height: 3,
+        tags: true,
+        style: {
+          bg: index === 0 ? t.fighterA : t.background,
+          fg: index === 0 ? t.background : t.foreground
+        }
+      });
+      this.updateMenuItem(box, item, index === 0);
+      return { box, item };
+    });
+
+    // Info box
+    blessed.box({
+      parent: this.screen,
+      top: 9 + menuOptions.length * 3 + 3,
+      left: 'center',
+      width: 60,
+      height: 6,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}
+Universe Mode simulates an entire boxing world!
+Fighters are generated, age, fight, and retire.
+Watch careers unfold over years of simulation.
+{/${t.commentary}-fg}{/center}`
+    });
+
+    // Controls
+    blessed.box({
+      parent: this.screen,
+      bottom: 1,
+      left: 'center',
+      width: 50,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}↑/↓ Navigate  •  ENTER Select  •  ESC Back{/${t.commentary}-fg}{/center}`
+    });
+
+    // Key bindings
+    this.screen.key(['up', 'k'], () => this.navigateUniverseMenu(-1));
+    this.screen.key(['down', 'j'], () => this.navigateUniverseMenu(1));
+    this.screen.key(['enter', 'space'], () => this.selectUniverseMenuItem());
+    this.screen.key(['escape', 'q'], () => this.showMainMenu());
+
+    this.screen.render();
+  }
+
+  /**
+   * Navigate universe menu
+   */
+  navigateUniverseMenu(direction) {
+    if (this.currentView !== 'universe') return;
+
+    const oldIndex = this.universeMenuIndex;
+    this.universeMenuIndex += direction;
+
+    if (this.universeMenuIndex < 0) this.universeMenuIndex = this.universeMenuItems.length - 1;
+    if (this.universeMenuIndex >= this.universeMenuItems.length) this.universeMenuIndex = 0;
+
+    const oldItem = this.universeMenuItems[oldIndex];
+    const newItem = this.universeMenuItems[this.universeMenuIndex];
+
+    this.updateMenuItem(oldItem.box, oldItem.item, false);
+    this.updateMenuItem(newItem.box, newItem.item, true);
+
+    this.screen.render();
+  }
+
+  /**
+   * Select universe menu item
+   */
+  selectUniverseMenuItem() {
+    if (this.currentView !== 'universe') return;
+
+    const item = this.universeMenuItems[this.universeMenuIndex].item;
+
+    switch (item.action) {
+      case 'newUniverse':
+        this.createNewUniverse();
+        break;
+      case 'loadUniverse':
+        this.showLoadUniverse();
+        break;
+      case 'back':
+        this.showMainMenu();
+        break;
+    }
+  }
+
+  /**
+   * Create a new universe
+   */
+  createNewUniverse() {
+    this.clearScreen();
+    const t = this.theme;
+
+    // Show loading screen
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    const loadingBox = blessed.box({
+      parent: this.screen,
+      top: 'center',
+      left: 'center',
+      width: 60,
+      height: 14,
+      tags: true,
+      border: { type: 'line' },
+      style: { border: { fg: t.fighterA }, bg: t.background },
+      content: `{center}
+{bold}{${t.fighterA}-fg}CREATING UNIVERSE{/${t.fighterA}-fg}{/bold}
+
+{${t.fighterA}-fg}◐{/${t.fighterA}-fg} Initializing simulation engine...
+
+{${t.commentary}-fg}This may take a moment...{/${t.commentary}-fg}
+{/center}`
+    });
+
+    this.screen.render();
+
+    // Create universe asynchronously
+    setTimeout(() => {
+      this.universe = new Universe({
+        name: 'Boxing Universe',
+        currentDate: { year: 1995, week: 1 },
+        targetFighterCount: 500,
+        fighterCountVariance: 100
+      });
+
+      const generator = new FighterGenerator();
+
+      // Generate initial roster (500 fighters with varied ages)
+      loadingBox.setContent(`{center}
+{bold}{${t.fighterA}-fg}CREATING UNIVERSE{/${t.fighterA}-fg}{/bold}
+
+{${t.fighterA}-fg}◓{/${t.fighterA}-fg} Generating 500 fighters...
+
+{${t.commentary}-fg}Building the boxing world...{/${t.commentary}-fg}
+{/center}`);
+      this.screen.render();
+
+      // Generate fighters with a range of ages to create an established scene
+      for (let i = 0; i < 500; i++) {
+        // Age distribution: more young fighters, fewer veterans
+        let age;
+        const roll = Math.random();
+        if (roll < 0.35) {
+          age = 18 + Math.floor(Math.random() * 4);  // 18-21 (prospects)
+        } else if (roll < 0.65) {
+          age = 22 + Math.floor(Math.random() * 5);  // 22-26 (rising)
+        } else if (roll < 0.85) {
+          age = 27 + Math.floor(Math.random() * 5);  // 27-31 (prime)
+        } else {
+          age = 32 + Math.floor(Math.random() * 6);  // 32-37 (veterans)
+        }
+
+        const fighter = generator.generate({
+          currentDate: this.universe.currentDate,
+          age: age
+        });
+
+        this.universe.addFighter(fighter);
+      }
+
+      // Now simulate 5 years
+      this.simulateInitialYears(loadingBox, 5);
+    }, 100);
+  }
+
+  /**
+   * Simulate initial years before entering the universe
+   */
+  simulateInitialYears(loadingBox, years) {
+    const t = this.theme;
+    const totalWeeks = years * 52;
+    const processor = new WeekProcessor(this.universe);
+
+    let currentWeek = 0;
+
+    const simulateBatch = () => {
+      // Simulate 26 weeks at a time for responsiveness
+      const batchSize = 26;
+      const endWeek = Math.min(currentWeek + batchSize, totalWeeks);
+
+      for (let i = currentWeek; i < endWeek; i++) {
+        processor.processWeek();
+      }
+
+      currentWeek = endWeek;
+      const yearsComplete = Math.floor(currentWeek / 52);
+      const progress = Math.floor((currentWeek / totalWeeks) * 100);
+
+      loadingBox.setContent(`{center}
+{bold}{${t.fighterA}-fg}CREATING UNIVERSE{/${t.fighterA}-fg}{/bold}
+
+Simulating boxing history...
+
+Year ${yearsComplete + 1} of ${years}
+${this.universe.getDateString()}
+
+Active Fighters: ${this.universe.getActiveFighters().length}
+Retirements: ${this.universe.stats.fightersRetired}
+
+{${t.stamina}-fg}[${'█'.repeat(Math.floor(progress / 5))}${'░'.repeat(20 - Math.floor(progress / 5))}] ${progress}%{/${t.stamina}-fg}
+{/center}`);
+      this.screen.render();
+
+      if (currentWeek < totalWeeks) {
+        setTimeout(simulateBatch, 10);
+      } else {
+        // Simulation complete - inaugurate championships
+        this.inaugurateChampionships(loadingBox);
+      }
+    };
+
+    simulateBatch();
+  }
+
+  /**
+   * Inaugurate championship era
+   */
+  inaugurateChampionships(loadingBox) {
+    const t = this.theme;
+
+    loadingBox.setContent(`{center}
+{bold}{${t.fighterA}-fg}CHAMPIONSHIP ERA BEGINS{/${t.fighterA}-fg}{/bold}
+
+{${t.fighterA}-fg}◑{/${t.fighterA}-fg} Creating sanctioning bodies...
+{yellow-fg}WBC{/yellow-fg} - {white-fg}WBA{/white-fg} - {red-fg}IBF{/red-fg} - {green-fg}WBO{/green-fg}
+
+{${t.commentary}-fg}The greatest fighters will now
+compete for world titles!{/${t.commentary}-fg}
+{/center}`);
+    this.screen.render();
+
+    setTimeout(() => {
+      // Inaugurate championships
+      this.universe.inaugurateChampionships();
+
+      // Save the new universe
+      this.saveManager.save(this.universe, 'universe-autosave');
+
+      // Brief pause to show the message
+      setTimeout(() => {
+        this.showUniverseDashboard();
+      }, 1500);
+    }, 500);
+  }
+
+  /**
+   * Show load universe screen
+   */
+  showLoadUniverse() {
+    this.currentView = 'loadUniverse';
+    this.clearScreen();
+
+    const t = this.theme;
+    const saves = this.saveManager.listSaves();
+
+    // Remove old key bindings
+    this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape']);
+
+    // Background
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    // Title
+    blessed.box({
+      parent: this.screen,
+      top: 2,
+      left: 'center',
+      width: 30,
+      height: 1,
+      tags: true,
+      content: `{center}{bold}{${t.fighterA}-fg}LOAD UNIVERSE{/${t.fighterA}-fg}{/bold}{/center}`
+    });
+
+    // Save list
+    const saveList = blessed.list({
+      parent: this.screen,
+      top: 5,
+      left: 'center',
+      width: 60,
+      height: Math.min(saves.length + 2, 15),
+      tags: true,
+      border: { type: 'line' },
+      label: ' SAVED UNIVERSES ',
+      style: {
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
+      },
+      keys: true,
+      vi: true
+    });
+
+    saves.forEach(save => {
+      saveList.addItem(`${save.slot}: ${save.date} - ${save.fighters} fighters`);
+    });
+
+    // Controls
+    blessed.box({
+      parent: this.screen,
+      bottom: 1,
+      left: 'center',
+      width: 50,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}ENTER Load  •  ESC Back{/${t.commentary}-fg}{/center}`
+    });
+
+    saveList.key(['enter', 'space'], () => {
+      const save = saves[saveList.selected];
+      if (save) {
+        // Show loading indicator
+        this.clearScreen();
+        blessed.box({
+          parent: this.screen,
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          style: { bg: t.background }
+        });
+        const loadingBox = blessed.box({
+          parent: this.screen,
+          top: 'center',
+          left: 'center',
+          width: 50,
+          height: 7,
+          tags: true,
+          border: { type: 'line' },
+          style: { border: { fg: t.fighterA }, bg: t.background },
+          content: `{center}
+
+{${t.fighterA}-fg}◐{/${t.fighterA}-fg} Loading universe...
+
+{${t.commentary}-fg}Please wait...{/${t.commentary}-fg}
+{/center}`
+        });
+        this.screen.render();
+
+        // Load with slight delay to show loading state
+        setTimeout(() => {
+          this.universe = this.saveManager.load(save.slot);
+          this.showUniverseDashboard();
+        }, 200);
+      }
+    });
+
+    saveList.key(['escape', 'q'], () => this.showUniverseMenu());
+    saveList.focus();
+    this.screen.render();
+  }
+
+  /**
+   * Show universe dashboard - launches the new UniverseTUI
+   */
+  showUniverseDashboard() {
+    // Destroy the current screen
+    this.screen.destroy();
+
+    // Create and run the UniverseTUI
+    const universeTUI = new UniverseTUI(
+      this.universe,
+      this.saveManager,
+      this.fightOptions.theme
+    );
+
+    // Handle fight replay
+    universeTUI.onFightReplay = (replayData) => {
+      this.launchFightReplay(replayData);
+    };
+
+    // Run the universe TUI and return to main menu when done
+    universeTUI.run().then(() => {
+      // Reinitialize main menu when universe mode exits
+      this.initialize();
+    });
+  }
+
+  /**
+   * Launch a fight replay from universe mode
+   */
+  launchFightReplay(replayData) {
+    if (this.onStartFight) {
+      // Pass the replay data to the fight system
+      this.onStartFight(
+        null, // pathA (using replay data instead)
+        null, // pathB (using replay data instead)
+        replayData.rounds || 10,
+        this.fightOptions.speed,
+        this.fightOptions.display,
+        this.fightOptions.theme,
+        replayData // Pass the replay data
+      );
+    }
+  }
+
+  /**
+   * Simulate one week
+   */
+  simulateWeek() {
+    const t = this.theme;
+    const processor = new WeekProcessor(this.universe);
+    const events = processor.processWeek();
+
+    // Count fight results
+    const fights = events.filter(e => e.type === 'FIGHT_RESULT');
+    const titleChanges = events.filter(e => e.type === 'TITLE_CHANGE');
+    const koFinishes = fights.filter(f => f.method === 'KO' || f.method === 'TKO');
+
+    let logContent = `{${t.round}-fg}${this.universe.getDateString()}{/${t.round}-fg}\n`;
+
+    if (fights.length > 0) {
+      logContent += `{${t.stamina}-fg}${fights.length} fights`;
+      if (koFinishes.length > 0) {
+        logContent += `, ${koFinishes.length} KOs`;
+      }
+      logContent += `{/${t.stamina}-fg}`;
+    }
+
+    if (titleChanges.length > 0) {
+      logContent += `\n{yellow-fg}TITLE!{/yellow-fg}`;
+    }
+
+    this.eventLog.setContent(logContent);
+
+    // Refresh dashboard
+    this.showUniverseDashboard();
+  }
+
+  /**
+   * Simulate one year (52 weeks)
+   */
+  simulateYear() {
+    const t = this.theme;
+
+    // Show progress
+    this.eventLog.setContent(`{${t.fighterA}-fg}Simulating...{/${t.fighterA}-fg}`);
+    this.screen.render();
+
+    setTimeout(() => {
+      const processor = new WeekProcessor(this.universe);
+      let allEvents = [];
+
+      for (let i = 0; i < 52; i++) {
+        const events = processor.processWeek();
+        allEvents = allEvents.concat(events);
+      }
+
+      // Count notable events
+      const fights = allEvents.filter(e => e.type === 'FIGHT_RESULT').length;
+      const kos = allEvents.filter(e => e.type === 'FIGHT_RESULT' && (e.method === 'KO' || e.method === 'TKO')).length;
+      const titleChanges = allEvents.filter(e => e.type === 'TITLE_CHANGE').length;
+      const retirements = allEvents.filter(e => e.type === 'RETIREMENT').length;
+      const hofInductions = allEvents.filter(e => e.type === 'HOF_INDUCTION').length;
+
+      let logContent = `{${t.round}-fg}${this.universe.getDateString()}{/${t.round}-fg}\n`;
+      logContent += `{${t.stamina}-fg}${fights} fights, ${kos} KOs{/${t.stamina}-fg}`;
+
+      if (titleChanges > 0) {
+        logContent += `\n{yellow-fg}${titleChanges} title changes{/yellow-fg}`;
+      }
+
+      if (hofInductions > 0) {
+        logContent += `\n{${t.round}-fg}${hofInductions} HOF inductions!{/${t.round}-fg}`;
+      }
+
+      this.eventLog.setContent(logContent);
+
+      // Save and refresh
+      this.saveManager.save(this.universe, 'universe-autosave');
+      this.showUniverseDashboard();
+    }, 100);
+  }
+
+  /**
+   * Show all universe fighters
+   */
+  showUniverseFighters() {
+    this.currentView = 'universeFighters';
+    this.clearScreen();
+
+    const t = this.theme;
+    const fighters = this.universe.getActiveFighters()
+      .sort((a, b) => (b.career.record.wins - b.career.record.losses) -
+                      (a.career.record.wins - a.career.record.losses));
+
+    // Remove old key bindings
+    this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape', 's', 'r', 'f', 'd']);
+
+    // Background
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    // Title
+    blessed.box({
+      parent: this.screen,
+      top: 1,
+      left: 'center',
+      width: 40,
+      height: 1,
+      tags: true,
+      content: `{center}{bold}{${t.fighterA}-fg}UNIVERSE FIGHTERS (${fighters.length}){/${t.fighterA}-fg}{/bold}{/center}`
+    });
+
+    // Fighter list
+    const fighterList = blessed.list({
+      parent: this.screen,
+      top: 3,
+      left: 2,
+      width: '45%',
+      height: '85%',
+      tags: true,
+      border: { type: 'line' },
+      label: ' FIGHTERS ',
+      style: {
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
+      },
+      keys: true,
+      vi: true,
+      scrollbar: { ch: '│', style: { fg: t.fighterA } }
+    });
+
+    fighters.forEach(fighter => {
+      const age = fighter.getAge(this.universe.currentDate);
+      const record = fighter.getRecordString();
+      const phase = fighter.career.phase.substring(0, 3);
+      fighterList.addItem(`[${phase}] ${fighter.name} (${age}) ${record}`);
+    });
+
+    // Fighter details panel
+    const detailsPanel = blessed.box({
+      parent: this.screen,
+      top: 3,
+      left: '50%',
+      width: '48%',
+      height: '85%',
+      tags: true,
+      border: { type: 'line' },
+      label: ' FIGHTER DETAILS ',
+      style: { border: { fg: t.border }, bg: t.background }
+    });
+
+    const updateDetails = (idx) => {
+      const fighter = fighters[idx];
+      if (!fighter) return;
+
+      const age = fighter.getAge(this.universe.currentDate);
+      const division = this.universe.getDivisionForWeight(fighter.physical.weight);
+      const ranking = division?.getFighterRanking(fighter.id);
+
+      detailsPanel.setContent(`
+{bold}{${t.fighterA}-fg}${fighter.name}{/${t.fighterA}-fg}{/bold}
+{${t.commentary}-fg}"${fighter.nickname || 'The Fighter'}"{/${t.commentary}-fg}
+
+{${t.round}-fg}Age:{/${t.round}-fg} ${age}  {${t.round}-fg}Phase:{/${t.round}-fg} ${fighter.career.phase}
+{${t.round}-fg}Record:{/${t.round}-fg} ${fighter.getRecordString()}
+{${t.round}-fg}Division:{/${t.round}-fg} ${division?.name || 'None'}
+{${t.round}-fg}Ranking:{/${t.round}-fg} ${ranking ? '#' + ranking : 'Unranked'}
+
+{${t.stamina}-fg}━━ ATTRIBUTES ━━{/${t.stamina}-fg}
+Power:   ${this.createStatBar(fighter.power.powerRight, 12, t.health)} ${fighter.power.powerRight}
+Speed:   ${this.createStatBar(fighter.speed.handSpeed, 12, t.round)} ${fighter.speed.handSpeed}
+Defense: ${this.createStatBar(fighter.defense.headMovement, 12, t.stamina)} ${fighter.defense.headMovement}
+Chin:    ${this.createStatBar(fighter.mental.chin, 12, t.block)} ${fighter.mental.chin}
+
+{${t.stamina}-fg}━━ POTENTIAL ━━{/${t.stamina}-fg}
+Tier: ${fighter.potential.tier}
+Ceiling: ${fighter.potential.ceiling}
+Peak Age: ${fighter.potential.peakAgePhysical}
+`);
+      this.screen.render();
+    };
+
+    fighterList.on('select item', () => updateDetails(fighterList.selected));
+    updateDetails(0);
+
+    // Controls
+    blessed.box({
+      parent: this.screen,
+      bottom: 0,
+      left: 'center',
+      width: 40,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}↑/↓ Browse  •  ESC Back{/${t.commentary}-fg}{/center}`
+    });
+
+    fighterList.key(['escape', 'q'], () => this.showUniverseDashboard());
+    fighterList.focus();
+    this.screen.render();
+  }
+
+  /**
+   * Show divisions
+   */
+  showDivisions() {
+    this.currentView = 'divisions';
+    this.clearScreen();
+
+    const t = this.theme;
+
+    // Remove old key bindings
+    this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape', 's', 'r', 'f', 'd']);
+
+    // Background
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    // Title
+    blessed.box({
+      parent: this.screen,
+      top: 1,
+      left: 'center',
+      width: 30,
+      height: 1,
+      tags: true,
+      content: `{center}{bold}{${t.fighterA}-fg}DIVISIONS{/${t.fighterA}-fg}{/bold}{/center}`
+    });
+
+    // Division list
+    const divisionList = blessed.list({
+      parent: this.screen,
+      top: 3,
+      left: 2,
+      width: '35%',
+      height: '85%',
+      tags: true,
+      border: { type: 'line' },
+      label: ' WEIGHT CLASSES ',
+      style: {
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
+      },
+      keys: true,
+      vi: true
+    });
+
+    const divisions = Array.from(this.universe.divisions.entries());
+    divisions.forEach(([name, div]) => {
+      const count = div.fighters.length;
+      const hasChamp = div.champion ? '★' : ' ';
+      divisionList.addItem(`${hasChamp} ${name} (${count})`);
+    });
+
+    // Division details
+    const detailsPanel = blessed.box({
+      parent: this.screen,
+      top: 3,
+      left: '40%',
+      width: '58%',
+      height: '85%',
+      tags: true,
+      border: { type: 'line' },
+      label: ' RANKINGS ',
+      style: { border: { fg: t.border }, bg: t.background },
+      scrollable: true
+    });
+
+    const updateDetails = (idx) => {
+      const [name, division] = divisions[idx];
+      let content = `{bold}{${t.fighterA}-fg}${name}{/${t.fighterA}-fg}{/bold}\n`;
+      content += `{${t.commentary}-fg}${division.displayWeight}{/${t.commentary}-fg}\n\n`;
+
+      // Champion
+      if (division.champion) {
+        const champ = this.universe.fighters.get(division.champion);
+        if (champ) {
+          content += `{${t.round}-fg}CHAMPION{/${t.round}-fg}\n`;
+          content += `  {bold}${champ.name}{/bold} - ${champ.getRecordString()}\n`;
+          content += `  Defenses: ${division.championDefenses}\n\n`;
+        }
+      } else {
+        content += `{${t.round}-fg}CHAMPION:{/${t.round}-fg} {${t.commentary}-fg}VACANT{/${t.commentary}-fg}\n\n`;
+      }
+
+      // Rankings
+      content += `{${t.stamina}-fg}TOP 15 RANKINGS{/${t.stamina}-fg}\n`;
+      for (let i = 0; i < Math.min(15, division.rankings.length); i++) {
+        const fighter = this.universe.fighters.get(division.rankings[i]);
+        if (fighter) {
+          const mandatory = division.mandatoryChallenger === fighter.id ? ' {yellow-fg}[M]{/yellow-fg}' : '';
+          content += `  ${i + 1}. ${fighter.name} - ${fighter.getRecordString()}${mandatory}\n`;
+        }
+      }
+
+      if (division.rankings.length === 0) {
+        content += `  {${t.commentary}-fg}No ranked fighters{/${t.commentary}-fg}\n`;
+      }
+
+      detailsPanel.setContent(content);
+      this.screen.render();
+    };
+
+    divisionList.on('select item', () => updateDetails(divisionList.selected));
+    updateDetails(0);
+
+    // Controls
+    blessed.box({
+      parent: this.screen,
+      bottom: 0,
+      left: 'center',
+      width: 40,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}↑/↓ Browse  •  ESC Back{/${t.commentary}-fg}{/center}`
+    });
+
+    divisionList.key(['escape', 'q'], () => this.showUniverseDashboard());
+    divisionList.focus();
+    this.screen.render();
+  }
+
+  /**
    * Handle exit
    */
   handleExit() {
@@ -1069,8 +1896,8 @@ Cutman:  ${corner.cutman?.name || 'Unknown'}
    */
   run() {
     return new Promise((resolve) => {
-      this.onStartFight = (pathA, pathB, rounds, speed, display, theme) => {
-        resolve({ pathA, pathB, rounds, speed, display, theme });
+      this.onStartFight = (pathA, pathB, rounds, speed, display, theme, replayData = null) => {
+        resolve({ pathA, pathB, rounds, speed, display, theme, replayData });
       };
       this.onExit = () => {
         resolve(null);
