@@ -7,6 +7,7 @@
 import { Fighter } from '../../models/Fighter.js';
 import { v4 as uuidv4 } from 'uuid';
 import { MarketValue } from '../economics/MarketValue.js';
+import { CareerDamage } from './CareerDamage.js';
 
 // Career phases
 export const CareerPhase = {
@@ -114,6 +115,21 @@ export class UniverseFighter extends Fighter {
       loyalty: universeData.personality?.loyalty || 50,         // Stick with team
       workEthic: universeData.personality?.workEthic || 50      // Training dedication
     };
+
+    // Career damage tracking (cumulative abuse)
+    this.careerDamage = universeData.careerDamage
+      ? CareerDamage.fromJSON(universeData.careerDamage)
+      : new CareerDamage();
+
+    // Quality of opposition tracking
+    this.oppositionQuality = {
+      averageOpponentTier: universeData.oppositionQuality?.averageOpponentTier || 0,
+      rankedWins: universeData.oppositionQuality?.rankedWins || 0,
+      championWins: universeData.oppositionQuality?.championWins || 0,
+      undefeatedWins: universeData.oppositionQuality?.undefeatedWins || 0,
+      qualityScore: universeData.oppositionQuality?.qualityScore || 0,
+      totalOpponentsRated: universeData.oppositionQuality?.totalOpponentsRated || 0
+    };
   }
 
   /**
@@ -204,25 +220,43 @@ export class UniverseFighter extends Fighter {
   }
 
   /**
-   * Check if fighter should retire based on various factors
+   * Check if fighter should consider retirement based on various factors
+   * This is the GATE - returns true if we should roll the dice on retirement
+   * Designed to be less aggressive to maintain population
    */
   shouldConsiderRetirement(currentDate) {
     const age = this.getAge(currentDate);
     const record = this.career.record;
 
-    // Age factor - older fighters more likely to retire
-    if (age >= 40) return true;
-    if (age >= 38 && this.career.consecutiveLosses >= 2) return true;
+    // Check career damage first - severe damage forces consideration
+    if (this.careerDamage) {
+      const damageCheck = this.careerDamage.shouldRetireDueToDamage();
+      if (damageCheck.retire) return true;
+    }
 
-    // After severe KO losses
-    if (record.koLosses >= 4) return true;
+    // Very old fighters (44+) must consider - but still get a chance roll
+    if (age >= 44) return true;
 
-    // Losing record in decline
+    // Old fighters (40+) only consider if they're struggling
+    if (age >= 40) {
+      // Struggling: losing record, or on a losing streak, or many KO losses
+      if (record.losses >= record.wins) return true;
+      if (this.career.consecutiveLosses >= 2) return true;
+      if ((record.koLosses || 0) >= 4) return true;
+      // Otherwise, 40+ year olds with good records can continue
+      return false;
+    }
+
+    // Under 40: only consider in extreme circumstances
+    // Severe KO losses (6+)
+    if ((record.koLosses || 0) >= 6) return true;
+
+    // Long losing streak (5+)
+    if (this.career.consecutiveLosses >= 5) return true;
+
+    // Very bad record in decline phase
     if (this.career.phase === CareerPhase.DECLINE &&
-        record.losses > record.wins) return true;
-
-    // Long losing streak
-    if (this.career.consecutiveLosses >= 4) return true;
+        record.losses > record.wins * 2) return true;
 
     return false;
   }
@@ -233,6 +267,7 @@ export class UniverseFighter extends Fighter {
   recordFightResult(result, currentDate) {
     const isWin = result.winner === this.id;
     const isKO = result.method === 'KO' || result.method === 'TKO';
+    const isLoss = !isWin && result.method !== 'Draw';
 
     // Update record
     if (isWin) {
@@ -263,11 +298,32 @@ export class UniverseFighter extends Fighter {
       this.career.earnings += totalEarnings;
     }
 
+    // Record career damage
+    if (this.careerDamage) {
+      this.careerDamage.recordFightDamage({
+        knockdowns: result.knockdownsReceived || 0,
+        method: result.method,
+        rounds: result.round || result.totalRounds || 10,
+        result: isLoss ? 'L' : (isWin ? 'W' : 'D'),
+        wasKnockedOut: isLoss && isKO,
+        punchesReceived: result.punchesReceived,
+        wasWar: result.wasWar || false
+      });
+    }
+
+    // Update opposition quality tracking
+    if (result.opponentData) {
+      this.updateOppositionQuality(result.opponentData, isWin);
+    }
+
     // Add to fight history with replay data
     this.fightHistory.push({
       date: { ...currentDate },
       opponent: result.opponent,
       opponentName: result.opponentName,
+      opponentRecord: result.opponentRecord || null,
+      opponentRanking: result.opponentRanking || null,
+      opponentTier: result.opponentTier || null,
       result: isWin ? 'W' : (result.method === 'Draw' ? 'D' : 'L'),
       method: result.method,
       round: result.round,
@@ -276,6 +332,8 @@ export class UniverseFighter extends Fighter {
       title: result.title || null,
       purse,
       ppvBonus,
+      knockdownsReceived: result.knockdownsReceived || 0,
+      knockdownsDealt: result.knockdownsDealt || 0,
       // Store replay data if provided
       replayData: result.replayData || null
     });
@@ -285,6 +343,61 @@ export class UniverseFighter extends Fighter {
 
     // Check for career phase transitions
     this.updateCareerPhase(currentDate);
+  }
+
+  /**
+   * Update opposition quality tracking after a fight
+   */
+  updateOppositionQuality(opponentData, isWin) {
+    const tierQuality = {
+      'GENERATIONAL': 100, 'ELITE': 85, 'WORLD_CLASS': 70,
+      'CONTENDER': 55, 'GATEKEEPER': 40, 'JOURNEYMAN': 25, 'CLUB': 10
+    };
+
+    let fightQuality = tierQuality[opponentData.tier] || 30;
+
+    // Bonus for ranked opponent
+    if (opponentData.ranking && opponentData.ranking <= 15) {
+      fightQuality += (16 - opponentData.ranking) * 2;
+    }
+
+    // Bonus for champion/ex-champion
+    if (opponentData.wasChampion || opponentData.isChampion) {
+      fightQuality += 20;
+    }
+
+    // Bonus for undefeated opponent
+    if (opponentData.losses === 0 && opponentData.wins >= 5) {
+      fightQuality += 15;
+    }
+
+    // Track specific quality wins
+    if (isWin) {
+      if (opponentData.ranking && opponentData.ranking <= 15) {
+        this.oppositionQuality.rankedWins++;
+      }
+      if (opponentData.wasChampion || opponentData.isChampion) {
+        this.oppositionQuality.championWins++;
+      }
+      if (opponentData.losses === 0 && opponentData.wins >= 5) {
+        this.oppositionQuality.undefeatedWins++;
+      }
+    }
+
+    // Update running average
+    const currentTotal = this.oppositionQuality.qualityScore * this.oppositionQuality.totalOpponentsRated;
+    const fightScore = isWin ? fightQuality : fightQuality * 0.5;
+    this.oppositionQuality.totalOpponentsRated++;
+    this.oppositionQuality.qualityScore = Math.round(
+      (currentTotal + fightScore) / this.oppositionQuality.totalOpponentsRated
+    );
+
+    // Update tier tracking
+    const opponentTierValue = tierQuality[opponentData.tier] || 30;
+    const currentTierTotal = this.oppositionQuality.averageOpponentTier * (this.oppositionQuality.totalOpponentsRated - 1);
+    this.oppositionQuality.averageOpponentTier = Math.round(
+      (currentTierTotal + opponentTierValue) / this.oppositionQuality.totalOpponentsRated
+    );
   }
 
   /**
@@ -485,8 +598,34 @@ export class UniverseFighter extends Fighter {
   /**
    * Convert to combat-ready Fighter for actual fight simulation
    * Strips universe-specific data and returns base Fighter
+   * Applies career damage penalties to attributes
    */
   toCombatFighter() {
+    // Get base attributes
+    let speed = { ...this.speed };
+    let mental = { ...this.mental };
+
+    // Apply career damage penalties
+    if (this.careerDamage) {
+      const penalties = this.careerDamage.getAttributePenalties();
+
+      // Apply chin penalty
+      if (mental.chin !== undefined) {
+        mental.chin = Math.max(30, mental.chin + penalties.chin);
+      }
+
+      // Apply speed penalties
+      if (speed.reflexes !== undefined) {
+        speed.reflexes = Math.max(30, speed.reflexes + penalties.reflexes);
+      }
+      if (speed.handSpeed !== undefined) {
+        speed.handSpeed = Math.max(30, speed.handSpeed + penalties.handSpeed);
+      }
+      if (speed.footSpeed !== undefined) {
+        speed.footSpeed = Math.max(30, speed.footSpeed + penalties.footSpeed);
+      }
+    }
+
     return new Fighter({
       identity: {
         name: this.name,
@@ -497,16 +636,38 @@ export class UniverseFighter extends Fighter {
       physical: { ...this.physical },
       style: { ...this.style },
       power: { ...this.power },
-      speed: { ...this.speed },
+      speed,
       stamina: { ...this.stamina },
       defense: { ...this.defense },
       offense: { ...this.offense },
       technical: { ...this.technical },
-      mental: { ...this.mental },
+      mental,
       tactics: { ...this.tactics },
       corner: { ...this.corner },
       record: { ...this.career.record }
     });
+  }
+
+  /**
+   * Get effective chin rating (after damage penalties)
+   */
+  getEffectiveChin() {
+    let chin = this.mental?.chin || 70;
+    if (this.careerDamage) {
+      const penalties = this.careerDamage.getAttributePenalties();
+      chin = Math.max(30, chin + penalties.chin);
+    }
+    return chin;
+  }
+
+  /**
+   * Get damage summary for display
+   */
+  getDamageSummary() {
+    if (!this.careerDamage) {
+      return { level: 'MINIMAL', totalAbuse: 0, penalties: {} };
+    }
+    return this.careerDamage.getSummary();
   }
 
   /**
@@ -540,7 +701,11 @@ export class UniverseFighter extends Fighter {
       potential: this.potential,
       baseAttributes: this.baseAttributes,
       fightHistory: this.fightHistory,
-      personality: this.personality
+      personality: this.personality,
+
+      // Manager system additions
+      careerDamage: this.careerDamage?.toJSON() || null,
+      oppositionQuality: this.oppositionQuality
     };
   }
 
@@ -554,7 +719,9 @@ export class UniverseFighter extends Fighter {
       ...data.relationships,
       ...data.potential,
       personality: data.personality,
-      fightHistory: data.fightHistory
+      fightHistory: data.fightHistory,
+      careerDamage: data.careerDamage,
+      oppositionQuality: data.oppositionQuality
     });
 
     fighter.baseAttributes = data.baseAttributes;

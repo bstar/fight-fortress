@@ -25,7 +25,7 @@ const TALENT_CONFIG = {
   [TalentTier.CLUB]: { chance: 0.35, ceilingMod: 0.68, baseMod: 0.72 }            // 35% - Local level only
 };
 
-// Weight class configuration
+// Weight class configuration - all 17 professional boxing divisions
 const WEIGHT_CLASSES = [
   { name: 'Heavyweight', min: 90.7, max: 120 },
   { name: 'Cruiserweight', min: 79.4, max: 90.7 },
@@ -37,7 +37,13 @@ const WEIGHT_CLASSES = [
   { name: 'Super Lightweight', min: 61.2, max: 63.5 },
   { name: 'Lightweight', min: 58.97, max: 61.2 },
   { name: 'Super Featherweight', min: 57.15, max: 58.97 },
-  { name: 'Featherweight', min: 55.34, max: 57.15 }
+  { name: 'Featherweight', min: 55.34, max: 57.15 },
+  { name: 'Super Bantamweight', min: 53.52, max: 55.34 },
+  { name: 'Bantamweight', min: 51.71, max: 53.52 },
+  { name: 'Super Flyweight', min: 50.8, max: 51.71 },
+  { name: 'Flyweight', min: 48.99, max: 50.8 },
+  { name: 'Light Flyweight', min: 47.63, max: 48.99 },
+  { name: 'Minimumweight', min: 45, max: 47.63 }
 ];
 
 export class FighterGenerator {

@@ -83,14 +83,14 @@ export class Universe {
 
     // Configuration
     this.config = {
-      // Target number of active fighters
-      targetFighterCount: config.targetFighterCount || 500,
+      // Target number of active fighters (~88 per division across 17 divisions)
+      targetFighterCount: config.targetFighterCount || 1500,
       // Acceptable variance from target
-      fighterCountVariance: config.fighterCountVariance || 100,
+      fighterCountVariance: config.fighterCountVariance || 200,
       // How many new prospects enter per week (dynamically adjusted)
-      baseProspectRate: config.baseProspectRate || 2.0,
-      // Minimum fighters per division
-      minFightersPerDivision: config.minFightersPerDivision || 25,
+      baseProspectRate: config.baseProspectRate || 8.0,
+      // Minimum fighters per division (1500 / 17 divisions ≈ 88)
+      minFightersPerDivision: config.minFightersPerDivision || 60,
       // Simulation speed multiplier
       simulationSpeed: config.simulationSpeed || 1,
       // Enable/disable features

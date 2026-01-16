@@ -1395,30 +1395,33 @@ Watch careers unfold over years of simulation.
         year: 1995
       };
 
+      // Target ~1500 active fighters across all 17 divisions (~88 per division)
+      const targetFighters = 1500;
+
       this.universe = new Universe({
         name: 'Boxing Universe',
         currentDate: { year: eraConfig.year, week: 1 },
         era: eraConfig.id,
         startYear: eraConfig.year,
         realismLevel: RealismLevel.SIMPLIFIED,
-        targetFighterCount: 500,
-        fighterCountVariance: 100
+        targetFighterCount: targetFighters,
+        fighterCountVariance: 200
       });
 
       const generator = new FighterGenerator();
 
-      // Generate initial roster (500 fighters with varied ages)
+      // Generate initial roster with varied ages
       loadingBox.setContent(`{center}
 {bold}{${t.fighterA}-fg}CREATING UNIVERSE{/${t.fighterA}-fg}{/bold}
 
-{${t.fighterA}-fg}◓{/${t.fighterA}-fg} Generating 500 fighters...
+{${t.fighterA}-fg}◓{/${t.fighterA}-fg} Generating ${targetFighters} fighters...
 
 {${t.commentary}-fg}Building the boxing world...{/${t.commentary}-fg}
 {/center}`);
       this.screen.render();
 
       // Generate fighters with a range of ages to create an established scene
-      for (let i = 0; i < 500; i++) {
+      for (let i = 0; i < targetFighters; i++) {
         // Age distribution: more young fighters, fewer veterans
         let age;
         const roll = Math.random();

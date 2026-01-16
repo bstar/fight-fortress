@@ -9,6 +9,7 @@ import { ChampionBehavior } from '../ai/ChampionBehavior.js';
 import { MoneyFightEngine } from '../economics/MoneyFightEngine.js';
 import { FightEconomics } from '../economics/FightEconomics.js';
 import { MarketValue } from '../economics/MarketValue.js';
+import { Manager } from '../models/Manager.js';
 
 // Fight types
 export const FightType = {
@@ -32,16 +33,83 @@ export const MatchupQuality = {
 export class MatchmakingEngine {
   constructor(universe) {
     this.universe = universe;
+    this.managers = universe.managers || new Map();
+  }
+
+  /**
+   * Get or create a manager for a fighter
+   * @param {UniverseFighter} fighter
+   * @returns {Manager}
+   */
+  getManagerForFighter(fighter) {
+    // Check if fighter has an assigned manager
+    const managerId = fighter.relationships?.manager;
+    if (managerId && this.managers.has(managerId)) {
+      return this.managers.get(managerId);
+    }
+
+    // Create a default manager based on fighter tier
+    // In a full implementation, managers would be persistent entities
+    const defaultManager = new Manager({
+      personality: {
+        ethics: 50,
+        greed: 50,
+        patience: 50,
+        ambition: 50
+      }
+    });
+
+    return defaultManager;
+  }
+
+  /**
+   * Check if fighter is ready to fight based on manager policy
+   * @param {UniverseFighter} fighter
+   * @returns {boolean}
+   */
+  isFighterReadyByManager(fighter) {
+    const manager = this.getManagerForFighter(fighter);
+    return manager.isReadyToFight(fighter);
+  }
+
+  /**
+   * Check manager approval for a fight
+   * @param {UniverseFighter} fighter
+   * @param {UniverseFighter} opponent
+   * @param {string} fightType
+   * @returns {Object} { approved: boolean, reason: string }
+   */
+  checkManagerApproval(fighter, opponent, fightType) {
+    const manager = this.getManagerForFighter(fighter);
+    const evaluation = manager.evaluateFight(fighter, opponent, fightType, this.universe);
+
+    return {
+      approved: evaluation.accept,
+      reason: evaluation.reason,
+      mentality: manager.getMentalityForFighter(fighter)
+    };
+  }
+
+  /**
+   * Get fight frequency limits for a fighter
+   * @param {UniverseFighter} fighter
+   * @returns {Object} { minWeeks, maxFightsPerYear }
+   */
+  getFighterFrequency(fighter) {
+    const manager = this.getManagerForFighter(fighter);
+    return manager.getFightFrequency(fighter);
   }
 
   /**
    * Generate fights for a week
    * Returns scheduled fight cards
+   * Now respects manager fight frequency based on fighter mentality
    */
   generateWeeklyFights() {
     const fights = [];
+    // Filter fighters based on manager's fight frequency policy
     const activeFighters = this.universe.getActiveFighters()
-      .filter(f => f.canFight() && f.career.weeksInactive >= 4);
+      .filter(f => f.canFight() && this.isFighterReadyByManager(f));
 
     // Group by division
     const byDivision = new Map();
@@ -70,7 +138,7 @@ export class MatchmakingEngine {
   generateDivisionFights(divisionName, availableFighters) {
     const fights = [];
     const used = new Set();
-    const division = this.universe.divisions.get(divisionName);
+    const _division = this.universe.divisions.get(divisionName); // Division available for future use
 
     // Shuffle fighters for variety
     const shuffled = [...availableFighters].sort(() => Math.random() - 0.5);
@@ -289,23 +357,31 @@ export class MatchmakingEngine {
 
   /**
    * Generate ranked fighter matchups
+   * Uses manager approval to determine if fighters will accept
    */
-  generateRankedFights(divisionName, fighters, used) {
+  generateRankedFights(divisionName, _fighters, used) {
     const fights = [];
     const division = this.universe.divisions.get(divisionName);
     if (!division) return fights;
 
+    // Use manager readiness instead of fixed weeks
     const rankedFighters = division.rankings
       .map(id => this.universe.fighters.get(id))
-      .filter(f => f && f.canFight() && !used.has(f.id) && f.career.weeksInactive >= 6);
+      .filter(f => f && f.canFight() && !used.has(f.id) && this.isFighterReadyByManager(f));
 
-    // Pair up ranked fighters
+    // Pair up ranked fighters with manager approval
     for (let i = 0; i < rankedFighters.length - 1; i += 2) {
       const fighterA = rankedFighters[i];
       const fighterB = rankedFighters[i + 1];
 
       if (!fighterA || !fighterB) continue;
       if (used.has(fighterA.id) || used.has(fighterB.id)) continue;
+
+      // Check manager approval
+      const approvalA = this.checkManagerApproval(fighterA, fighterB, FightType.MAIN_EVENT);
+      const approvalB = this.checkManagerApproval(fighterB, fighterA, FightType.MAIN_EVENT);
+
+      if (!approvalA.approved || !approvalB.approved) continue;
 
       // ~25% chance per available pair
       if (Math.random() < 0.25) {
@@ -315,7 +391,11 @@ export class MatchmakingEngine {
           division: divisionName,
           type: FightType.MAIN_EVENT,
           rounds: 10,
-          quality: this.assessMatchupQuality(fighterA, fighterB)
+          quality: this.assessMatchupQuality(fighterA, fighterB),
+          managerInfo: {
+            mentalityA: approvalA.mentality,
+            mentalityB: approvalB.mentality
+          }
         });
         used.add(fighterA.id);
         used.add(fighterB.id);
@@ -327,48 +407,60 @@ export class MatchmakingEngine {
 
   /**
    * Generate development fights (prospects vs journeymen)
+   * Now respects manager approval for protective/development mentalities
    */
-  generateDevelopmentFights(fighters, used) {
+  generateDevelopmentFights(availableFighters, used) {
     const fights = [];
 
-    const prospects = fighters.filter(f =>
+    const prospects = availableFighters.filter(f =>
       !used.has(f.id) &&
       f.canFight() &&
-      f.career.weeksInactive >= 4 &&
+      this.isFighterReadyByManager(f) &&
       (f.career.phase === CareerPhase.PRO_DEBUT || f.career.phase === CareerPhase.RISING) &&
       (f.potential.tier === 'WORLD_CLASS' || f.potential.tier === 'ELITE' || f.potential.tier === 'GENERATIONAL' || f.potential.tier === 'CONTENDER')
     );
 
-    const journeymen = fighters.filter(f =>
+    const journeymen = availableFighters.filter(f =>
       !used.has(f.id) &&
       f.canFight() &&
-      f.career.weeksInactive >= 3 &&
+      this.isFighterReadyByManager(f) &&
       (f.potential.tier === 'JOURNEYMAN' || f.potential.tier === 'CLUB')
     );
 
-    // Match prospects against journeymen
+    // Match prospects against journeymen with manager approval
     for (const prospect of prospects) {
       if (used.has(prospect.id)) continue;
 
       // Find a suitable journeyman in similar weight range
-      const opponent = journeymen.find(j =>
-        !used.has(j.id) &&
-        Math.abs(j.physical.weight - prospect.physical.weight) < 5
-      );
+      // Check manager approval for the prospect side
+      for (const journeyman of journeymen) {
+        if (used.has(journeyman.id)) continue;
+        if (Math.abs(journeyman.physical.weight - prospect.physical.weight) >= 5) continue;
 
-      if (opponent) {
-        // ~40% chance per available prospect
-        if (Math.random() < 0.40) {
-          fights.push({
-            fighterA: prospect.id,
-            fighterB: opponent.id,
-            division: this.universe.getDivisionForWeight(prospect.physical.weight)?.name,
-            type: FightType.UNDERCARD,
-            rounds: 6,
-            quality: MatchupQuality.DEVELOPMENTAL
-          });
-          used.add(prospect.id);
-          used.add(opponent.id);
+        // Check if prospect's manager approves
+        const prospectApproval = this.checkManagerApproval(prospect, journeyman, FightType.UNDERCARD);
+        // Check if journeyman's manager approves
+        const journeymanApproval = this.checkManagerApproval(journeyman, prospect, FightType.UNDERCARD);
+
+        if (prospectApproval.approved && journeymanApproval.approved) {
+          // ~40% chance per available prospect
+          if (Math.random() < 0.40) {
+            fights.push({
+              fighterA: prospect.id,
+              fighterB: journeyman.id,
+              division: this.universe.getDivisionForWeight(prospect.physical.weight)?.name,
+              type: FightType.UNDERCARD,
+              rounds: 6,
+              quality: MatchupQuality.DEVELOPMENTAL,
+              managerInfo: {
+                prospectMentality: prospectApproval.mentality,
+                journeymanMentality: journeymanApproval.mentality
+              }
+            });
+            used.add(prospect.id);
+            used.add(journeyman.id);
+            break; // Move to next prospect
+          }
         }
       }
     }
@@ -378,14 +470,16 @@ export class MatchmakingEngine {
 
   /**
    * Generate club-level fights
+   * Tomato cans and journeymen fight more frequently (AGGRESSIVE/EXPLOITATIVE mentality)
    */
-  generateClubFights(fighters, used) {
+  generateClubFights(availableFighters, used) {
     const fights = [];
 
-    const available = fighters.filter(f =>
+    // Filter by manager readiness, not fixed weeks
+    const available = availableFighters.filter(f =>
       !used.has(f.id) &&
       f.canFight() &&
-      f.career.weeksInactive >= 3
+      this.isFighterReadyByManager(f)
     );
 
     // Randomly pair up remaining fighters
@@ -400,15 +494,33 @@ export class MatchmakingEngine {
       // Check weight compatibility (within 5kg)
       if (Math.abs(fighterA.physical.weight - fighterB.physical.weight) > 5) continue;
 
-      // ~30% chance per pair
-      if (Math.random() < 0.30) {
+      // Check manager approval for both sides
+      const approvalA = this.checkManagerApproval(fighterA, fighterB, FightType.CLUB);
+      const approvalB = this.checkManagerApproval(fighterB, fighterA, FightType.CLUB);
+
+      if (!approvalA.approved || !approvalB.approved) continue;
+
+      // ~30% chance per pair (higher for AGGRESSIVE/EXPLOITATIVE fighters)
+      let fightChance = 0.30;
+      if (approvalA.mentality === 'AGGRESSIVE' || approvalA.mentality === 'EXPLOITATIVE') {
+        fightChance += 0.15;
+      }
+      if (approvalB.mentality === 'AGGRESSIVE' || approvalB.mentality === 'EXPLOITATIVE') {
+        fightChance += 0.15;
+      }
+
+      if (Math.random() < fightChance) {
         fights.push({
           fighterA: fighterA.id,
           fighterB: fighterB.id,
           division: this.universe.getDivisionForWeight(fighterA.physical.weight)?.name,
           type: FightType.CLUB,
           rounds: 4,
-          quality: this.assessMatchupQuality(fighterA, fighterB)
+          quality: this.assessMatchupQuality(fighterA, fighterB),
+          managerInfo: {
+            mentalityA: approvalA.mentality,
+            mentalityB: approvalB.mentality
+          }
         });
         used.add(fighterA.id);
         used.add(fighterB.id);

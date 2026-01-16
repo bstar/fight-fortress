@@ -251,6 +251,9 @@ function UniverseCreation({ onComplete, onBack }) {
       return;
     }
 
+    // Target ~1500 active fighters across all 17 divisions (~88 per division)
+    const targetFighters = 1500;
+
     // Create universe
     const universe = new Universe({
       name: 'Boxing Universe',
@@ -258,12 +261,13 @@ function UniverseCreation({ onComplete, onBack }) {
       era: era.id,
       startYear: era.year,
       realismLevel: RealismLevel.SIMPLIFIED,
-      targetFighterCount: 500
+      targetFighterCount: targetFighters,
+      fighterCountVariance: 200
     });
 
     // Generate fighters
     const generator = new FighterGenerator();
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < targetFighters; i++) {
       let age;
       const roll = Math.random();
       if (roll < 0.35) age = 18 + Math.floor(Math.random() * 4);
@@ -282,7 +286,7 @@ function UniverseCreation({ onComplete, onBack }) {
       }
     }
 
-    setProgress(p => ({ ...p, fighters: 500 }));
+    setProgress(p => ({ ...p, fighters: targetFighters }));
     setStage('simulating');
 
     // Simulate 5 years
@@ -382,14 +386,14 @@ function UniverseCreation({ onComplete, onBack }) {
     },
       e(LoadingSpinner, {
         message: stage === 'generating'
-          ? `Generating fighters... ${progress.fighters}/500`
+          ? `Generating fighters... ${progress.fighters}/1500`
           : `Simulating Year ${progress.year} of ${progress.total}...`
       }),
 
       e(Box, { marginTop: 2, width: 40 },
         e(ProgressBar, {
           value: stage === 'generating'
-            ? (progress.fighters / 500) * 100
+            ? (progress.fighters / 1500) * 100
             : (progress.year / progress.total) * 100,
           max: 100,
           width: 30,

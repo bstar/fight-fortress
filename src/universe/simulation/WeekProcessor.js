@@ -74,8 +74,10 @@ export class WeekProcessor {
     // 4. Generate and run fights
     events.push(...this.processFights());
 
-    // 5. Check for retirements
-    events.push(...this.processRetirements());
+    // 5. Check for retirements (monthly, not weekly - reduces retirement rate)
+    if (this.universe.currentDate.week % 4 === 0) {
+      events.push(...this.processRetirements());
+    }
 
     // 6. Generate new prospects (periodically)
     if (this.shouldGenerateProspects()) {
@@ -573,31 +575,41 @@ export class WeekProcessor {
   }
 
   /**
-   * Calculate probability of retirement this week
+   * Calculate probability of retirement (called monthly, not weekly)
+   * Designed to maintain population: average fighter careers ~10-15 years
    */
   calculateRetirementChance(fighter) {
     const age = fighter.getAge(this.universe.currentDate);
     let chance = 0;
 
-    // Base age factor
-    if (age >= 40) chance += 0.05;
-    else if (age >= 38) chance += 0.02;
-    else if (age >= 36) chance += 0.01;
+    // Base age factor - much lower since this runs monthly
+    // A 40 year old with 2% monthly chance has ~78% survival over 1 year
+    if (age >= 42) chance += 0.04;       // Really old, should retire soon
+    else if (age >= 40) chance += 0.02;  // Old but can continue
+    else if (age >= 38) chance += 0.01;  // Late career
+    else if (age >= 36) chance += 0.005; // Experienced veteran
 
-    // Losing streak factor
-    chance += fighter.career.consecutiveLosses * 0.01;
+    // Losing streak factor (3+ consecutive losses is concerning)
+    if (fighter.career.consecutiveLosses >= 3) {
+      chance += 0.01;
+    }
 
-    // KO losses factor
-    chance += (fighter.career.record.koLosses || 0) * 0.005;
+    // Severe KO losses factor (5+ KO losses is serious)
+    const koLosses = fighter.career.record.koLosses || 0;
+    if (koLosses >= 5) {
+      chance += 0.02;
+    } else if (koLosses >= 3) {
+      chance += 0.005;
+    }
 
     // Heart reduces retirement tendency
-    chance *= (1 - fighter.mental.heart / 200);
+    chance *= (1 - fighter.mental.heart / 250);
 
     // Ambition reduces retirement tendency
-    chance *= (1 - fighter.personality.ambition / 200);
+    chance *= (1 - (fighter.personality?.ambition || 50) / 250);
 
-    // Cap at reasonable weekly probability
-    return Math.min(0.1, chance);
+    // Cap at reasonable monthly probability
+    return Math.min(0.08, chance);
   }
 
   /**
@@ -775,15 +787,20 @@ export class WeekProcessor {
     const deficit = target - activeFighters;
 
     // Generate more prospects if well below target
+    // Scale aggressively to maintain population
     let count;
-    if (deficit > 100) {
-      count = 3 + Math.floor(Math.random() * 4); // 3-6
+    if (deficit > 500) {
+      count = 10 + Math.floor(Math.random() * 6); // 10-15 (emergency replenishment)
+    } else if (deficit > 200) {
+      count = 6 + Math.floor(Math.random() * 5); // 6-10
+    } else if (deficit > 100) {
+      count = 4 + Math.floor(Math.random() * 4); // 4-7
     } else if (deficit > 50) {
-      count = 2 + Math.floor(Math.random() * 3); // 2-4
+      count = 3 + Math.floor(Math.random() * 3); // 3-5
     } else if (deficit > 0) {
-      count = 1 + Math.floor(Math.random() * 2); // 1-2
+      count = 2 + Math.floor(Math.random() * 2); // 2-3
     } else {
-      count = 1; // At or above target, just 1
+      count = 1; // At or above target, just 1 to replace retirees
     }
 
     for (let i = 0; i < count; i++) {

@@ -52,18 +52,47 @@ export class MarketValue {
     const winPct = fighter.getWinPercentage?.() || 50;
     baseValue *= 0.5 + (winPct / 100) * 0.5;
 
-    // 7. Decline penalty
+    // 7. UNDEFEATED BONUS - The "0" is sacred in boxing
+    const losses = fighter.career?.record?.losses || 0;
+    const wins = fighter.career?.record?.wins || 0;
+
+    if (losses === 0 && wins > 0) {
+      // Undefeated bonus scales dramatically with wins
+      if (wins >= 25) {
+        baseValue *= 3.0;        // Major star, possible ATG
+      } else if (wins >= 20) {
+        baseValue *= 2.5;        // Proven undefeated star
+      } else if (wins >= 15) {
+        baseValue *= 2.0;        // Serious undefeated prospect
+      } else if (wins >= 10) {
+        baseValue *= 1.7;        // Undefeated with real record
+      } else if (wins >= 5) {
+        baseValue *= 1.4;        // Building undefeated record
+      } else {
+        baseValue *= 1.2;        // Early undefeated fighter
+      }
+    } else if (losses === 1 && wins >= 15) {
+      // Single loss but still very marketable
+      baseValue *= 1.4;
+    } else if (losses === 1 && wins >= 10) {
+      baseValue *= 1.3;
+    } else if (losses <= 2 && wins >= 20) {
+      // Very few losses with substantial wins
+      baseValue *= 1.2;
+    }
+
+    // 8. Decline penalty
     if (fighter.career?.phase === 'DECLINE') {
       baseValue *= 0.6;
     }
 
-    // 8. Activity penalty (long inactive fighters worth less)
+    // 9. Activity penalty (long inactive fighters worth less)
     const weeksInactive = fighter.career?.weeksInactive || 0;
     if (weeksInactive > 52) {
       baseValue *= Math.max(0.5, 1 - (weeksInactive - 52) * 0.01);
     }
 
-    // 9. Loss streak penalty
+    // 10. Loss streak penalty
     const consecutiveLosses = fighter.career?.consecutiveLosses || 0;
     if (consecutiveLosses > 0) {
       baseValue *= Math.max(0.3, 1 - consecutiveLosses * 0.15);
