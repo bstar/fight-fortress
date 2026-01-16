@@ -1,9 +1,14 @@
 /**
  * Matchmaking Engine
  * Handles fight scheduling, matchups, and card creation for the universe
+ * Integrates economic considerations: market value, ducking behavior, money fights
  */
 
 import { CareerPhase } from '../models/UniverseFighter.js';
+import { ChampionBehavior } from '../ai/ChampionBehavior.js';
+import { MoneyFightEngine } from '../economics/MoneyFightEngine.js';
+import { FightEconomics } from '../economics/FightEconomics.js';
+import { MarketValue } from '../economics/MarketValue.js';
 
 // Fight types
 export const FightType = {
@@ -91,6 +96,7 @@ export class MatchmakingEngine {
 
   /**
    * Generate title fights for sanctioning bodies
+   * Now includes ducking behavior and financial considerations
    */
   generateTitleFights(divisionName, fighters, used) {
     const fights = [];
@@ -112,6 +118,8 @@ export class MatchmakingEngine {
 
             // Only ~20% chance per week of scheduling a vacant title fight
             if (Math.random() < 0.2) {
+              const economics = this.calculateFightEconomics(fighter1, fighter2, FightType.TITLE_FIGHT);
+
               fights.push({
                 fighterA: fighter1.id,
                 fighterB: fighter2.id,
@@ -122,7 +130,8 @@ export class MatchmakingEngine {
                   isVacant: true
                 },
                 rounds: 12,
-                quality: this.assessMatchupQuality(fighter1, fighter2)
+                quality: this.assessMatchupQuality(fighter1, fighter2),
+                economics
               });
               used.add(fighter1.id);
               used.add(fighter2.id);
@@ -137,33 +146,128 @@ export class MatchmakingEngine {
         // Check if champion is inactive too long
         if (champ.career.weeksInactive < 8) continue;
 
-        const mandatory = body.getMandatoryChallenger(divisionName);
-        const challenger = mandatory ? this.universe.fighters.get(mandatory) : null;
+        // Get available challengers
+        const rankings = body.getRankings(divisionName);
+        const availableChallengers = rankings
+          .map(id => this.universe.fighters.get(id))
+          .filter(f => f && f.canFight() && !used.has(f.id) && f.id !== champId);
 
-        if (challenger && challenger.canFight() && !used.has(challenger.id)) {
+        if (availableChallengers.length === 0) continue;
+
+        // Check mandatory status
+        const weeksSinceDefense = this.getWeeksSinceLastDefense(champ);
+        const mandatoryCheck = ChampionBehavior.shouldTakeMandatory(
+          champ,
+          availableChallengers[0],
+          weeksSinceDefense,
+          this.universe
+        );
+
+        let selectedChallenger;
+        let fightInfo = {
+          forced: false,
+          ducked: null,
+          reason: null
+        };
+
+        if (mandatoryCheck.required) {
+          // Forced mandatory defense
+          selectedChallenger = availableChallengers[0];
+          fightInfo.forced = true;
+          fightInfo.reason = mandatoryCheck.reason;
+        } else {
+          // Champion gets to choose (with ducking behavior)
+          const selection = ChampionBehavior.selectPreferredOpponent(
+            champ,
+            availableChallengers,
+            this.universe
+          );
+
+          if (selection) {
+            selectedChallenger = selection.selected;
+            fightInfo.ducked = selection.analysis.duckingChance > 50 ?
+              availableChallengers[0]?.name : null;
+            fightInfo.reason = selection.analysis.reason;
+          } else {
+            selectedChallenger = availableChallengers[0];
+          }
+        }
+
+        if (selectedChallenger && !used.has(selectedChallenger.id)) {
           // ~15% chance per week of title defense
           if (Math.random() < 0.15) {
+            const economics = this.calculateFightEconomics(champ, selectedChallenger, FightType.TITLE_FIGHT);
+
             fights.push({
               fighterA: champ.id,
-              fighterB: challenger.id,
+              fighterB: selectedChallenger.id,
               division: divisionName,
               type: FightType.TITLE_FIGHT,
               titleInfo: {
                 organization: body.shortName,
                 isVacant: false,
-                defenseNumber: this.getTitleDefenseCount(body, divisionName, champId) + 1
+                defenseNumber: this.getTitleDefenseCount(body, divisionName, champId) + 1,
+                ...fightInfo
               },
               rounds: 12,
-              quality: this.assessMatchupQuality(champ, challenger)
+              quality: this.assessMatchupQuality(champ, selectedChallenger),
+              economics
             });
             used.add(champ.id);
-            used.add(challenger.id);
+            used.add(selectedChallenger.id);
           }
         }
       }
     }
 
     return fights;
+  }
+
+  /**
+   * Get weeks since champion's last title defense
+   */
+  getWeeksSinceLastDefense(champion) {
+    const titleFights = champion.fightHistory?.filter(f => f.wasTitle) || [];
+    if (titleFights.length === 0) return 52; // Never defended
+
+    const lastDefense = titleFights[titleFights.length - 1];
+    if (!lastDefense.date || !this.universe.currentDate) return 52;
+
+    const defenseWeeks = lastDefense.date.year * 52 + lastDefense.date.week;
+    const currentWeeks = this.universe.currentDate.year * 52 + this.universe.currentDate.week;
+
+    return currentWeeks - defenseWeeks;
+  }
+
+  /**
+   * Calculate fight economics for scheduling decisions
+   */
+  calculateFightEconomics(fighterA, fighterB, fightType) {
+    try {
+      const revenue = FightEconomics.calculateRevenue(fighterA, fighterB, fightType);
+      const expenses = FightEconomics.calculateExpenses(fighterA, fighterB, fightType);
+
+      return {
+        projectedRevenue: revenue.total,
+        projectedExpenses: expenses.total,
+        projectedProfit: revenue.total - expenses.total,
+        isPPV: revenue.isPPV,
+        ppvBuys: revenue.ppvBuys,
+        purseA: expenses.purseA,
+        purseB: expenses.purseB,
+        marketValueA: MarketValue.calculate(fighterA),
+        marketValueB: MarketValue.calculate(fighterB)
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Identify money fights available in the universe
+   */
+  identifyMoneyFights() {
+    return MoneyFightEngine.identifyMoneyFights(this.universe);
   }
 
   /**

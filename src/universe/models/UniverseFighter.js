@@ -6,6 +6,7 @@
 
 import { Fighter } from '../../models/Fighter.js';
 import { v4 as uuidv4 } from 'uuid';
+import { MarketValue } from '../economics/MarketValue.js';
 
 // Career phases
 export const CareerPhase = {
@@ -253,6 +254,15 @@ export class UniverseFighter extends Fighter {
     this.career.fightsThisYear++;
     this.career.weeksInactive = 0;
 
+    // Track earnings if provided
+    const purse = result.purse || 0;
+    const ppvBonus = result.ppvBonus || 0;
+    const totalEarnings = purse + ppvBonus;
+
+    if (totalEarnings > 0) {
+      this.career.earnings += totalEarnings;
+    }
+
     // Add to fight history with replay data
     this.fightHistory.push({
       date: { ...currentDate },
@@ -264,6 +274,8 @@ export class UniverseFighter extends Fighter {
       totalRounds: result.totalRounds || 10,
       wasTitle: result.wasTitle || false,
       title: result.title || null,
+      purse,
+      ppvBonus,
       // Store replay data if provided
       replayData: result.replayData || null
     });
@@ -273,6 +285,48 @@ export class UniverseFighter extends Fighter {
 
     // Check for career phase transitions
     this.updateCareerPhase(currentDate);
+  }
+
+  /**
+   * Get current market value
+   */
+  getMarketValue() {
+    return MarketValue.calculate(this);
+  }
+
+  /**
+   * Get PPV draw rating
+   */
+  getPPVDraw() {
+    return MarketValue.calculatePPVDraw(this);
+  }
+
+  /**
+   * Get formatted earnings string
+   */
+  getEarningsString() {
+    const earnings = this.career.earnings || 0;
+    if (earnings >= 1000000) {
+      return `$${(earnings / 1000000).toFixed(1)}M`;
+    }
+    if (earnings >= 1000) {
+      return `$${(earnings / 1000).toFixed(0)}K`;
+    }
+    return `$${earnings}`;
+  }
+
+  /**
+   * Get active contract if any
+   */
+  getActiveContract() {
+    return this.career.contractStatus || null;
+  }
+
+  /**
+   * Check if fighter has an active promotional contract
+   */
+  hasContract() {
+    return !!this.career.contractStatus?.promoterId;
   }
 
   /**

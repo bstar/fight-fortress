@@ -1378,14 +1378,16 @@ compete for world titles!{/${t.commentary}-fg}
       // Inaugurate championships
       this.universe.inaugurateChampionships();
 
-      // Save the new universe
-      this.saveManager.save(this.universe, 'universe-autosave');
+      // Save the new universe (async to not block UI)
+      setImmediate(() => {
+        this.saveManager.save(this.universe, 'universe-autosave');
+      });
 
-      // Brief pause to show the message
+      // Brief pause to show the message, then show dashboard
       setTimeout(() => {
         this.showUniverseDashboard();
-      }, 1500);
-    }, 500);
+      }, 400);
+    }, 200);
   }
 
   /**

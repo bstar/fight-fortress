@@ -6,6 +6,8 @@
 import { CareerPhase } from '../models/UniverseFighter.js';
 import { MatchmakingEngine } from './MatchmakingEngine.js';
 import { FightIntegration } from './FightIntegration.js';
+import { RivalryManager } from '../economics/RivalryManager.js';
+import { MoneyFightEngine } from '../economics/MoneyFightEngine.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
@@ -86,10 +88,152 @@ export class WeekProcessor {
     // 8. Check for Hall of Fame inductions
     events.push(...this.processHallOfFame());
 
-    // 9. Advance calendar
+    // 9. Process financial activities (rivalries, money fights)
+    events.push(...this.processFinancialActivities());
+
+    // 10. Advance calendar
     this.universe.advanceWeek();
 
     return events;
+  }
+
+  /**
+   * Process financial activities: rivalries, promoter activities, money fight identification
+   */
+  processFinancialActivities() {
+    const events = [];
+
+    // Process existing rivalries
+    events.push(...this.processRivalries());
+
+    // Identify potential money fights (quarterly)
+    if (this.universe.currentDate.week % 13 === 0) {
+      events.push(...this.identifyMoneyFightOpportunities());
+    }
+
+    // Process promoter activities (weekly)
+    events.push(...this.processPromoterActivities());
+
+    return events;
+  }
+
+  /**
+   * Process weekly rivalry updates
+   */
+  processRivalries() {
+    return RivalryManager.processWeeklyRivalries(this.universe);
+  }
+
+  /**
+   * Identify money fight opportunities for the quarter
+   */
+  identifyMoneyFightOpportunities() {
+    const events = [];
+
+    try {
+      const moneyFights = MoneyFightEngine.identifyMoneyFights(this.universe);
+
+      // Store for UI display
+      this.universe.moneyFightOpportunities = moneyFights.slice(0, 10);
+
+      // Generate news event for top money fights
+      if (moneyFights.length > 0) {
+        const top = moneyFights[0];
+        events.push({
+          type: 'MONEY_FIGHT_IDENTIFIED',
+          fighterA: top.fighterA.name,
+          fighterB: top.fighterB.name,
+          projectedRevenue: top.projectedRevenue,
+          narratives: top.narratives,
+          classification: top.classification,
+          message: `${top.fighterA.name} vs ${top.fighterB.name} identified as potential ${top.classification}`
+        });
+      }
+    } catch (error) {
+      // Silently handle - money fights are optional
+    }
+
+    return events;
+  }
+
+  /**
+   * Process promoter activities: signings, fight scheduling
+   */
+  processPromoterActivities() {
+    const events = [];
+
+    if (!this.universe.promoters || this.universe.promoters.length === 0) {
+      return events;
+    }
+
+    for (const promoter of this.universe.promoters) {
+      // Check for potential signings (10% chance per week per promoter)
+      if (Math.random() < 0.1) {
+        const signing = this.processPromoterSigning(promoter);
+        if (signing) {
+          events.push(signing);
+        }
+      }
+    }
+
+    return events;
+  }
+
+  /**
+   * Process a potential fighter signing for a promoter
+   */
+  processPromoterSigning(promoter) {
+    // Find free agents (fighters without contracts)
+    const freeAgents = Array.from(this.universe.fighters.values())
+      .filter(f =>
+        f.canFight?.() &&
+        !f.career?.contractStatus?.promoterId &&
+        f.career?.phase !== CareerPhase.RETIRED
+      );
+
+    if (freeAgents.length === 0) return null;
+
+    // Prioritize based on promoter strategy
+    let candidates = [...freeAgents];
+
+    // Sort by what promoter values
+    if (promoter.strategy?.talentDevelopment > 60) {
+      // Focus on prospects
+      candidates.sort((a, b) => {
+        const aTier = a.potential?.tier || 'JOURNEYMAN';
+        const bTier = b.potential?.tier || 'JOURNEYMAN';
+        const tierRank = { GENERATIONAL: 7, ELITE: 6, WORLD_CLASS: 5, CONTENDER: 4, GATEKEEPER: 3, JOURNEYMAN: 2, CLUB: 1 };
+        return (tierRank[bTier] || 2) - (tierRank[aTier] || 2);
+      });
+    } else if (promoter.strategy?.moneyFightFocus > 60) {
+      // Focus on established names
+      candidates.sort((a, b) =>
+        (b.career?.popularity || 0) - (a.career?.popularity || 0)
+      );
+    }
+
+    // Try to sign top candidate
+    const target = candidates[0];
+    if (!target) return null;
+
+    // Attempt signing
+    const result = promoter.signFighter?.(target, {
+      fightCount: 3,
+      purseMinimum: null // Will use market value
+    }, this.universe);
+
+    if (result?.success) {
+      return {
+        type: 'FIGHTER_SIGNED',
+        promoterName: promoter.name,
+        fighterName: target.name,
+        fighterId: target.id,
+        contractValue: result.contract?.terms?.purseMinimum * result.contract?.terms?.fightCount,
+        message: `${promoter.name} signs ${target.name} to promotional deal`
+      };
+    }
+
+    return null;
   }
 
   /**

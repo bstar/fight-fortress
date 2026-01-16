@@ -8,6 +8,7 @@ import { THEMES, DEFAULT_THEME } from './themes.js';
 import { WeekProcessor } from '../universe/simulation/WeekProcessor.js';
 import { MatchmakingEngine } from '../universe/simulation/MatchmakingEngine.js';
 import { PublicationGenerator } from './PublicationGenerator.js';
+import { MoneyFightEngine } from '../universe/economics/MoneyFightEngine.js';
 
 export class UniverseTUI {
   constructor(universe, saveManager, theme = DEFAULT_THEME) {
@@ -167,6 +168,7 @@ export class UniverseTUI {
       { label: 'Rankings', action: 'rankings', icon: '🏆' },
       { label: 'Upcoming Fights', action: 'upcoming', icon: '📅' },
       { label: 'Recent Results', action: 'results', icon: '📰' },
+      { label: 'Money Fights', action: 'moneyfights', icon: '💰' },
       { label: 'Boxing News', action: 'news', icon: '📝' },
       { label: 'Fighters', action: 'fighters', icon: '🥊' },
       { label: 'Divisions', action: 'divisions', icon: '⚖️' },
@@ -249,6 +251,9 @@ export class UniverseTUI {
         break;
       case 'results':
         this.showRecentResults();
+        break;
+      case 'moneyfights':
+        this.showMoneyFights();
         break;
       case 'news':
         this.showNews();
@@ -963,6 +968,180 @@ Fights: ${fights}  |  KOs: ${kos}  |  Title Changes: ${titleChanges}
   }
 
   /**
+   * Show potential money fights
+   */
+  showMoneyFights() {
+    this.currentView = 'moneyfights';
+    this.clearScreen();
+    this.createBackground();
+    this.createHeader('MONEY FIGHTS');
+
+    const t = this.theme;
+
+    // Get money fights
+    let moneyFights = [];
+    try {
+      moneyFights = MoneyFightEngine.identifyMoneyFights(this.universe);
+    } catch {
+      // Use cached if available
+      moneyFights = this.universe.moneyFightOpportunities || [];
+    }
+
+    if (moneyFights.length === 0) {
+      blessed.box({
+        parent: this.screen,
+        top: 'center',
+        left: 'center',
+        width: 55,
+        height: 7,
+        tags: true,
+        border: { type: 'line' },
+        style: { border: { fg: t.border }, bg: t.background },
+        content: `{center}
+{${t.commentary}-fg}No money fights identified.
+
+Build up fighters through simulation
+to unlock big-money matchups.{/${t.commentary}-fg}
+{/center}`
+      });
+
+      blessed.box({
+        parent: this.screen,
+        bottom: 0,
+        left: 'center',
+        width: 40,
+        height: 1,
+        tags: true,
+        content: `{center}{${t.commentary}-fg}ESC Return to Menu{/${t.commentary}-fg}{/center}`
+      });
+
+      this.screen.key(['escape', 'q'], () => this.showMainMenu());
+      this.screen.render();
+      return;
+    }
+
+    // Money fights list
+    const fightList = blessed.list({
+      parent: this.screen,
+      top: 4,
+      left: 1,
+      width: '45%',
+      height: '85%',
+      tags: true,
+      border: { type: 'line' },
+      label: ` POTENTIAL MONEY FIGHTS (${moneyFights.length}) `,
+      style: {
+        border: { fg: t.border },
+        bg: t.background,
+        selected: { bg: t.fighterA, fg: t.background },
+        item: { fg: t.foreground }
+      },
+      keys: true,
+      vi: true,
+      scrollbar: { ch: ' ', track: { bg: t.background }, style: { bg: t.fighterA } }
+    });
+
+    moneyFights.forEach(fight => {
+      const revenue = this.formatMoney(fight.projectedRevenue);
+      fightList.addItem(`${fight.fighterA.name} vs ${fight.fighterB.name} (${revenue})`);
+    });
+
+    // Details panel
+    const detailsPanel = blessed.box({
+      parent: this.screen,
+      top: 4,
+      left: '47%',
+      width: '52%',
+      height: '85%',
+      tags: true,
+      border: { type: 'line' },
+      label: ' FIGHT ANALYSIS ',
+      style: { border: { fg: t.border }, bg: t.background },
+      scrollable: true
+    });
+
+    const showFightDetails = (idx) => {
+      const fight = moneyFights[idx];
+      if (!fight) return;
+
+      let content = `{bold}{${t.fighterA}-fg}${fight.fighterA.name}{/${t.fighterA}-fg}{/bold}`;
+      content += ` vs `;
+      content += `{bold}{${t.fighterB}-fg}${fight.fighterB.name}{/${t.fighterB}-fg}{/bold}\n\n`;
+
+      // Classification
+      const classification = fight.classification || 'MONEY_FIGHT';
+      const classColors = {
+        MEGA_FIGHT: 'yellow',
+        SUPER_FIGHT: 'green',
+        BIG_FIGHT: 'cyan',
+        GOOD_FIGHT: 'white'
+      };
+      const classColor = classColors[classification] || 'white';
+      content += `{${classColor}-fg}★ ${classification.replace('_', ' ')} ★{/${classColor}-fg}\n\n`;
+
+      // Narratives
+      if (fight.narratives && fight.narratives.length > 0) {
+        content += `{${t.stamina}-fg}━━ STORYLINES ━━{/${t.stamina}-fg}\n`;
+        for (const narrative of fight.narratives) {
+          content += `• ${narrative.replace('_', ' ')}\n`;
+        }
+        content += '\n';
+      }
+
+      // Promotional angles
+      if (fight.promotionalAngles && fight.promotionalAngles.length > 0) {
+        const angle = fight.promotionalAngles[0];
+        content += `{${t.stamina}-fg}━━ PROMOTIONAL ANGLE ━━{/${t.stamina}-fg}\n`;
+        content += `{bold}${angle.headline}{/bold}\n`;
+        content += `"${angle.tagline}"\n\n`;
+      }
+
+      // Financial projections
+      content += `{${t.stamina}-fg}━━ FINANCIAL PROJECTIONS ━━{/${t.stamina}-fg}\n`;
+      content += `Total Revenue: {green-fg}${this.formatMoney(fight.projectedRevenue)}{/green-fg}\n`;
+      if (fight.ppvProjection > 0) {
+        content += `PPV Revenue: ${this.formatMoney(fight.ppvProjection)}\n`;
+        content += `PPV Buys Est: ~${((fight.ppvBuysEstimate || 0) / 1000).toFixed(0)}K\n`;
+      }
+      content += '\n';
+
+      // Draw analysis
+      content += `{${t.stamina}-fg}━━ DRAW POWER ━━{/${t.stamina}-fg}\n`;
+      const drawA = fight.marketAnalysis?.fighterADraw || 50;
+      const drawB = fight.marketAnalysis?.fighterBDraw || 50;
+      content += `${fight.fighterA.name}: ${this.createStatBar(drawA, 12)} ${drawA}\n`;
+      content += `${fight.fighterB.name}: ${this.createStatBar(drawB, 12)} ${drawB}\n`;
+      content += `Combined: ${fight.combinedDraw || Math.round((drawA + drawB) / 2)}\n\n`;
+
+      // Market values
+      content += `{${t.stamina}-fg}━━ MARKET VALUES ━━{/${t.stamina}-fg}\n`;
+      content += `${fight.fighterA.name}: ${this.formatMoney(fight.marketAnalysis?.fighterAValue || 0)}\n`;
+      content += `${fight.fighterB.name}: ${this.formatMoney(fight.marketAnalysis?.fighterBValue || 0)}\n`;
+
+      detailsPanel.setContent(content);
+      this.screen.render();
+    };
+
+    fightList.on('select item', () => showFightDetails(fightList.selected));
+    showFightDetails(0);
+
+    // Controls
+    blessed.box({
+      parent: this.screen,
+      bottom: 0,
+      left: 'center',
+      width: 50,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}↑/↓ Browse Fights  •  ESC Back{/${t.commentary}-fg}{/center}`
+    });
+
+    fightList.key(['escape', 'q'], () => this.showMainMenu());
+    fightList.focus();
+    this.screen.render();
+  }
+
+  /**
    * Show boxing news/publications
    */
   showNews() {
@@ -1178,7 +1357,21 @@ boxing news and coverage.{/${t.commentary}-fg}
       content += `{${t.stamina}-fg}━━ POTENTIAL ━━{/${t.stamina}-fg}\n`;
       content += `Tier: ${fighter.potential.tier}\n`;
       content += `Ceiling: ${fighter.potential.ceiling}\n`;
-      content += `Peak Age: ${fighter.potential.peakAgePhysical}\n`;
+      content += `Peak Age: ${fighter.potential.peakAgePhysical}\n\n`;
+
+      // Financial info
+      content += `{${t.stamina}-fg}━━ FINANCIALS ━━{/${t.stamina}-fg}\n`;
+      const marketValue = fighter.getMarketValue?.() || 0;
+      const earnings = fighter.career?.earnings || 0;
+      const ppvDraw = fighter.getPPVDraw?.() || 0;
+      content += `Market Value: ${this.formatMoney(marketValue)}\n`;
+      content += `Career Earnings: ${this.formatMoney(earnings)}\n`;
+      content += `PPV Draw: ${ppvDraw}/100\n`;
+      if (fighter.career?.contractStatus?.promoterName) {
+        content += `Contract: ${fighter.career.contractStatus.promoterName}\n`;
+      } else {
+        content += `Contract: {${t.commentary}-fg}Free Agent{/${t.commentary}-fg}\n`;
+      }
 
       // Recent fights
       if (fighter.fightHistory && fighter.fightHistory.length > 0) {
@@ -1598,6 +1791,19 @@ Fighters become eligible for induction
     const filled = Math.round((value / 100) * width);
     const empty = width - filled;
     return '█'.repeat(filled) + '░'.repeat(empty);
+  }
+
+  /**
+   * Format money value for display
+   */
+  formatMoney(value) {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
+    return `$${value}`;
   }
 
   /**
