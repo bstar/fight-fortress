@@ -1,0 +1,103 @@
+# Riddick Bowe - "Big Daddy"
+# ERA: 1992 - Peak Bowe, Unified Heavyweight Champion
+# Just defeated Holyfield to become undisputed champion
+# 6'5" 235-245 lbs - Massive athletic heavyweight with skills
+# Record at this point: 32-0 (27 KOs)
+
+identity:
+  name: "Riddick Bowe"
+  nickname: "Big Daddy"
+  nationality: "USA"
+  hometown: "Brooklyn, New York"
+  era: 1992
+
+physical:
+  height: 196
+  weight: 108
+  reach: 206
+  age: 25
+  stance: orthodox
+  bodyType: large-athletic
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 88
+  powerRight: 92
+  knockoutPower: 90
+  bodyPunching: 85
+  punchingStamina: 82
+
+speed:
+  handSpeed: 85
+  footSpeed: 78
+  reflexes: 82
+  firstStep: 80
+  combinationSpeed: 88
+
+stamina:
+  cardio: 80
+  recoveryRate: 82
+  workRate: 85
+  secondWind: 78
+  paceControl: 75
+
+defense:
+  headMovement: 75
+  blocking: 82
+  parrying: 70
+  shoulderRoll: 55
+  clinchDefense: 78
+  clinchOffense: 85
+  ringAwareness: 80
+
+offense:
+  jabAccuracy: 85
+  powerAccuracy: 85
+  bodyAccuracy: 82
+  punchSelection: 82
+  feinting: 72
+  counterPunching: 78
+  combinationPunching: 88
+
+technical:
+  footwork: 75
+  distanceManagement: 78
+  insideFighting: 88
+  outsideFighting: 78
+  ringGeneralship: 80
+  adaptability: 78
+  fightIQ: 82
+
+mental:
+  chin: 85
+  heart: 88
+  killerInstinct: 85
+  composure: 78
+  focus: 75
+  intimidation: 85
+  confidence: 92
+  experience: 78
+  clutchFactor: 82
+
+corner:
+  headTrainer:
+    name: "Eddie Futch"
+    strategySkill: 95
+    communication: 90
+    adaptability: 90
+    specialty: "fundamentals"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 32
+  losses: 0
+  draws: 0
+  kos: 27

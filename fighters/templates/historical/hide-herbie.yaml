@@ -1,0 +1,103 @@
+# Herbie Hide - "Dancing Destroyer"
+# ERA: 1994 - WBO Champion
+# Fast, powerful but small heavyweight
+# 6'2" 214 lbs - Nigerian-British knockout artist
+# Record at this point: 25-0 (23 KOs)
+
+identity:
+  name: "Herbie Hide"
+  nickname: "Dancing Destroyer"
+  nationality: "UK"
+  hometown: "Norwich, England"
+  era: 1994
+
+physical:
+  height: 188
+  weight: 97
+  reach: 191
+  age: 22
+  stance: orthodox
+  bodyType: athletic
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 88
+  powerRight: 92
+  knockoutPower: 90
+  bodyPunching: 78
+  punchingStamina: 80
+
+speed:
+  handSpeed: 88
+  footSpeed: 82
+  reflexes: 85
+  firstStep: 85
+  combinationSpeed: 88
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 82
+  secondWind: 72
+  paceControl: 70
+
+defense:
+  headMovement: 70
+  blocking: 72
+  parrying: 65
+  shoulderRoll: 50
+  clinchDefense: 68
+  clinchOffense: 72
+  ringAwareness: 72
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 85
+  bodyAccuracy: 75
+  punchSelection: 75
+  feinting: 72
+  counterPunching: 75
+  combinationPunching: 85
+
+technical:
+  footwork: 80
+  distanceManagement: 72
+  insideFighting: 75
+  outsideFighting: 75
+  ringGeneralship: 70
+  adaptability: 68
+  fightIQ: 72
+
+mental:
+  chin: 68
+  heart: 75
+  killerInstinct: 88
+  composure: 70
+  focus: 75
+  intimidation: 78
+  confidence: 85
+  experience: 68
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Jimmy McDonnell"
+    strategySkill: 78
+    communication: 80
+    adaptability: 75
+    specialty: "speed development"
+  cutman:
+    name: "Dennie Mancini"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 25
+  losses: 0
+  draws: 0
+  kos: 23

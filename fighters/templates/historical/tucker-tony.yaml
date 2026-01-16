@@ -1,0 +1,103 @@
+# Tony Tucker - "TNT"
+# ERA: 1993 - Veteran contender, post-Lewis loss
+# Former IBF champ who gave prime Tyson trouble
+# 6'3" 235 lbs - Long, rangy with solid fundamentals
+# Record at this point: 52-3 (43 KOs)
+
+identity:
+  name: "Tony Tucker"
+  nickname: "TNT"
+  nationality: "USA"
+  hometown: "Grand Rapids, Michigan"
+  era: 1993
+
+physical:
+  height: 191
+  weight: 107
+  reach: 208
+  age: 34
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: out-boxer
+  defensive: high-guard
+  offensive: jab-and-move
+
+power:
+  powerLeft: 78
+  powerRight: 85
+  knockoutPower: 82
+  bodyPunching: 75
+  punchingStamina: 72
+
+speed:
+  handSpeed: 78
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 72
+  combinationSpeed: 75
+
+stamina:
+  cardio: 75
+  recoveryRate: 72
+  workRate: 72
+  secondWind: 70
+  paceControl: 78
+
+defense:
+  headMovement: 72
+  blocking: 80
+  parrying: 75
+  shoulderRoll: 55
+  clinchDefense: 75
+  clinchOffense: 72
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 82
+  powerAccuracy: 78
+  bodyAccuracy: 75
+  punchSelection: 78
+  feinting: 72
+  counterPunching: 75
+  combinationPunching: 75
+
+technical:
+  footwork: 75
+  distanceManagement: 82
+  insideFighting: 70
+  outsideFighting: 80
+  ringGeneralship: 78
+  adaptability: 72
+  fightIQ: 78
+
+mental:
+  chin: 78
+  heart: 78
+  killerInstinct: 72
+  composure: 75
+  focus: 75
+  intimidation: 72
+  confidence: 75
+  experience: 88
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Thell Torrence"
+    strategySkill: 80
+    communication: 78
+    adaptability: 75
+    specialty: "distance boxing"
+  cutman:
+    name: "Joe Chavez"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 52
+  losses: 3
+  draws: 0
+  kos: 43

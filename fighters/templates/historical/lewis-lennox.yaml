@@ -9,6 +9,7 @@ identity:
   nickname: "The Lion"
   nationality: "United Kingdom"
   hometown: "London, England"
+  era: 1999
 
 physical:
   height: 196

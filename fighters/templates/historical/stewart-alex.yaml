@@ -1,0 +1,103 @@
+# Alex Stewart - "The Destroyer"
+# ERA: 1990 - Rising contender before Tyson fight
+# Jamaican-born Olympic boxer, devastating early KOs
+# 6'3" 222 lbs - Won first 24 fights by KO
+# Record at this point: 24-0 (24 KOs)
+
+identity:
+  name: "Alex Stewart"
+  nickname: "The Destroyer"
+  nationality: "Jamaica"
+  hometown: "Mount Vernon, New York"
+  era: 1990
+
+physical:
+  height: 191
+  weight: 101
+  reach: 199
+  age: 25
+  stance: orthodox
+  bodyType: athletic
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 82
+  powerRight: 92
+  knockoutPower: 90
+  bodyPunching: 80
+  punchingStamina: 78
+
+speed:
+  handSpeed: 80
+  footSpeed: 75
+  reflexes: 78
+  firstStep: 78
+  combinationSpeed: 82
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 82
+  secondWind: 72
+  paceControl: 68
+
+defense:
+  headMovement: 65
+  blocking: 72
+  parrying: 62
+  shoulderRoll: 48
+  clinchDefense: 68
+  clinchOffense: 75
+  ringAwareness: 72
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 85
+  bodyAccuracy: 78
+  punchSelection: 72
+  feinting: 65
+  counterPunching: 72
+  combinationPunching: 82
+
+technical:
+  footwork: 72
+  distanceManagement: 70
+  insideFighting: 80
+  outsideFighting: 72
+  ringGeneralship: 68
+  adaptability: 65
+  fightIQ: 70
+
+mental:
+  chin: 72
+  heart: 80
+  killerInstinct: 90
+  composure: 68
+  focus: 72
+  intimidation: 82
+  confidence: 88
+  experience: 68
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Victor Valle"
+    strategySkill: 78
+    communication: 75
+    adaptability: 72
+    specialty: "power punching"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 24
+  losses: 0
+  draws: 0
+  kos: 24

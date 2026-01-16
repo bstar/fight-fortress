@@ -1,0 +1,103 @@
+# James "Buster" Douglas
+# ERA: 1990 - The night he shocked the world vs Tyson
+# Massive upset victory over "unbeatable" Tyson in Tokyo
+# 6'4" 231 lbs - Long, rangy boxer who fought for his late mother
+# Record at this point: 30-4-1 (20 KOs)
+
+identity:
+  name: "James Douglas"
+  nickname: "Buster"
+  nationality: "USA"
+  hometown: "Columbus, Ohio"
+  era: 1990
+
+physical:
+  height: 193
+  weight: 105
+  reach: 211
+  age: 29
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: boxer-puncher
+  defensive: distance
+  offensive: jab-and-move
+
+power:
+  powerLeft: 78
+  powerRight: 85
+  knockoutPower: 80
+  bodyPunching: 75
+  punchingStamina: 72
+
+speed:
+  handSpeed: 80
+  footSpeed: 75
+  reflexes: 78
+  firstStep: 72
+  combinationSpeed: 78
+
+stamina:
+  cardio: 72
+  recoveryRate: 70
+  workRate: 75
+  secondWind: 68
+  paceControl: 75
+
+defense:
+  headMovement: 75
+  blocking: 78
+  parrying: 72
+  shoulderRoll: 55
+  clinchDefense: 72
+  clinchOffense: 70
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 85
+  powerAccuracy: 78
+  bodyAccuracy: 75
+  punchSelection: 78
+  feinting: 72
+  counterPunching: 75
+  combinationPunching: 80
+
+technical:
+  footwork: 75
+  distanceManagement: 82
+  insideFighting: 70
+  outsideFighting: 80
+  ringGeneralship: 75
+  adaptability: 72
+  fightIQ: 78
+
+mental:
+  chin: 78
+  heart: 85
+  killerInstinct: 72
+  composure: 75
+  focus: 82
+  intimidation: 68
+  confidence: 78
+  experience: 78
+  clutchFactor: 88
+
+corner:
+  headTrainer:
+    name: "John Russell"
+    strategySkill: 78
+    communication: 80
+    adaptability: 75
+    specialty: "distance boxing"
+  cutman:
+    name: "Chuck Bodak"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 30
+  losses: 4
+  draws: 1
+  kos: 20

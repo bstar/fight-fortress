@@ -1,0 +1,103 @@
+# Trevor Berbick
+# ERA: 1990 - Veteran former WBC champion
+# Last man to fight Muhammad Ali, lost title to Tyson
+# 6'2" 218 lbs - Tough Jamaican veteran
+# Record at this point: 38-7-1 (28 KOs)
+
+identity:
+  name: "Trevor Berbick"
+  nickname: "The Pride of Jamaica"
+  nationality: "Jamaica"
+  hometown: "Halifax, Nova Scotia"
+  era: 1990
+
+physical:
+  height: 188
+  weight: 99
+  reach: 198
+  age: 35
+  stance: orthodox
+  bodyType: athletic
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: body-snatcher
+
+power:
+  powerLeft: 78
+  powerRight: 85
+  knockoutPower: 80
+  bodyPunching: 82
+  punchingStamina: 75
+
+speed:
+  handSpeed: 75
+  footSpeed: 70
+  reflexes: 72
+  firstStep: 70
+  combinationSpeed: 75
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 78
+  secondWind: 75
+  paceControl: 72
+
+defense:
+  headMovement: 72
+  blocking: 78
+  parrying: 68
+  shoulderRoll: 52
+  clinchDefense: 78
+  clinchOffense: 78
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 78
+  bodyAccuracy: 82
+  punchSelection: 75
+  feinting: 68
+  counterPunching: 72
+  combinationPunching: 78
+
+technical:
+  footwork: 72
+  distanceManagement: 75
+  insideFighting: 80
+  outsideFighting: 72
+  ringGeneralship: 75
+  adaptability: 72
+  fightIQ: 75
+
+mental:
+  chin: 80
+  heart: 85
+  killerInstinct: 78
+  composure: 75
+  focus: 72
+  intimidation: 72
+  confidence: 78
+  experience: 88
+  clutchFactor: 75
+
+corner:
+  headTrainer:
+    name: "Lee Black"
+    strategySkill: 75
+    communication: 72
+    adaptability: 70
+    specialty: "conditioning"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 38
+  losses: 7
+  draws: 1
+  kos: 28

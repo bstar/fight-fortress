@@ -1,0 +1,103 @@
+# Vitali Klitschko - "Dr. Ironfist"
+# ERA: 1999 - WBO Champion, rising star
+# Ukrainian giant with PhD in sports science
+# 6'7" 245 lbs - Massive reach, iron chin, educated boxer
+# Record at this point: 27-1 (26 KOs)
+
+identity:
+  name: "Vitali Klitschko"
+  nickname: "Dr. Ironfist"
+  nationality: "Ukraine"
+  hometown: "Kyiv, Ukraine"
+  era: 1999
+
+physical:
+  height: 201
+  weight: 111
+  reach: 203
+  age: 27
+  stance: orthodox
+  bodyType: tall-athletic
+
+style:
+  primary: out-boxer
+  defensive: distance
+  offensive: jab-and-move
+
+power:
+  powerLeft: 85
+  powerRight: 92
+  knockoutPower: 90
+  bodyPunching: 78
+  punchingStamina: 82
+
+speed:
+  handSpeed: 80
+  footSpeed: 75
+  reflexes: 78
+  firstStep: 75
+  combinationSpeed: 78
+
+stamina:
+  cardio: 80
+  recoveryRate: 78
+  workRate: 78
+  secondWind: 75
+  paceControl: 82
+
+defense:
+  headMovement: 72
+  blocking: 82
+  parrying: 75
+  shoulderRoll: 55
+  clinchDefense: 80
+  clinchOffense: 72
+  ringAwareness: 82
+
+offense:
+  jabAccuracy: 88
+  powerAccuracy: 85
+  bodyAccuracy: 75
+  punchSelection: 82
+  feinting: 75
+  counterPunching: 78
+  combinationPunching: 80
+
+technical:
+  footwork: 78
+  distanceManagement: 88
+  insideFighting: 68
+  outsideFighting: 88
+  ringGeneralship: 85
+  adaptability: 78
+  fightIQ: 88
+
+mental:
+  chin: 95
+  heart: 90
+  killerInstinct: 82
+  composure: 88
+  focus: 90
+  intimidation: 88
+  confidence: 92
+  experience: 75
+  clutchFactor: 88
+
+corner:
+  headTrainer:
+    name: "Fritz Sdunek"
+    strategySkill: 88
+    communication: 85
+    adaptability: 82
+    specialty: "technical boxing"
+  cutman:
+    name: "Jacob Duran"
+    cutTreatment: 90
+    swellingTreatment: 88
+    speed: 85
+
+record:
+  wins: 27
+  losses: 1
+  draws: 0
+  kos: 26

@@ -1,0 +1,103 @@
+# Oleg Maskaev - "The Big O"
+# ERA: 1999 - Rising contender
+# Former Soviet amateur standout with big right hand
+# 6'3" 240 lbs - Heavy-handed but chinny
+# Record at this point: 22-3 (17 KOs)
+
+identity:
+  name: "Oleg Maskaev"
+  nickname: "The Big O"
+  nationality: "Russia"
+  hometown: "Saransk, Russia"
+  era: 1999
+
+physical:
+  height: 191
+  weight: 109
+  reach: 201
+  age: 30
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 80
+  powerRight: 92
+  knockoutPower: 88
+  bodyPunching: 75
+  punchingStamina: 75
+
+speed:
+  handSpeed: 75
+  footSpeed: 70
+  reflexes: 72
+  firstStep: 72
+  combinationSpeed: 75
+
+stamina:
+  cardio: 75
+  recoveryRate: 72
+  workRate: 78
+  secondWind: 70
+  paceControl: 70
+
+defense:
+  headMovement: 65
+  blocking: 75
+  parrying: 62
+  shoulderRoll: 48
+  clinchDefense: 72
+  clinchOffense: 75
+  ringAwareness: 70
+
+offense:
+  jabAccuracy: 72
+  powerAccuracy: 82
+  bodyAccuracy: 72
+  punchSelection: 72
+  feinting: 65
+  counterPunching: 75
+  combinationPunching: 75
+
+technical:
+  footwork: 68
+  distanceManagement: 70
+  insideFighting: 78
+  outsideFighting: 68
+  ringGeneralship: 70
+  adaptability: 68
+  fightIQ: 72
+
+mental:
+  chin: 58
+  heart: 78
+  killerInstinct: 82
+  composure: 70
+  focus: 75
+  intimidation: 75
+  confidence: 78
+  experience: 75
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Hector Roca"
+    strategySkill: 78
+    communication: 75
+    adaptability: 72
+    specialty: "power punching"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 22
+  losses: 3
+  draws: 0
+  kos: 17

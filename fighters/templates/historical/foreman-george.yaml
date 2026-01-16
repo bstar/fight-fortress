@@ -1,0 +1,103 @@
+# George Foreman - "Big George"
+# ERA: 1994 - Comeback Foreman, about to KO Michael Moorer
+# 45 years old, came back from 10-year retirement
+# 6'3" 250 lbs - Older but still devastating power
+# Record at this point: 72-4 (67 KOs)
+
+identity:
+  name: "George Foreman"
+  nickname: "Big George"
+  nationality: "USA"
+  hometown: "Houston, Texas"
+  era: 1994
+
+physical:
+  height: 191
+  weight: 113
+  reach: 199
+  age: 45
+  stance: orthodox
+  bodyType: heavyset
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 90
+  powerRight: 98
+  knockoutPower: 98
+  bodyPunching: 85
+  punchingStamina: 72
+
+speed:
+  handSpeed: 68
+  footSpeed: 55
+  reflexes: 62
+  firstStep: 58
+  combinationSpeed: 65
+
+stamina:
+  cardio: 65
+  recoveryRate: 70
+  workRate: 60
+  secondWind: 72
+  paceControl: 82
+
+defense:
+  headMovement: 55
+  blocking: 85
+  parrying: 78
+  shoulderRoll: 45
+  clinchDefense: 80
+  clinchOffense: 75
+  ringAwareness: 88
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 88
+  bodyAccuracy: 80
+  punchSelection: 85
+  feinting: 65
+  counterPunching: 82
+  combinationPunching: 70
+
+technical:
+  footwork: 55
+  distanceManagement: 75
+  insideFighting: 82
+  outsideFighting: 65
+  ringGeneralship: 88
+  adaptability: 75
+  fightIQ: 90
+
+mental:
+  chin: 92
+  heart: 95
+  killerInstinct: 90
+  composure: 90
+  focus: 88
+  intimidation: 88
+  confidence: 92
+  experience: 98
+  clutchFactor: 95
+
+corner:
+  headTrainer:
+    name: "Angelo Dundee"
+    strategySkill: 95
+    communication: 92
+    adaptability: 90
+    specialty: "veteran guidance"
+  cutman:
+    name: "Ace Marotta"
+    cutTreatment: 88
+    swellingTreatment: 85
+    speed: 82
+
+record:
+  wins: 72
+  losses: 4
+  draws: 0
+  kos: 67

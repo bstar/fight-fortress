@@ -9,6 +9,7 @@ identity:
   nickname: "Iron Mike"
   nationality: "USA"
   hometown: "Brooklyn, New York"
+  era: 1989
 
 physical:
   height: 178

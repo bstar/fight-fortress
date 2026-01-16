@@ -1,0 +1,103 @@
+# Ike Ibeabuchi - "The President"
+# ERA: 1997 - Undefeated, just beat Tua in epic fight
+# Nigerian powerhouse with elite skills, tragic career
+# 6'2" 235 lbs - Complete fighter, career cut short
+# Record at this point: 17-0 (14 KOs)
+
+identity:
+  name: "Ike Ibeabuchi"
+  nickname: "The President"
+  nationality: "Nigeria"
+  hometown: "Dallas, Texas"
+  era: 1997
+
+physical:
+  height: 188
+  weight: 107
+  reach: 198
+  age: 24
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: swarmer
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 88
+  powerRight: 92
+  knockoutPower: 90
+  bodyPunching: 88
+  punchingStamina: 88
+
+speed:
+  handSpeed: 88
+  footSpeed: 82
+  reflexes: 85
+  firstStep: 85
+  combinationSpeed: 90
+
+stamina:
+  cardio: 92
+  recoveryRate: 88
+  workRate: 95
+  secondWind: 88
+  paceControl: 78
+
+defense:
+  headMovement: 78
+  blocking: 80
+  parrying: 70
+  shoulderRoll: 52
+  clinchDefense: 78
+  clinchOffense: 85
+  ringAwareness: 82
+
+offense:
+  jabAccuracy: 85
+  powerAccuracy: 85
+  bodyAccuracy: 88
+  punchSelection: 82
+  feinting: 75
+  counterPunching: 80
+  combinationPunching: 92
+
+technical:
+  footwork: 82
+  distanceManagement: 78
+  insideFighting: 88
+  outsideFighting: 78
+  ringGeneralship: 80
+  adaptability: 82
+  fightIQ: 88
+
+mental:
+  chin: 85
+  heart: 92
+  killerInstinct: 90
+  composure: 78
+  focus: 82
+  intimidation: 85
+  confidence: 92
+  experience: 70
+  clutchFactor: 85
+
+corner:
+  headTrainer:
+    name: "Curtis Cokes"
+    strategySkill: 85
+    communication: 82
+    adaptability: 80
+    specialty: "work rate"
+  cutman:
+    name: "Rafael Garcia"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 17
+  losses: 0
+  draws: 0
+  kos: 14

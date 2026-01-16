@@ -1,0 +1,103 @@
+# Bert Cooper - "Smokin' Bert"
+# ERA: 1991 - Contender who knocked down Holyfield
+# Trained by Joe Frazier, exciting action fighter
+# 6'1" 225 lbs - All-action brawler from Philly
+# Record at this point: 27-11 (22 KOs)
+
+identity:
+  name: "Bert Cooper"
+  nickname: "Smokin' Bert"
+  nationality: "USA"
+  hometown: "Philadelphia, Pennsylvania"
+  era: 1991
+
+physical:
+  height: 185
+  weight: 102
+  reach: 191
+  age: 25
+  stance: orthodox
+  bodyType: stocky-muscular
+
+style:
+  primary: swarmer
+  defensive: peek-a-boo
+  offensive: combo-puncher
+
+power:
+  powerLeft: 88
+  powerRight: 90
+  knockoutPower: 88
+  bodyPunching: 85
+  punchingStamina: 75
+
+speed:
+  handSpeed: 85
+  footSpeed: 75
+  reflexes: 78
+  firstStep: 80
+  combinationSpeed: 88
+
+stamina:
+  cardio: 68
+  recoveryRate: 72
+  workRate: 88
+  secondWind: 65
+  paceControl: 60
+
+defense:
+  headMovement: 72
+  blocking: 70
+  parrying: 60
+  shoulderRoll: 48
+  clinchDefense: 68
+  clinchOffense: 82
+  ringAwareness: 70
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 82
+  bodyAccuracy: 85
+  punchSelection: 70
+  feinting: 62
+  counterPunching: 72
+  combinationPunching: 90
+
+technical:
+  footwork: 70
+  distanceManagement: 65
+  insideFighting: 88
+  outsideFighting: 62
+  ringGeneralship: 65
+  adaptability: 68
+  fightIQ: 68
+
+mental:
+  chin: 75
+  heart: 95
+  killerInstinct: 92
+  composure: 60
+  focus: 65
+  intimidation: 78
+  confidence: 80
+  experience: 72
+  clutchFactor: 78
+
+corner:
+  headTrainer:
+    name: "Joe Frazier"
+    strategySkill: 85
+    communication: 78
+    adaptability: 72
+    specialty: "inside fighting"
+  cutman:
+    name: "Eddie Aliano"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 27
+  losses: 11
+  draws: 0
+  kos: 22

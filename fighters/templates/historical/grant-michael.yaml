@@ -1,0 +1,103 @@
+# Michael Grant - "Big"
+# ERA: 1999 - Undefeated, #3 ranked heavyweight
+# Massive prospect with huge potential before Lewis loss
+# 6'7" 250 lbs - Giant athlete with devastating combinations
+# Record at this point: 31-0 (22 KOs)
+
+identity:
+  name: "Michael Grant"
+  nickname: "Big"
+  nationality: "USA"
+  hometown: "Norristown, Pennsylvania"
+  era: 1999
+
+physical:
+  height: 201
+  weight: 113
+  reach: 218
+  age: 27
+  stance: orthodox
+  bodyType: tall-athletic
+
+style:
+  primary: boxer-puncher
+  defensive: distance
+  offensive: combo-puncher
+
+power:
+  powerLeft: 85
+  powerRight: 90
+  knockoutPower: 88
+  bodyPunching: 78
+  punchingStamina: 80
+
+speed:
+  handSpeed: 82
+  footSpeed: 75
+  reflexes: 78
+  firstStep: 78
+  combinationSpeed: 85
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 80
+  secondWind: 72
+  paceControl: 72
+
+defense:
+  headMovement: 68
+  blocking: 72
+  parrying: 65
+  shoulderRoll: 52
+  clinchDefense: 70
+  clinchOffense: 72
+  ringAwareness: 72
+
+offense:
+  jabAccuracy: 82
+  powerAccuracy: 80
+  bodyAccuracy: 75
+  punchSelection: 75
+  feinting: 70
+  counterPunching: 72
+  combinationPunching: 85
+
+technical:
+  footwork: 75
+  distanceManagement: 78
+  insideFighting: 72
+  outsideFighting: 80
+  ringGeneralship: 70
+  adaptability: 68
+  fightIQ: 72
+
+mental:
+  chin: 65
+  heart: 72
+  killerInstinct: 82
+  composure: 65
+  focus: 70
+  intimidation: 85
+  confidence: 88
+  experience: 68
+  clutchFactor: 65
+
+corner:
+  headTrainer:
+    name: "Don Turner"
+    strategySkill: 88
+    communication: 85
+    adaptability: 82
+    specialty: "combination punching"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 31
+  losses: 0
+  draws: 0
+  kos: 22

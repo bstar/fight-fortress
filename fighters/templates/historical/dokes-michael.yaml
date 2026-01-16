@@ -1,0 +1,103 @@
+# Michael Dokes
+# ERA: 1990 - Comeback fighter, pre-Bowe
+# Former WBA champion with blazing hand speed
+# 6'3" 240 lbs - Quick hands but struggled with consistency
+# Record at this point: 43-4-2 (26 KOs)
+
+identity:
+  name: "Michael Dokes"
+  nickname: "Dynamite"
+  nationality: "USA"
+  hometown: "Akron, Ohio"
+  era: 1990
+
+physical:
+  height: 191
+  weight: 109
+  reach: 198
+  age: 31
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: swarmer
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 82
+  powerRight: 85
+  knockoutPower: 82
+  bodyPunching: 80
+  punchingStamina: 75
+
+speed:
+  handSpeed: 92
+  footSpeed: 78
+  reflexes: 85
+  firstStep: 82
+  combinationSpeed: 92
+
+stamina:
+  cardio: 72
+  recoveryRate: 70
+  workRate: 80
+  secondWind: 68
+  paceControl: 68
+
+defense:
+  headMovement: 75
+  blocking: 72
+  parrying: 68
+  shoulderRoll: 50
+  clinchDefense: 70
+  clinchOffense: 78
+  ringAwareness: 75
+
+offense:
+  jabAccuracy: 82
+  powerAccuracy: 80
+  bodyAccuracy: 80
+  punchSelection: 75
+  feinting: 72
+  counterPunching: 75
+  combinationPunching: 92
+
+technical:
+  footwork: 78
+  distanceManagement: 72
+  insideFighting: 82
+  outsideFighting: 72
+  ringGeneralship: 72
+  adaptability: 70
+  fightIQ: 75
+
+mental:
+  chin: 72
+  heart: 78
+  killerInstinct: 82
+  composure: 65
+  focus: 62
+  intimidation: 75
+  confidence: 78
+  experience: 85
+  clutchFactor: 70
+
+corner:
+  headTrainer:
+    name: "George Benton"
+    strategySkill: 92
+    communication: 88
+    adaptability: 85
+    specialty: "hand speed"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 43
+  losses: 4
+  draws: 2
+  kos: 26

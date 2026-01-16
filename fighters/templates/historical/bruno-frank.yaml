@@ -1,0 +1,103 @@
+# Frank Bruno - British Lion
+# ERA: 1995 - WBC Champion, finally won world title on 4th attempt
+# British icon, known for his power and vulnerability
+# 6'3" 247 lbs - Massive puncher with suspect chin
+# Record at this point: 40-4 (38 KOs)
+
+identity:
+  name: "Frank Bruno"
+  nickname: "True Brit"
+  nationality: "UK"
+  hometown: "London, England"
+  era: 1995
+
+physical:
+  height: 191
+  weight: 112
+  reach: 208
+  age: 33
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 85
+  powerRight: 95
+  knockoutPower: 92
+  bodyPunching: 80
+  punchingStamina: 75
+
+speed:
+  handSpeed: 72
+  footSpeed: 65
+  reflexes: 68
+  firstStep: 70
+  combinationSpeed: 70
+
+stamina:
+  cardio: 70
+  recoveryRate: 68
+  workRate: 72
+  secondWind: 65
+  paceControl: 68
+
+defense:
+  headMovement: 58
+  blocking: 78
+  parrying: 62
+  shoulderRoll: 45
+  clinchDefense: 70
+  clinchOffense: 72
+  ringAwareness: 72
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 82
+  bodyAccuracy: 75
+  punchSelection: 72
+  feinting: 60
+  counterPunching: 65
+  combinationPunching: 72
+
+technical:
+  footwork: 62
+  distanceManagement: 70
+  insideFighting: 75
+  outsideFighting: 68
+  ringGeneralship: 70
+  adaptability: 62
+  fightIQ: 70
+
+mental:
+  chin: 62
+  heart: 82
+  killerInstinct: 78
+  composure: 65
+  focus: 78
+  intimidation: 80
+  confidence: 75
+  experience: 82
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "George Francis"
+    strategySkill: 80
+    communication: 82
+    adaptability: 75
+    specialty: "power development"
+  cutman:
+    name: "Paddy Byrne"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 40
+  losses: 4
+  draws: 0
+  kos: 38

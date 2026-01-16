@@ -1,0 +1,103 @@
+# Michael Bentt
+# ERA: 1993 - WBO Champion after stunning Morrison KO
+# Elite amateur, short but explosive pro career
+# 6'3" 235 lbs - Decorated amateur with quick hands
+# Record at this point: 11-1 (6 KOs)
+
+identity:
+  name: "Michael Bentt"
+  nickname: "The Harlem Hammer"
+  nationality: "USA"
+  hometown: "Queens, New York"
+  era: 1993
+
+physical:
+  height: 191
+  weight: 107
+  reach: 201
+  age: 28
+  stance: orthodox
+  bodyType: athletic
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 82
+  powerRight: 88
+  knockoutPower: 85
+  bodyPunching: 78
+  punchingStamina: 75
+
+speed:
+  handSpeed: 85
+  footSpeed: 78
+  reflexes: 82
+  firstStep: 80
+  combinationSpeed: 85
+
+stamina:
+  cardio: 72
+  recoveryRate: 70
+  workRate: 78
+  secondWind: 68
+  paceControl: 72
+
+defense:
+  headMovement: 72
+  blocking: 78
+  parrying: 72
+  shoulderRoll: 55
+  clinchDefense: 70
+  clinchOffense: 72
+  ringAwareness: 75
+
+offense:
+  jabAccuracy: 82
+  powerAccuracy: 80
+  bodyAccuracy: 75
+  punchSelection: 78
+  feinting: 75
+  counterPunching: 78
+  combinationPunching: 85
+
+technical:
+  footwork: 78
+  distanceManagement: 75
+  insideFighting: 75
+  outsideFighting: 78
+  ringGeneralship: 72
+  adaptability: 70
+  fightIQ: 78
+
+mental:
+  chin: 58
+  heart: 72
+  killerInstinct: 80
+  composure: 70
+  focus: 75
+  intimidation: 72
+  confidence: 78
+  experience: 68
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Eddie Mustafa Muhammad"
+    strategySkill: 82
+    communication: 80
+    adaptability: 78
+    specialty: "boxing technique"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 11
+  losses: 1
+  draws: 0
+  kos: 6

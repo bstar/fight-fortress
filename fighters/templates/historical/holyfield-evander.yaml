@@ -9,6 +9,7 @@ identity:
   nickname: "The Real Deal"
   nationality: "USA"
   hometown: "Atlanta, Georgia"
+  era: 1991
 
 physical:
   height: 188

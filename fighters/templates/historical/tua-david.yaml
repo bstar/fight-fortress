@@ -1,0 +1,103 @@
+# David Tua - "The Tuaman"
+# ERA: 1998 - Peak Tua, #3 ranked heavyweight in world
+# Samoan destroyer with devastating left hook
+# 5'10" 245 lbs - Short but incredibly powerful
+# Record at this point: 34-1 (30 KOs)
+
+identity:
+  name: "David Tua"
+  nickname: "The Tuaman"
+  nationality: "New Zealand"
+  hometown: "Auckland, New Zealand"
+  era: 1998
+
+physical:
+  height: 178
+  weight: 111
+  reach: 178
+  age: 25
+  stance: orthodox
+  bodyType: stocky-muscular
+
+style:
+  primary: swarmer
+  defensive: peek-a-boo
+  offensive: body-snatcher
+
+power:
+  powerLeft: 98
+  powerRight: 88
+  knockoutPower: 96
+  bodyPunching: 88
+  punchingStamina: 85
+
+speed:
+  handSpeed: 85
+  footSpeed: 72
+  reflexes: 80
+  firstStep: 82
+  combinationSpeed: 85
+
+stamina:
+  cardio: 82
+  recoveryRate: 80
+  workRate: 88
+  secondWind: 78
+  paceControl: 70
+
+defense:
+  headMovement: 82
+  blocking: 80
+  parrying: 68
+  shoulderRoll: 55
+  clinchDefense: 75
+  clinchOffense: 85
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 88
+  bodyAccuracy: 88
+  punchSelection: 80
+  feinting: 72
+  counterPunching: 82
+  combinationPunching: 88
+
+technical:
+  footwork: 72
+  distanceManagement: 68
+  insideFighting: 92
+  outsideFighting: 60
+  ringGeneralship: 75
+  adaptability: 70
+  fightIQ: 78
+
+mental:
+  chin: 90
+  heart: 92
+  killerInstinct: 92
+  composure: 82
+  focus: 85
+  intimidation: 88
+  confidence: 90
+  experience: 78
+  clutchFactor: 85
+
+corner:
+  headTrainer:
+    name: "Kevin Barry"
+    strategySkill: 82
+    communication: 85
+    adaptability: 80
+    specialty: "inside fighting"
+  cutman:
+    name: "Joe Chavez"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 34
+  losses: 1
+  draws: 0
+  kos: 30

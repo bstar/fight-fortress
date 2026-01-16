@@ -1,0 +1,103 @@
+# Donovan "Razor" Ruddock
+# ERA: 1991 - Peak Ruddock, after two wars with Tyson
+# Known for his devastating "Smash" - half hook, half uppercut
+# 6'3" 238 lbs - Canadian-Jamaican power puncher
+# Record at this point: 27-2-1 (19 KOs)
+
+identity:
+  name: "Donovan Ruddock"
+  nickname: "Razor"
+  nationality: "Canada"
+  hometown: "Toronto, Ontario"
+  era: 1991
+
+physical:
+  height: 191
+  weight: 108
+  reach: 208
+  age: 27
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: body-snatcher
+
+power:
+  powerLeft: 95
+  powerRight: 88
+  knockoutPower: 93
+  bodyPunching: 85
+  punchingStamina: 80
+
+speed:
+  handSpeed: 78
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 74
+  combinationSpeed: 78
+
+stamina:
+  cardio: 82
+  recoveryRate: 85
+  workRate: 80
+  secondWind: 82
+  paceControl: 75
+
+defense:
+  headMovement: 72
+  blocking: 80
+  parrying: 65
+  shoulderRoll: 50
+  clinchDefense: 78
+  clinchOffense: 82
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 85
+  bodyAccuracy: 85
+  punchSelection: 78
+  feinting: 65
+  counterPunching: 80
+  combinationPunching: 78
+
+technical:
+  footwork: 70
+  distanceManagement: 72
+  insideFighting: 85
+  outsideFighting: 68
+  ringGeneralship: 75
+  adaptability: 72
+  fightIQ: 78
+
+mental:
+  chin: 88
+  heart: 92
+  killerInstinct: 88
+  composure: 78
+  focus: 80
+  intimidation: 85
+  confidence: 85
+  experience: 78
+  clutchFactor: 82
+
+corner:
+  headTrainer:
+    name: "Jap Hanks"
+    strategySkill: 75
+    communication: 72
+    adaptability: 70
+    specialty: "power punching"
+  cutman:
+    name: "Rafael Garcia"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 27
+  losses: 2
+  draws: 1
+  kos: 19

@@ -1,0 +1,113 @@
+# Andrew Golota - "The Foul Pole"
+# ERA: 1996 - Notorious for DQ losses to Bowe while winning
+# 1988 Olympic Bronze medalist, elite skills but undisciplined
+# 6'4" 245 lbs - Skilled Polish contender with dirty tactics
+# Record at this point: 28-0 (25 KOs) before Bowe fights
+
+identity:
+  name: "Andrew Golota"
+  nickname: "The Foul Pole"
+  nationality: "Poland"
+  hometown: "Chicago, Illinois"
+  era: 1996
+
+physical:
+  height: 193
+  weight: 111
+  reach: 201
+  age: 28
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: jab-and-move
+
+power:
+  powerLeft: 82
+  powerRight: 88
+  knockoutPower: 85
+  bodyPunching: 88
+  punchingStamina: 80
+
+speed:
+  handSpeed: 82
+  footSpeed: 78
+  reflexes: 80
+  firstStep: 78
+  combinationSpeed: 82
+
+stamina:
+  cardio: 80
+  recoveryRate: 78
+  workRate: 82
+  secondWind: 75
+  paceControl: 72
+
+defense:
+  headMovement: 78
+  blocking: 80
+  parrying: 72
+  shoulderRoll: 55
+  clinchDefense: 75
+  clinchOffense: 78
+  ringAwareness: 75
+
+offense:
+  jabAccuracy: 85
+  powerAccuracy: 80
+  bodyAccuracy: 88
+  punchSelection: 72
+  feinting: 75
+  counterPunching: 78
+  combinationPunching: 82
+
+technical:
+  footwork: 78
+  distanceManagement: 80
+  insideFighting: 78
+  outsideFighting: 80
+  ringGeneralship: 70
+  adaptability: 68
+  fightIQ: 72
+
+mental:
+  chin: 82
+  heart: 70
+  killerInstinct: 78
+  composure: 55
+  focus: 58
+  intimidation: 75
+  confidence: 75
+  experience: 78
+  clutchFactor: 55
+
+tactics:
+  dirtiness: 75
+  headbuttTendency: 35
+  lowBlowTendency: 85
+  rabbitPunchTendency: 40
+  holdingTendency: 50
+  elbowTendency: 25
+  pushTendency: 45
+  clinchingTendency: 55
+
+corner:
+  headTrainer:
+    name: "Lou Duva"
+    strategySkill: 88
+    communication: 85
+    adaptability: 82
+    specialty: "fundamentals"
+  cutman:
+    name: "Al Gavin"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 28
+  losses: 0
+  draws: 0
+  kos: 25

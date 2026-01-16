@@ -1,0 +1,103 @@
+# Hasim Rahman - "The Rock"
+# ERA: 1998 - Rising contender before Lewis upset
+# Would later shock Lewis in South Africa
+# 6'2" 240 lbs - Natural power, solid jab
+# Record at this point: 30-2 (24 KOs)
+
+identity:
+  name: "Hasim Rahman"
+  nickname: "The Rock"
+  nationality: "USA"
+  hometown: "Baltimore, Maryland"
+  era: 1998
+
+physical:
+  height: 189
+  weight: 109
+  reach: 208
+  age: 25
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 82
+  powerRight: 92
+  knockoutPower: 88
+  bodyPunching: 80
+  punchingStamina: 78
+
+speed:
+  handSpeed: 78
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 74
+  combinationSpeed: 78
+
+stamina:
+  cardio: 75
+  recoveryRate: 78
+  workRate: 78
+  secondWind: 72
+  paceControl: 72
+
+defense:
+  headMovement: 70
+  blocking: 78
+  parrying: 68
+  shoulderRoll: 52
+  clinchDefense: 75
+  clinchOffense: 78
+  ringAwareness: 75
+
+offense:
+  jabAccuracy: 80
+  powerAccuracy: 82
+  bodyAccuracy: 78
+  punchSelection: 75
+  feinting: 68
+  counterPunching: 78
+  combinationPunching: 78
+
+technical:
+  footwork: 70
+  distanceManagement: 72
+  insideFighting: 78
+  outsideFighting: 72
+  ringGeneralship: 72
+  adaptability: 70
+  fightIQ: 75
+
+mental:
+  chin: 80
+  heart: 82
+  killerInstinct: 82
+  composure: 75
+  focus: 78
+  intimidation: 78
+  confidence: 80
+  experience: 75
+  clutchFactor: 78
+
+corner:
+  headTrainer:
+    name: "Adrian Davis"
+    strategySkill: 78
+    communication: 75
+    adaptability: 72
+    specialty: "power development"
+  cutman:
+    name: "Mike Bazzel"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 30
+  losses: 2
+  draws: 0
+  kos: 24

@@ -1,0 +1,103 @@
+# Larry Holmes - "The Easton Assassin"
+# ERA: 1992 - Late career Holmes, still competitive
+# Legendary jab, former dominant champion
+# 6'3" 236 lbs - Crafty veteran with elite boxing IQ
+# Record at this point: 59-4 (42 KOs)
+
+identity:
+  name: "Larry Holmes"
+  nickname: "The Easton Assassin"
+  nationality: "USA"
+  hometown: "Easton, Pennsylvania"
+  era: 1992
+
+physical:
+  height: 190
+  weight: 107
+  reach: 206
+  age: 42
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: out-boxer
+  defensive: distance
+  offensive: jab-and-move
+
+power:
+  powerLeft: 70
+  powerRight: 80
+  knockoutPower: 72
+  bodyPunching: 78
+  punchingStamina: 70
+
+speed:
+  handSpeed: 72
+  footSpeed: 65
+  reflexes: 70
+  firstStep: 65
+  combinationSpeed: 72
+
+stamina:
+  cardio: 72
+  recoveryRate: 70
+  workRate: 68
+  secondWind: 72
+  paceControl: 88
+
+defense:
+  headMovement: 78
+  blocking: 82
+  parrying: 82
+  shoulderRoll: 62
+  clinchDefense: 82
+  clinchOffense: 75
+  ringAwareness: 92
+
+offense:
+  jabAccuracy: 95
+  powerAccuracy: 80
+  bodyAccuracy: 82
+  punchSelection: 90
+  feinting: 85
+  counterPunching: 85
+  combinationPunching: 78
+
+technical:
+  footwork: 75
+  distanceManagement: 92
+  insideFighting: 72
+  outsideFighting: 90
+  ringGeneralship: 95
+  adaptability: 85
+  fightIQ: 95
+
+mental:
+  chin: 80
+  heart: 85
+  killerInstinct: 72
+  composure: 90
+  focus: 88
+  intimidation: 72
+  confidence: 85
+  experience: 98
+  clutchFactor: 85
+
+corner:
+  headTrainer:
+    name: "Richie Giachetti"
+    strategySkill: 88
+    communication: 85
+    adaptability: 82
+    specialty: "boxing fundamentals"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 59
+  losses: 4
+  draws: 0
+  kos: 42

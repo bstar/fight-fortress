@@ -1,0 +1,103 @@
+# Pinklon Thomas - "Pink"
+# ERA: 1992 - Veteran contender, late career
+# Former WBC champ, only knockdown vs Tyson
+# 6'3" 222 lbs - Skilled boxer, durable chin
+# Record at this point: 42-6-1 (33 KOs)
+
+identity:
+  name: "Pinklon Thomas"
+  nickname: "Pink"
+  nationality: "USA"
+  hometown: "Pontiac, Michigan"
+  era: 1992
+
+physical:
+  height: 191
+  weight: 101
+  reach: 196
+  age: 34
+  stance: orthodox
+  bodyType: athletic
+
+style:
+  primary: out-boxer
+  defensive: high-guard
+  offensive: jab-and-move
+
+power:
+  powerLeft: 85
+  powerRight: 80
+  knockoutPower: 78
+  bodyPunching: 72
+  punchingStamina: 70
+
+speed:
+  handSpeed: 78
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 72
+  combinationSpeed: 78
+
+stamina:
+  cardio: 72
+  recoveryRate: 70
+  workRate: 72
+  secondWind: 68
+  paceControl: 75
+
+defense:
+  headMovement: 75
+  blocking: 78
+  parrying: 72
+  shoulderRoll: 55
+  clinchDefense: 72
+  clinchOffense: 68
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 85
+  powerAccuracy: 78
+  bodyAccuracy: 72
+  punchSelection: 78
+  feinting: 75
+  counterPunching: 72
+  combinationPunching: 78
+
+technical:
+  footwork: 75
+  distanceManagement: 80
+  insideFighting: 68
+  outsideFighting: 82
+  ringGeneralship: 78
+  adaptability: 72
+  fightIQ: 78
+
+mental:
+  chin: 92
+  heart: 78
+  killerInstinct: 72
+  composure: 75
+  focus: 75
+  intimidation: 70
+  confidence: 72
+  experience: 88
+  clutchFactor: 72
+
+corner:
+  headTrainer:
+    name: "Angelo Dundee"
+    strategySkill: 95
+    communication: 92
+    adaptability: 90
+    specialty: "boxing fundamentals"
+  cutman:
+    name: "Chuck Bodak"
+    cutTreatment: 88
+    swellingTreatment: 85
+    speed: 82
+
+record:
+  wins: 42
+  losses: 6
+  draws: 1
+  kos: 33

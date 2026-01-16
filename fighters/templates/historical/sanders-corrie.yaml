@@ -1,21 +1,23 @@
 # Corrie Sanders - "The Sniper"
+# ERA: 1997 - WBU Champion, peak Sanders
 # South African southpaw with blazing hand speed
-# Famous for KO'ing Wladimir Klitschko in 2003
-# 6'4" 223 lbs - fast hands, power in both hands
+# 6'4" 225 lbs - Explosive power, lightning fast
+# Record at this point: 33-2 (26 KOs)
 
 identity:
   name: "Corrie Sanders"
   nickname: "The Sniper"
   nationality: "South Africa"
-  hometown: "Pretoria, Gauteng"
+  hometown: "Pretoria, South Africa"
+  era: 1997
 
 physical:
   height: 193
-  weight: 101
-  reach: 203
-  age: 37
+  weight: 102
+  reach: 196
+  age: 31
   stance: southpaw
-  bodyType: lean
+  bodyType: athletic
 
 style:
   primary: boxer-puncher

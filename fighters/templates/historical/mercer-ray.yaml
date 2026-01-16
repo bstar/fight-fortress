@@ -1,0 +1,103 @@
+# Ray Mercer - "Merciless"
+# ERA: 1991 - WBO Champion, just stopped Morrison
+# 1988 Olympic Gold Medalist, devastating power
+# 6'1" 225 lbs - Compact powerhouse with Olympic pedigree
+# Record at this point: 18-0 (14 KOs)
+
+identity:
+  name: "Ray Mercer"
+  nickname: "Merciless"
+  nationality: "USA"
+  hometown: "Jacksonville, Florida"
+  era: 1991
+
+physical:
+  height: 185
+  weight: 102
+  reach: 193
+  age: 30
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 88
+  powerRight: 95
+  knockoutPower: 92
+  bodyPunching: 85
+  punchingStamina: 80
+
+speed:
+  handSpeed: 78
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 75
+  combinationSpeed: 80
+
+stamina:
+  cardio: 78
+  recoveryRate: 80
+  workRate: 82
+  secondWind: 75
+  paceControl: 72
+
+defense:
+  headMovement: 70
+  blocking: 82
+  parrying: 68
+  shoulderRoll: 50
+  clinchDefense: 78
+  clinchOffense: 82
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 85
+  bodyAccuracy: 80
+  punchSelection: 78
+  feinting: 65
+  counterPunching: 75
+  combinationPunching: 82
+
+technical:
+  footwork: 70
+  distanceManagement: 72
+  insideFighting: 85
+  outsideFighting: 70
+  ringGeneralship: 75
+  adaptability: 72
+  fightIQ: 78
+
+mental:
+  chin: 88
+  heart: 90
+  killerInstinct: 92
+  composure: 78
+  focus: 80
+  intimidation: 85
+  confidence: 88
+  experience: 75
+  clutchFactor: 82
+
+corner:
+  headTrainer:
+    name: "Mark Johnson"
+    strategySkill: 78
+    communication: 75
+    adaptability: 72
+    specialty: "power punching"
+  cutman:
+    name: "Stitch Duran"
+    cutTreatment: 90
+    swellingTreatment: 88
+    speed: 85
+
+record:
+  wins: 18
+  losses: 0
+  draws: 0
+  kos: 14

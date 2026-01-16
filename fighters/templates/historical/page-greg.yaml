@@ -1,0 +1,103 @@
+# Greg Page
+# ERA: 1990 - Veteran former WBA champion
+# Louisville fighter, sparred with Ali and Tyson
+# 6'2" 240 lbs - Skilled but inconsistent veteran
+# Record at this point: 48-12-1 (39 KOs)
+
+identity:
+  name: "Greg Page"
+  nickname: "Louisville Lion"
+  nationality: "USA"
+  hometown: "Louisville, Kentucky"
+  era: 1990
+
+physical:
+  height: 188
+  weight: 109
+  reach: 206
+  age: 31
+  stance: orthodox
+  bodyType: stocky
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 82
+  powerRight: 88
+  knockoutPower: 85
+  bodyPunching: 78
+  punchingStamina: 70
+
+speed:
+  handSpeed: 78
+  footSpeed: 70
+  reflexes: 75
+  firstStep: 72
+  combinationSpeed: 80
+
+stamina:
+  cardio: 68
+  recoveryRate: 70
+  workRate: 70
+  secondWind: 65
+  paceControl: 72
+
+defense:
+  headMovement: 75
+  blocking: 78
+  parrying: 70
+  shoulderRoll: 55
+  clinchDefense: 72
+  clinchOffense: 75
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 80
+  powerAccuracy: 80
+  bodyAccuracy: 78
+  punchSelection: 78
+  feinting: 75
+  counterPunching: 78
+  combinationPunching: 82
+
+technical:
+  footwork: 72
+  distanceManagement: 75
+  insideFighting: 78
+  outsideFighting: 75
+  ringGeneralship: 75
+  adaptability: 72
+  fightIQ: 80
+
+mental:
+  chin: 72
+  heart: 72
+  killerInstinct: 72
+  composure: 68
+  focus: 65
+  intimidation: 70
+  confidence: 72
+  experience: 88
+  clutchFactor: 68
+
+corner:
+  headTrainer:
+    name: "Tom Bolds"
+    strategySkill: 78
+    communication: 75
+    adaptability: 72
+    specialty: "boxing technique"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 48
+  losses: 12
+  draws: 1
+  kos: 39

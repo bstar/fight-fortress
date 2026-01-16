@@ -1,0 +1,103 @@
+# Shannon Briggs - "The Cannon"
+# ERA: 1997 - Just beat George Foreman for lineal title
+# Devastating power, 37 first-round KOs in career
+# 6'4" 245 lbs - Explosive puncher from Brooklyn
+# Record at this point: 30-1 (26 KOs)
+
+identity:
+  name: "Shannon Briggs"
+  nickname: "The Cannon"
+  nationality: "USA"
+  hometown: "Brooklyn, New York"
+  era: 1997
+
+physical:
+  height: 193
+  weight: 111
+  reach: 204
+  age: 25
+  stance: orthodox
+  bodyType: muscular
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 92
+  powerRight: 88
+  knockoutPower: 94
+  bodyPunching: 78
+  punchingStamina: 78
+
+speed:
+  handSpeed: 82
+  footSpeed: 75
+  reflexes: 78
+  firstStep: 80
+  combinationSpeed: 82
+
+stamina:
+  cardio: 72
+  recoveryRate: 70
+  workRate: 78
+  secondWind: 68
+  paceControl: 68
+
+defense:
+  headMovement: 65
+  blocking: 72
+  parrying: 62
+  shoulderRoll: 48
+  clinchDefense: 68
+  clinchOffense: 75
+  ringAwareness: 70
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 82
+  bodyAccuracy: 72
+  punchSelection: 70
+  feinting: 65
+  counterPunching: 72
+  combinationPunching: 82
+
+technical:
+  footwork: 72
+  distanceManagement: 68
+  insideFighting: 78
+  outsideFighting: 70
+  ringGeneralship: 68
+  adaptability: 65
+  fightIQ: 70
+
+mental:
+  chin: 68
+  heart: 85
+  killerInstinct: 90
+  composure: 65
+  focus: 72
+  intimidation: 85
+  confidence: 88
+  experience: 72
+  clutchFactor: 75
+
+corner:
+  headTrainer:
+    name: "Teddy Atlas"
+    strategySkill: 88
+    communication: 90
+    adaptability: 85
+    specialty: "mental preparation"
+  cutman:
+    name: "Al Gavin"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 30
+  losses: 1
+  draws: 0
+  kos: 26

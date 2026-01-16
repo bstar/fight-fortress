@@ -1,0 +1,103 @@
+# Tim Witherspoon - "Terrible Tim"
+# ERA: 1991 - Veteran contender in late career
+# Two-time heavyweight champ with Philly Shell defense
+# 6'3" 230 lbs - Crafty veteran with solid chin
+# Record at this point: 42-4-1 (26 KOs)
+
+identity:
+  name: "Tim Witherspoon"
+  nickname: "Terrible Tim"
+  nationality: "USA"
+  hometown: "Philadelphia, Pennsylvania"
+  era: 1991
+
+physical:
+  height: 192
+  weight: 104
+  reach: 198
+  age: 33
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: boxer-puncher
+  defensive: philly-shell
+  offensive: counter-puncher
+
+power:
+  powerLeft: 78
+  powerRight: 88
+  knockoutPower: 82
+  bodyPunching: 78
+  punchingStamina: 72
+
+speed:
+  handSpeed: 75
+  footSpeed: 68
+  reflexes: 72
+  firstStep: 68
+  combinationSpeed: 75
+
+stamina:
+  cardio: 72
+  recoveryRate: 75
+  workRate: 70
+  secondWind: 72
+  paceControl: 78
+
+defense:
+  headMovement: 78
+  blocking: 75
+  parrying: 72
+  shoulderRoll: 82
+  clinchDefense: 78
+  clinchOffense: 75
+  ringAwareness: 82
+
+offense:
+  jabAccuracy: 78
+  powerAccuracy: 80
+  bodyAccuracy: 78
+  punchSelection: 82
+  feinting: 78
+  counterPunching: 85
+  combinationPunching: 75
+
+technical:
+  footwork: 72
+  distanceManagement: 78
+  insideFighting: 75
+  outsideFighting: 78
+  ringGeneralship: 82
+  adaptability: 75
+  fightIQ: 85
+
+mental:
+  chin: 85
+  heart: 82
+  killerInstinct: 72
+  composure: 80
+  focus: 78
+  intimidation: 70
+  confidence: 78
+  experience: 90
+  clutchFactor: 78
+
+corner:
+  headTrainer:
+    name: "Slim Robinson"
+    strategySkill: 80
+    communication: 78
+    adaptability: 75
+    specialty: "counter punching"
+  cutman:
+    name: "Joe Souza"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 42
+  losses: 4
+  draws: 1
+  kos: 26

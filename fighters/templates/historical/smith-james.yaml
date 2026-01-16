@@ -1,0 +1,103 @@
+# James "Bonecrusher" Smith
+# ERA: 1990 - Veteran former WBA champion
+# First to take Tyson 12 rounds
+# 6'4" 228 lbs - Big veteran with solid right hand
+# Record at this point: 38-11 (28 KOs)
+
+identity:
+  name: "James Smith"
+  nickname: "Bonecrusher"
+  nationality: "USA"
+  hometown: "Magnolia, North Carolina"
+  era: 1990
+
+physical:
+  height: 193
+  weight: 103
+  reach: 208
+  age: 36
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: boxer-puncher
+  defensive: high-guard
+  offensive: counter-puncher
+
+power:
+  powerLeft: 78
+  powerRight: 90
+  knockoutPower: 85
+  bodyPunching: 75
+  punchingStamina: 70
+
+speed:
+  handSpeed: 70
+  footSpeed: 65
+  reflexes: 68
+  firstStep: 65
+  combinationSpeed: 70
+
+stamina:
+  cardio: 72
+  recoveryRate: 72
+  workRate: 68
+  secondWind: 70
+  paceControl: 75
+
+defense:
+  headMovement: 68
+  blocking: 78
+  parrying: 70
+  shoulderRoll: 52
+  clinchDefense: 75
+  clinchOffense: 72
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 80
+  bodyAccuracy: 72
+  punchSelection: 75
+  feinting: 68
+  counterPunching: 80
+  combinationPunching: 72
+
+technical:
+  footwork: 68
+  distanceManagement: 75
+  insideFighting: 72
+  outsideFighting: 75
+  ringGeneralship: 75
+  adaptability: 70
+  fightIQ: 78
+
+mental:
+  chin: 85
+  heart: 82
+  killerInstinct: 75
+  composure: 80
+  focus: 78
+  intimidation: 75
+  confidence: 75
+  experience: 88
+  clutchFactor: 75
+
+corner:
+  headTrainer:
+    name: "Emile Griffith"
+    strategySkill: 88
+    communication: 82
+    adaptability: 78
+    specialty: "fundamentals"
+  cutman:
+    name: "Al Gavin"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 80
+
+record:
+  wins: 38
+  losses: 11
+  draws: 0
+  kos: 28

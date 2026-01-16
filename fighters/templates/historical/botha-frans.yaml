@@ -1,0 +1,103 @@
+# Frans Botha - "The White Buffalo"
+# ERA: 1996 - IBF Champion (later stripped for failed test)
+# South African with deceptive power and durability
+# 6'2" 245 lbs - Durable contender who fought everyone
+# Record at this point: 35-0 (21 KOs)
+
+identity:
+  name: "Frans Botha"
+  nickname: "The White Buffalo"
+  nationality: "South Africa"
+  hometown: "Witbank, South Africa"
+  era: 1996
+
+physical:
+  height: 188
+  weight: 111
+  reach: 188
+  age: 27
+  stance: orthodox
+  bodyType: stocky
+
+style:
+  primary: swarmer
+  defensive: high-guard
+  offensive: body-snatcher
+
+power:
+  powerLeft: 78
+  powerRight: 85
+  knockoutPower: 78
+  bodyPunching: 82
+  punchingStamina: 80
+
+speed:
+  handSpeed: 72
+  footSpeed: 68
+  reflexes: 70
+  firstStep: 70
+  combinationSpeed: 75
+
+stamina:
+  cardio: 82
+  recoveryRate: 80
+  workRate: 85
+  secondWind: 78
+  paceControl: 75
+
+defense:
+  headMovement: 68
+  blocking: 78
+  parrying: 65
+  shoulderRoll: 48
+  clinchDefense: 75
+  clinchOffense: 78
+  ringAwareness: 72
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 78
+  bodyAccuracy: 82
+  punchSelection: 72
+  feinting: 65
+  counterPunching: 70
+  combinationPunching: 78
+
+technical:
+  footwork: 68
+  distanceManagement: 70
+  insideFighting: 80
+  outsideFighting: 65
+  ringGeneralship: 70
+  adaptability: 72
+  fightIQ: 72
+
+mental:
+  chin: 88
+  heart: 88
+  killerInstinct: 75
+  composure: 78
+  focus: 78
+  intimidation: 70
+  confidence: 82
+  experience: 75
+  clutchFactor: 78
+
+corner:
+  headTrainer:
+    name: "Harold Volbrecht"
+    strategySkill: 75
+    communication: 72
+    adaptability: 70
+    specialty: "pressure fighting"
+  cutman:
+    name: "Bobby Goodman"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 35
+  losses: 0
+  draws: 0
+  kos: 21

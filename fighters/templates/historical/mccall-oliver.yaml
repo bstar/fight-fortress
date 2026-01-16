@@ -1,0 +1,103 @@
+# Oliver McCall - "The Atomic Bull"
+# ERA: 1994 - WBC Champion, shocked Lewis with 2nd round KO
+# Known for iron chin, never knocked down in 78 pro fights
+# 6'2" 235 lbs - Durable veteran with underrated skills
+# Record at this point: 25-5 (18 KOs)
+
+identity:
+  name: "Oliver McCall"
+  nickname: "The Atomic Bull"
+  nationality: "USA"
+  hometown: "Chicago, Illinois"
+  era: 1994
+
+physical:
+  height: 188
+  weight: 107
+  reach: 208
+  age: 29
+  stance: orthodox
+  bodyType: stocky
+
+style:
+  primary: swarmer
+  defensive: high-guard
+  offensive: combo-puncher
+
+power:
+  powerLeft: 80
+  powerRight: 88
+  knockoutPower: 82
+  bodyPunching: 78
+  punchingStamina: 82
+
+speed:
+  handSpeed: 78
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 75
+  combinationSpeed: 80
+
+stamina:
+  cardio: 78
+  recoveryRate: 82
+  workRate: 80
+  secondWind: 78
+  paceControl: 72
+
+defense:
+  headMovement: 72
+  blocking: 82
+  parrying: 68
+  shoulderRoll: 50
+  clinchDefense: 80
+  clinchOffense: 78
+  ringAwareness: 75
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 78
+  bodyAccuracy: 78
+  punchSelection: 75
+  feinting: 68
+  counterPunching: 75
+  combinationPunching: 80
+
+technical:
+  footwork: 70
+  distanceManagement: 72
+  insideFighting: 82
+  outsideFighting: 68
+  ringGeneralship: 72
+  adaptability: 70
+  fightIQ: 75
+
+mental:
+  chin: 95
+  heart: 80
+  killerInstinct: 78
+  composure: 70
+  focus: 68
+  intimidation: 72
+  confidence: 78
+  experience: 80
+  clutchFactor: 75
+
+corner:
+  headTrainer:
+    name: "Emanuel Steward"
+    strategySkill: 95
+    communication: 90
+    adaptability: 92
+    specialty: "power punching"
+  cutman:
+    name: "Stitch Duran"
+    cutTreatment: 90
+    swellingTreatment: 88
+    speed: 85
+
+record:
+  wins: 25
+  losses: 5
+  draws: 0
+  kos: 18

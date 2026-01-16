@@ -1,0 +1,113 @@
+# Henry Akinwande
+# ERA: 1996 - WBO Champion
+# Tall, skilled but overly cautious/clinchy
+# 6'7" 240 lbs - Massive reach advantage, frustrating style
+# Record at this point: 32-0 (22 KOs)
+
+identity:
+  name: "Henry Akinwande"
+  nickname: "The Huntsman"
+  nationality: "UK"
+  hometown: "London, England"
+  era: 1996
+
+physical:
+  height: 201
+  weight: 109
+  reach: 218
+  age: 30
+  stance: orthodox
+  bodyType: tall-rangy
+
+style:
+  primary: out-boxer
+  defensive: distance
+  offensive: jab-and-move
+
+power:
+  powerLeft: 72
+  powerRight: 78
+  knockoutPower: 72
+  bodyPunching: 68
+  punchingStamina: 75
+
+speed:
+  handSpeed: 75
+  footSpeed: 72
+  reflexes: 75
+  firstStep: 70
+  combinationSpeed: 72
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 65
+  secondWind: 72
+  paceControl: 80
+
+defense:
+  headMovement: 72
+  blocking: 78
+  parrying: 70
+  shoulderRoll: 55
+  clinchDefense: 72
+  clinchOffense: 65
+  ringAwareness: 78
+
+offense:
+  jabAccuracy: 82
+  powerAccuracy: 72
+  bodyAccuracy: 68
+  punchSelection: 72
+  feinting: 70
+  counterPunching: 68
+  combinationPunching: 68
+
+technical:
+  footwork: 75
+  distanceManagement: 85
+  insideFighting: 58
+  outsideFighting: 82
+  ringGeneralship: 72
+  adaptability: 65
+  fightIQ: 72
+
+mental:
+  chin: 75
+  heart: 65
+  killerInstinct: 55
+  composure: 72
+  focus: 70
+  intimidation: 70
+  confidence: 72
+  experience: 78
+  clutchFactor: 62
+
+tactics:
+  dirtiness: 45
+  headbuttTendency: 15
+  lowBlowTendency: 10
+  rabbitPunchTendency: 10
+  holdingTendency: 80
+  elbowTendency: 10
+  pushTendency: 35
+  clinchingTendency: 85
+
+corner:
+  headTrainer:
+    name: "Thell Torrence"
+    strategySkill: 78
+    communication: 75
+    adaptability: 72
+    specialty: "distance boxing"
+  cutman:
+    name: "Freddie Brown"
+    cutTreatment: 85
+    swellingTreatment: 82
+    speed: 78
+
+record:
+  wins: 32
+  losses: 0
+  draws: 0
+  kos: 22

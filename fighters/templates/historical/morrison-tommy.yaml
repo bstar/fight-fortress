@@ -1,0 +1,103 @@
+# Tommy Morrison - "The Duke"
+# ERA: 1993 - WBO Champion, just beat Foreman
+# Known for devastating left hook, starred in Rocky V
+# 6'2" 225 lbs - Athletic heavyweight with movie-star looks
+# Record at this point: 37-1 (32 KOs)
+
+identity:
+  name: "Tommy Morrison"
+  nickname: "The Duke"
+  nationality: "USA"
+  hometown: "Jay, Oklahoma"
+  era: 1993
+
+physical:
+  height: 188
+  weight: 102
+  reach: 193
+  age: 24
+  stance: orthodox
+  bodyType: athletic
+
+style:
+  primary: slugger
+  defensive: high-guard
+  offensive: headhunter
+
+power:
+  powerLeft: 95
+  powerRight: 88
+  knockoutPower: 92
+  bodyPunching: 78
+  punchingStamina: 82
+
+speed:
+  handSpeed: 85
+  footSpeed: 80
+  reflexes: 78
+  firstStep: 82
+  combinationSpeed: 85
+
+stamina:
+  cardio: 78
+  recoveryRate: 75
+  workRate: 85
+  secondWind: 72
+  paceControl: 70
+
+defense:
+  headMovement: 62
+  blocking: 70
+  parrying: 58
+  shoulderRoll: 45
+  clinchDefense: 68
+  clinchOffense: 72
+  ringAwareness: 72
+
+offense:
+  jabAccuracy: 75
+  powerAccuracy: 82
+  bodyAccuracy: 72
+  punchSelection: 70
+  feinting: 68
+  counterPunching: 72
+  combinationPunching: 85
+
+technical:
+  footwork: 78
+  distanceManagement: 70
+  insideFighting: 78
+  outsideFighting: 72
+  ringGeneralship: 70
+  adaptability: 68
+  fightIQ: 72
+
+mental:
+  chin: 65
+  heart: 78
+  killerInstinct: 88
+  composure: 68
+  focus: 72
+  intimidation: 80
+  confidence: 88
+  experience: 72
+  clutchFactor: 75
+
+corner:
+  headTrainer:
+    name: "Tom Virgets"
+    strategySkill: 75
+    communication: 78
+    adaptability: 72
+    specialty: "power development"
+  cutman:
+    name: "Miguel Diaz"
+    cutTreatment: 82
+    swellingTreatment: 80
+    speed: 78
+
+record:
+  wins: 37
+  losses: 1
+  draws: 0
+  kos: 32
