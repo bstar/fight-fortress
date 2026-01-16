@@ -118,7 +118,7 @@ export class MatchmakingEngine {
 
             // Only ~20% chance per week of scheduling a vacant title fight
             if (Math.random() < 0.2) {
-              const economics = this.calculateFightEconomics(fighter1, fighter2, FightType.TITLE_FIGHT);
+              const economics = this.calculateFightEconomics(fighter1, fighter2, FightType.TITLE_FIGHT, divisionName);
 
               fights.push({
                 fighterA: fighter1.id,
@@ -196,7 +196,7 @@ export class MatchmakingEngine {
         if (selectedChallenger && !used.has(selectedChallenger.id)) {
           // ~15% chance per week of title defense
           if (Math.random() < 0.15) {
-            const economics = this.calculateFightEconomics(champ, selectedChallenger, FightType.TITLE_FIGHT);
+            const economics = this.calculateFightEconomics(champ, selectedChallenger, FightType.TITLE_FIGHT, divisionName);
 
             fights.push({
               fighterA: champ.id,
@@ -242,10 +242,18 @@ export class MatchmakingEngine {
   /**
    * Calculate fight economics for scheduling decisions
    */
-  calculateFightEconomics(fighterA, fighterB, fightType) {
+  calculateFightEconomics(fighterA, fighterB, fightType, divisionName = null) {
     try {
-      const revenue = FightEconomics.calculateRevenue(fighterA, fighterB, fightType);
-      const expenses = FightEconomics.calculateExpenses(fighterA, fighterB, fightType);
+      // Get division name from fighters if not provided
+      const division = divisionName ||
+        this.universe.getDivisionForWeight(fighterA.physical.weight)?.name ||
+        'Heavyweight';
+
+      // Get era options from universe
+      const options = this.universe.getEconomicsOptions(division);
+
+      const revenue = FightEconomics.calculateRevenue(fighterA, fighterB, fightType, null, options);
+      const expenses = FightEconomics.calculateExpenses(fighterA, fighterB, fightType, null, options);
 
       return {
         projectedRevenue: revenue.total,

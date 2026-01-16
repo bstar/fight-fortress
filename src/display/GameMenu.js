@@ -14,6 +14,7 @@ import { FighterGenerator } from '../universe/generation/FighterGenerator.js';
 import { WeekProcessor } from '../universe/simulation/WeekProcessor.js';
 import { SaveManager } from '../universe/persistence/SaveManager.js';
 import { UniverseTUI } from './UniverseTUI.js';
+import { EraConfig, BoxingEra, RealismLevel } from '../universe/economics/EraConfig.js';
 
 export class GameMenu {
   constructor() {
@@ -1211,7 +1212,7 @@ Watch careers unfold over years of simulation.
 
     switch (item.action) {
       case 'newUniverse':
-        this.createNewUniverse();
+        this.showEraSelection();
         break;
       case 'loadUniverse':
         this.showLoadUniverse();
@@ -1220,6 +1221,133 @@ Watch careers unfold over years of simulation.
         this.showMainMenu();
         break;
     }
+  }
+
+  /**
+   * Show era selection screen before creating universe
+   */
+  showEraSelection() {
+    this.currentView = 'eraSelection';
+    this.clearScreen();
+    const t = this.theme;
+
+    // Remove old key bindings
+    this.screen.unkey(['up', 'k', 'down', 'j', 'enter', 'space', 'q', 'escape']);
+
+    // Background
+    blessed.box({
+      parent: this.screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: t.background }
+    });
+
+    // Title
+    blessed.box({
+      parent: this.screen,
+      top: 2,
+      left: 'center',
+      width: 50,
+      height: 3,
+      tags: true,
+      content: `{center}{bold}{${t.fighterA}-fg}SELECT ERA{/${t.fighterA}-fg}{/bold}{/center}`,
+      style: { bg: t.background }
+    });
+
+    // Era options
+    const eras = EraConfig.getEraOptions();
+    this.eraOptions = eras;
+    this.eraSelectedIndex = 2; // Default to PPV Era (index 2)
+
+    // Era list box
+    this.eraListBox = blessed.box({
+      parent: this.screen,
+      top: 6,
+      left: 'center',
+      width: 60,
+      height: eras.length * 4 + 2,
+      tags: true,
+      border: { type: 'line' },
+      style: { border: { fg: t.border }, bg: t.background }
+    });
+
+    // Description box
+    this.eraDescBox = blessed.box({
+      parent: this.screen,
+      top: 6 + eras.length * 4 + 3,
+      left: 'center',
+      width: 60,
+      height: 5,
+      tags: true,
+      border: { type: 'line' },
+      style: { border: { fg: t.border }, bg: t.background }
+    });
+
+    // Controls hint
+    blessed.box({
+      parent: this.screen,
+      bottom: 2,
+      left: 'center',
+      width: 50,
+      height: 1,
+      tags: true,
+      content: `{center}{${t.commentary}-fg}[Up/Down] Select  [Enter] Confirm  [Esc] Back{/${t.commentary}-fg}{/center}`,
+      style: { bg: t.background }
+    });
+
+    this.renderEraSelection();
+    this.screen.render();
+
+    // Key bindings for era selection
+    this.screen.key(['up', 'k'], () => {
+      if (this.currentView !== 'eraSelection') return;
+      this.eraSelectedIndex = Math.max(0, this.eraSelectedIndex - 1);
+      this.renderEraSelection();
+      this.screen.render();
+    });
+
+    this.screen.key(['down', 'j'], () => {
+      if (this.currentView !== 'eraSelection') return;
+      this.eraSelectedIndex = Math.min(this.eraOptions.length - 1, this.eraSelectedIndex + 1);
+      this.renderEraSelection();
+      this.screen.render();
+    });
+
+    this.screen.key(['enter', 'space'], () => {
+      if (this.currentView !== 'eraSelection') return;
+      this.selectedEra = this.eraOptions[this.eraSelectedIndex];
+      this.createNewUniverse();
+    });
+
+    this.screen.key(['escape', 'q'], () => {
+      if (this.currentView !== 'eraSelection') return;
+      this.showUniverseMenu();
+    });
+  }
+
+  /**
+   * Render the era selection list
+   */
+  renderEraSelection() {
+    const t = this.theme;
+    let content = '';
+
+    this.eraOptions.forEach((era, idx) => {
+      const isSelected = idx === this.eraSelectedIndex;
+      const prefix = isSelected ? `{${t.fighterA}-fg}> ` : '  ';
+      const suffix = isSelected ? `{/${t.fighterA}-fg}` : '';
+
+      content += `${prefix}{bold}${era.label}{/bold}${suffix}\n`;
+      content += `   Start Year: ${era.year}\n\n`;
+    });
+
+    this.eraListBox.setContent(content.trim());
+
+    // Update description
+    const selected = this.eraOptions[this.eraSelectedIndex];
+    this.eraDescBox.setContent(`{center}\n{${t.commentary}-fg}${selected.description}{/${t.commentary}-fg}\n{/center}`);
   }
 
   /**
@@ -1259,11 +1387,20 @@ Watch careers unfold over years of simulation.
 
     this.screen.render();
 
-    // Create universe asynchronously
+    // Create universe asynchronously using selected era
     setTimeout(() => {
+      // Use selected era or default to PPV Era
+      const eraConfig = this.selectedEra || {
+        id: BoxingEra.PPV_ERA,
+        year: 1995
+      };
+
       this.universe = new Universe({
         name: 'Boxing Universe',
-        currentDate: { year: 1995, week: 1 },
+        currentDate: { year: eraConfig.year, week: 1 },
+        era: eraConfig.id,
+        startYear: eraConfig.year,
+        realismLevel: RealismLevel.SIMPLIFIED,
         targetFighterCount: 500,
         fighterCountVariance: 100
       });

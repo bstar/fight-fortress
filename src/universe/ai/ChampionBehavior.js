@@ -206,12 +206,16 @@ export class ChampionBehavior {
       return null;
     }
 
+    // Get division for economics calculation
+    const division = universe?.getDivisionForWeight?.(champion.physical?.weight)?.name;
+    const economicsOptions = universe?.getEconomicsOptions?.(division) || {};
+
     const evaluated = availableChallengers.map(challenger => {
       const duckingChance = this.calculateDuckingChance(champion, challenger, universe);
       const dangerRating = this.assessDanger(champion, challenger, universe);
 
       const fightValue = FightEconomics.calculateRevenue(
-        champion, challenger, 'TITLE_FIGHT'
+        champion, challenger, 'TITLE_FIGHT', null, economicsOptions
       ).total;
 
       const marketValue = MarketValue.calculate(challenger);

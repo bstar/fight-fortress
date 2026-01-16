@@ -223,12 +223,17 @@ export class Promoter {
       titleInfo = null
     } = config;
 
+    // Get era-based economics options from universe
+    const division = universe?.getDivisionForWeight?.(mainEventFighterA.physical?.weight)?.name;
+    const economicsOptions = universe?.getEconomicsOptions?.(division) || {};
+
     // Calculate economics
     const projections = FightEconomics.calculateProfit(
       mainEventFighterA,
       mainEventFighterB,
       mainEventType,
-      venue
+      venue,
+      economicsOptions
     );
 
     // Check if we can afford it
@@ -241,7 +246,7 @@ export class Promoter {
       };
     }
 
-    // Create the card
+    // Create the card (pass universe for era-based economics)
     const card = new FightCard({
       promoterId: this.id,
       name: name || `${mainEventFighterA.name} vs ${mainEventFighterB.name}`,
@@ -251,7 +256,7 @@ export class Promoter {
         mainEventType
       ),
       status: CardStatus.ANNOUNCED
-    });
+    }, universe);
 
     // Add main event
     card.addFight(FightSlot.MAIN_EVENT, {
@@ -354,8 +359,12 @@ export class Promoter {
   /**
    * Evaluate if a fight is worth making
    */
-  evaluateFightValue(fighterA, fighterB, type = FightPosition.MAIN_EVENT) {
-    const profit = FightEconomics.calculateProfit(fighterA, fighterB, type);
+  evaluateFightValue(fighterA, fighterB, type = FightPosition.MAIN_EVENT, universe = null) {
+    // Get era-based economics options
+    const division = universe?.getDivisionForWeight?.(fighterA.physical?.weight)?.name;
+    const economicsOptions = universe?.getEconomicsOptions?.(division) || {};
+
+    const profit = FightEconomics.calculateProfit(fighterA, fighterB, type, null, economicsOptions);
 
     // Factor in strategy preferences
     const riskFactor = this.assessFightRisk(fighterA, fighterB);
@@ -432,7 +441,9 @@ export class Promoter {
       for (let j = i + 1; j < availableFighters.length; j++) {
         const evaluation = this.evaluateFightValue(
           availableFighters[i],
-          availableFighters[j]
+          availableFighters[j],
+          FightPosition.MAIN_EVENT,
+          universe
         );
 
         if (evaluation.worthMaking) {

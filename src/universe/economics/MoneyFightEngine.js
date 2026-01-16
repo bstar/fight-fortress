@@ -6,6 +6,7 @@
 
 import { MarketValue } from './MarketValue.js';
 import { FightEconomics, FightPosition } from './FightEconomics.js';
+import { EraConfig } from './EraConfig.js';
 
 // Money fight classification
 export const MoneyFightType = {
@@ -28,7 +29,8 @@ export const FightNarrative = {
 
 export class MoneyFightEngine {
   // Minimum combined draw for money fight status
-  static MONEY_FIGHT_THRESHOLD = 65;
+  // Raised from 65 to 75 to be more selective about "money fights"
+  static MONEY_FIGHT_THRESHOLD = 75;
 
   /**
    * Identify all potential money fights in the universe
@@ -151,15 +153,22 @@ export class MoneyFightEngine {
     // Determine if it's a money fight
     const isMoneyFight = adjustedDraw >= this.MONEY_FIGHT_THRESHOLD;
 
+    // Get era-based economics options from universe
+    const division = universe?.getDivisionForWeight?.(fighterA.physical?.weight)?.name;
+    const economicsOptions = universe?.getEconomicsOptions?.(division) || {};
+    const year = universe?.getCurrentYear?.() || 2020;
+
     // Calculate projected revenue
     const revenue = FightEconomics.calculateRevenue(
       fighterA,
       fighterB,
-      FightPosition.TITLE_FIGHT
+      FightPosition.TITLE_FIGHT,
+      null,
+      economicsOptions
     );
 
-    // Classify the fight
-    const classification = this.classifyMoneyFight(revenue.total);
+    // Classify the fight (adjusted for era)
+    const classification = this.classifyMoneyFight(revenue.total, year);
 
     // Generate promotional angles
     const promotionalAngles = this.generatePromotionalAngles(
@@ -325,12 +334,24 @@ export class MoneyFightEngine {
 
   /**
    * Classify money fight by revenue tier
+   * Thresholds are adjusted by era inflation multiplier
+   * @param {number} revenue - Total fight revenue
+   * @param {number} year - Year for era adjustment (default 2020)
+   * @returns {string|null} MoneyFightType or null
    */
-  static classifyMoneyFight(revenue) {
-    if (revenue >= 30000000) return MoneyFightType.MEGA_FIGHT;
-    if (revenue >= 15000000) return MoneyFightType.SUPER_FIGHT;
-    if (revenue >= 5000000) return MoneyFightType.BIG_FIGHT;
-    if (revenue >= 2000000) return MoneyFightType.GOOD_FIGHT;
+  static classifyMoneyFight(revenue, year = 2020) {
+    const inflationMult = EraConfig.getInflationMultiplier(year);
+
+    // Adjust thresholds by era (base thresholds are 2020s values)
+    const megaThreshold = 30000000 * inflationMult;
+    const superThreshold = 15000000 * inflationMult;
+    const bigThreshold = 5000000 * inflationMult;
+    const goodThreshold = 2000000 * inflationMult;
+
+    if (revenue >= megaThreshold) return MoneyFightType.MEGA_FIGHT;
+    if (revenue >= superThreshold) return MoneyFightType.SUPER_FIGHT;
+    if (revenue >= bigThreshold) return MoneyFightType.BIG_FIGHT;
+    if (revenue >= goodThreshold) return MoneyFightType.GOOD_FIGHT;
     return null;
   }
 

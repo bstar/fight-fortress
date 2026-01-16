@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createRequire } from 'module';
 import { SanctioningBody } from './SanctioningBody.js';
 import { HallOfFame } from './HallOfFame.js';
+import { EraConfig, BoxingEra, RealismLevel } from '../economics/EraConfig.js';
 const require = createRequire(import.meta.url);
 
 export class Universe {
@@ -47,8 +48,15 @@ export class Universe {
     // Scheduled events (fight cards)
     this.scheduledEvents = [];
 
-    // Era tracking
+    // Era tracking - expanded for economic simulation
     this.era = {
+      // Boxing era for economic calculations
+      current: config.era || BoxingEra.PPV_ERA,
+      // Starting year of the universe
+      startYear: config.startYear || this.currentDate.year,
+      // Realism level (SIMPLIFIED or RESEARCHED)
+      realismLevel: config.realismLevel || RealismLevel.SIMPLIFIED,
+      // Championship inauguration tracking
       championshipsInaugurated: false,
       inaugurationDate: null
     };
@@ -250,6 +258,44 @@ export class Universe {
    */
   getDateString() {
     return `Week ${this.currentDate.week}, ${this.currentDate.year}`;
+  }
+
+  /**
+   * Get current year
+   * @returns {number}
+   */
+  getCurrentYear() {
+    return this.currentDate.year;
+  }
+
+  /**
+   * Get era configuration for economic calculations
+   * @returns {Object} Era config with settings
+   */
+  getEraConfig() {
+    return EraConfig.getConfig(this.era.current, this.era.realismLevel);
+  }
+
+  /**
+   * Get economic options object for passing to FightEconomics
+   * @param {string} division - Division name (optional)
+   * @returns {Object} { year, division, realismLevel }
+   */
+  getEconomicsOptions(division = 'Heavyweight') {
+    return {
+      year: this.currentDate.year,
+      division,
+      realismLevel: this.era.realismLevel
+    };
+  }
+
+  /**
+   * Get era name for display
+   * @returns {string}
+   */
+  getEraName() {
+    const config = this.getEraConfig();
+    return config?.name || 'Unknown Era';
   }
 
   /**

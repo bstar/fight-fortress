@@ -30,10 +30,11 @@ export const FightSlot = {
 };
 
 export class FightCard {
-  constructor(config = {}) {
+  constructor(config = {}, universe = null) {
     this.id = config.id || uuidv4();
     this.name = config.name || 'Fight Night';
     this.promoterId = config.promoterId;
+    this.universe = universe; // Reference for era-based economics
 
     // Scheduling
     this.date = config.date || null;
@@ -100,7 +101,9 @@ export class FightCard {
 
     // Calculate purses if we have full fighter objects
     if (fighterA.career && fighterB.career) {
-      const economics = FightEconomics.calculateExpenses(fighterA, fighterB, fight.type);
+      // Get era-based economics options
+      const options = this.universe?.getEconomicsOptions?.(fightConfig.division) || {};
+      const economics = FightEconomics.calculateExpenses(fighterA, fighterB, fight.type, null, options);
       fight.purseA = economics.purseA;
       fight.purseB = economics.purseB;
     }
@@ -137,13 +140,17 @@ export class FightCard {
   /**
    * Calculate financial projections for the card
    */
-  calculateProjections(mainEventFighterA, mainEventFighterB) {
+  calculateProjections(mainEventFighterA, mainEventFighterB, division = null) {
+    // Get era-based economics options
+    const options = this.universe?.getEconomicsOptions?.(division) || {};
+
     // Main event drives most of the economics
     const revenue = FightEconomics.calculateRevenue(
       mainEventFighterA,
       mainEventFighterB,
       this.mainEvent?.type || FightPosition.MAIN_EVENT,
-      this.venue
+      this.venue,
+      options
     );
 
     // Calculate all fight expenses
