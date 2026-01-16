@@ -183,22 +183,27 @@ export function RoundTimer({ round, time, maxRounds = 12 }) {
 }
 
 /**
- * Menu Item Component - Supports both fixed and flex widths
+ * Selection indicator character - right-pointing triangle
+ */
+export const SELECTOR = '>';  // Simple ASCII arrow for consistent width
+
+/**
+ * Menu Item Component - Unified styling for all selectable items
+ * - Arrow indicator on left when selected
+ * - Red color for selected items
+ * - Proper alignment (same prefix width for all items)
  */
 export function MenuItem({ label, isSelected, icon, width, flexGrow }) {
-  const theme = useTheme();
   const displayLabel = icon ? `${icon} ${label}` : label;
+  // Prefix is always same width: ">" or " " followed by space
+  const prefix = isSelected ? '> ' : '  ';
 
   return e(Box, { flexDirection: 'row', width, flexGrow },
-    e(Text, { color: isSelected ? theme.fighterA : theme.border },
-      isSelected ? '\u25B6 ' : '  '
-    ),
     e(Text, {
       bold: isSelected,
-      color: isSelected ? theme.fighterA : theme.foreground,
-      backgroundColor: isSelected ? theme.border : undefined,
+      color: isSelected ? 'red' : 'white',
       wrap: 'truncate'
-    }, displayLabel)
+    }, `${prefix}${displayLabel}`)
   );
 }
 
@@ -352,18 +357,164 @@ export function StatusBar({ left, center, right, width, flexGrow }) {
 export function LoadingSpinner({ message = 'Loading...' }) {
   const theme = useTheme();
   const [frame, setFrame] = useState(0);
-  const frames = ['\u25DC', '\u25DD', '\u25DE', '\u25DF'];
+  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
   useEffect(() => {
     const timer = setInterval(() => {
       setFrame(f => (f + 1) % frames.length);
-    }, 100);
+    }, 80);
     return () => clearInterval(timer);
   }, []);
 
   return e(Box, { gap: 1 },
     e(Text, { color: theme.fighterA }, frames[frame]),
     e(Text, { color: theme.foreground }, message)
+  );
+}
+
+/**
+ * Whimsical loading messages - SimCity 2000 style
+ */
+const WHIMSICAL_MESSAGES = [
+  // Classic tribute
+  'Reticulating splines...',
+  // Boxing training
+  'Wrapping hands...',
+  'Skipping rope...',
+  'Hitting the heavy bag...',
+  'Shadow boxing in mirrors...',
+  'Running at 4am...',
+  // Fight prep
+  'Scheduling weigh-ins...',
+  'Intimidating staredowns...',
+  'Generating trash talk...',
+  'Rehearsing press conferences...',
+  // Technical
+  'Calibrating chin durability...',
+  'Computing punch resistance...',
+  'Measuring reach advantages...',
+  'Calculating knockout probability...',
+  // Business
+  'Negotiating purse splits...',
+  'Polishing championship belts...',
+  'Counting PPV buys...',
+  'Marinating rivalries...',
+  // Career
+  'Aging fighters gracefully...',
+  'Retiring legends...',
+  'Discovering hungry prospects...',
+  'Building hype trains...',
+  // Atmosphere
+  'Arranging corner men...',
+  'Bribing judges...',
+  'Preparing ice buckets...',
+  'Testing ring canvas tension...',
+  'Tuning arena speakers...',
+  'Warming up ring card girls...',
+  // Drama
+  'Fabricating beef...',
+  'Leaking sparring footage...',
+  'Planting ringside celebrities...',
+  'Scripting underdog narratives...',
+  'Manifesting upsets...',
+  // Misc fun
+  'Inflating egos...',
+  'Deflating hype...',
+  'Applying vaseline...',
+  'Checking glove padding...',
+  'Consulting the boxing gods...',
+];
+
+/**
+ * Spinner frame sets - different animation styles
+ */
+const SPINNER_STYLES = {
+  // Boxing-themed punching animation
+  boxing: {
+    frames: [
+      '       \\O ',
+      '      --|O ',
+      '     ---|O ',
+      '      --|O ',
+    ],
+    interval: 150,
+  },
+  // Smooth braille dots (modern, clean)
+  dots: {
+    frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
+    interval: 80,
+  },
+  // Classic line spinner
+  classic: {
+    frames: ['|', '/', '-', '\\'],
+    interval: 100,
+  },
+  // Bouncing dots
+  bounce: {
+    frames: ['⠁', '⠂', '⠄', '⡀', '⢀', '⠠', '⠐', '⠈'],
+    interval: 100,
+  },
+  // Growing bar
+  bar: {
+    frames: ['[    ]', '[=   ]', '[==  ]', '[=== ]', '[====]', '[ ===]', '[  ==]', '[   =]'],
+    interval: 120,
+  },
+  // Boxing gloves alternating
+  gloves: {
+    frames: ['🥊    ', ' 🥊   ', '  🥊  ', '   🥊 ', '    🥊', '   🥊 ', '  🥊  ', ' 🥊   '],
+    interval: 100,
+  },
+  // Punch impact
+  punch: {
+    frames: ['( •_•)', '( •_•)/', '( •_•)>--', '( •_•)>--•', '💥', '  💥', '    •'],
+    interval: 120,
+  },
+};
+
+/**
+ * Whimsical Loader - Cycling fun messages during long operations
+ */
+export function WhimsicalLoader({ primaryMessage, showWhimsy = true, spinnerStyle = 'dots' }) {
+  const theme = useTheme();
+  const [frame, setFrame] = useState(0);
+  const [messageIndex, setMessageIndex] = useState(
+    Math.floor(Math.random() * WHIMSICAL_MESSAGES.length)
+  );
+
+  const spinner = SPINNER_STYLES[spinnerStyle] || SPINNER_STYLES.dots;
+
+  useEffect(() => {
+    const spinnerTimer = setInterval(() => {
+      setFrame(f => (f + 1) % spinner.frames.length);
+    }, spinner.interval);
+    return () => clearInterval(spinnerTimer);
+  }, [spinner]);
+
+  useEffect(() => {
+    if (!showWhimsy) return;
+    const messageTimer = setInterval(() => {
+      setMessageIndex(prev => {
+        // Pick a random different message
+        let next;
+        do {
+          next = Math.floor(Math.random() * WHIMSICAL_MESSAGES.length);
+        } while (next === prev && WHIMSICAL_MESSAGES.length > 1);
+        return next;
+      });
+    }, 2000); // Change message every 2 seconds
+    return () => clearInterval(messageTimer);
+  }, [showWhimsy]);
+
+  return e(Box, { flexDirection: 'column', alignItems: 'center', gap: 1 },
+    e(Box, { gap: 1 },
+      e(Text, { color: theme.fighterA }, spinner.frames[frame]),
+      e(Text, { color: theme.foreground, bold: true }, primaryMessage)
+    ),
+    showWhimsy && e(Text, {
+      color: theme.commentary,
+      dimColor: true,
+      italic: true
+    }, WHIMSICAL_MESSAGES[messageIndex])
   );
 }
 

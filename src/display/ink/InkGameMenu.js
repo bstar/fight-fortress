@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'yaml';
 import { ThemeProvider, useTheme, getTheme, DEFAULT_THEME, THEMES } from './InkTheme.js';
-import { Menu, TitleBanner, ThemedBox, ProgressBar, LoadingSpinner, StatusBar, LayoutProvider, CenteredLayout } from './components.js';
+import { Menu, MenuItem, TitleBanner, ProgressBar, LoadingSpinner, WhimsicalLoader, StatusBar, LayoutProvider, CenteredLayout } from './components.js';
 import { Universe } from '../../universe/models/Universe.js';
 import { FighterGenerator } from '../../universe/generation/FighterGenerator.js';
 import { WeekProcessor } from '../../universe/simulation/WeekProcessor.js';
@@ -99,17 +99,11 @@ function FighterSelection({ fighters, onSelect, onBack, selectedA, selectedB, se
         e(Text, { bold: true, color: theme.fighterA }, 'FIGHTERS'),
         e(Box, { marginTop: 1, flexDirection: 'column' },
           ...filteredFighters.slice(0, 15).map((fighter, i) =>
-            e(Box, { key: fighter.path, flexDirection: 'row' },
-              e(Text, {
-                color: i === selectedIndex ? theme.fighterA : theme.foreground,
-                inverse: i === selectedIndex
-              }, i === selectedIndex ? '\u25B6 ' : '  '),
-              e(Text, {
-                bold: i === selectedIndex,
-                color: i === selectedIndex ? theme.fighterA : theme.foreground,
-                inverse: i === selectedIndex
-              }, ` ${fighter.name} `)
-            )
+            e(MenuItem, {
+              key: fighter.path,
+              label: fighter.name,
+              isSelected: i === selectedIndex
+            })
           )
         )
       ),
@@ -197,15 +191,15 @@ function FightOptions({ options, onChange, onStart, onBack }) {
       ...optionsList.map((opt, i) =>
         e(Box, { key: opt.key, flexDirection: 'row', gap: 2 },
           e(Text, {
-            color: i === selectedOption ? theme.fighterA : theme.foreground,
+            color: i === selectedOption ? 'red' : 'white',
             bold: i === selectedOption
-          }, (i === selectedOption ? '\u25B6 ' : '  ') + opt.label.padEnd(10)),
-          e(Text, { color: theme.stamina }, '\u25C0 '),
+          }, (i === selectedOption ? '> ' : '  ') + opt.label.padEnd(10)),
+          e(Text, { color: theme.stamina }, '< '),
           e(Text, {
             color: theme.fighterB,
-            inverse: i === selectedOption
+            bold: i === selectedOption
           }, ` ${String(opt.value).padStart(8)} `),
-          e(Text, { color: theme.stamina }, ' \u25B6')
+          e(Text, { color: theme.stamina }, ' >')
         )
       ),
 
@@ -280,9 +274,10 @@ function UniverseCreation({ onComplete, onBack }) {
         universe.addFighter(fighter);
       } catch (e) { /* continue */ }
 
-      if (i % 50 === 0) {
+      // Yield frequently to keep UI responsive (every 10 fighters)
+      if (i % 10 === 0) {
         setProgress(p => ({ ...p, fighters: i }));
-        await new Promise(r => setTimeout(r, 10));
+        await new Promise(r => setImmediate ? setImmediate(r) : setTimeout(r, 0));
       }
     }
 
@@ -296,13 +291,15 @@ function UniverseCreation({ onComplete, onBack }) {
     for (let week = 0; week < totalWeeks; week++) {
       processor.processWeek();
 
-      if (week % 26 === 0) {
+      // Yield frequently to keep UI responsive (every 4 weeks)
+      if (week % 4 === 0) {
         setProgress({
           year: Math.floor(week / 52) + 1,
           total: 5,
           fighters: universe.getActiveFighters().length
         });
-        await new Promise(r => setTimeout(r, 10));
+        // Use setImmediate for faster yielding, fall back to setTimeout
+        await new Promise(r => setImmediate ? setImmediate(r) : setTimeout(r, 0));
       }
     }
 
@@ -345,18 +342,15 @@ function UniverseCreation({ onComplete, onBack }) {
       },
         ...eras.map((era, i) =>
           e(Box, { key: era.id, flexDirection: 'column', marginBottom: 1 },
-            e(Box, { flexDirection: 'row' },
-              e(Text, {
-                color: i === selectedEra ? theme.fighterA : theme.foreground,
-                bold: i === selectedEra,
-                inverse: i === selectedEra
-              }, (i === selectedEra ? '\u25B6 ' : '  ') + ` ${era.label} `)
-            ),
+            e(Text, {
+              color: i === selectedEra ? 'red' : 'white',
+              bold: i === selectedEra
+            }, (i === selectedEra ? '> ' : '  ') + era.label),
             i === selectedEra && e(Text, {
               color: theme.commentary,
               italic: true,
-              marginLeft: 4
-            }, era.desc)
+              marginLeft: 2
+            }, '  ' + era.desc)
           )
         )
       ),
@@ -384,10 +378,11 @@ function UniverseCreation({ onComplete, onBack }) {
       padding: 3,
       marginTop: 2
     },
-      e(LoadingSpinner, {
-        message: stage === 'generating'
+      e(WhimsicalLoader, {
+        primaryMessage: stage === 'generating'
           ? `Generating fighters... ${progress.fighters}/1500`
-          : `Simulating Year ${progress.year} of ${progress.total}...`
+          : `Simulating Year ${progress.year} of ${progress.total}...`,
+        showWhimsy: true
       }),
 
       e(Box, { marginTop: 2, width: 40 },

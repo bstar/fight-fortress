@@ -143,14 +143,21 @@ function RingDisplay({ positions, fighterA, fighterB }) {
   const height = 12;
 
   // Calculate grid positions
-  const posA = positions?.A || { x: 8, y: 10 };
-  const posB = positions?.B || { x: 12, y: 10 };
-  const distance = positions?.distance || 4;
+  // Positions from simulation are in range [-10, 10], normalize to [0, 20]
+  const posA = positions?.A || { x: -4, y: 0 };
+  const posB = positions?.B || { x: 4, y: 0 };
+  const distance = positions?.distance || 8;
 
-  const gridAx = Math.round((posA.x / 20) * (width - 4)) + 2;
-  const gridAy = Math.round((posA.y / 20) * (height - 2)) + 1;
-  const gridBx = Math.round((posB.x / 20) * (width - 4)) + 2;
-  const gridBy = Math.round((posB.y / 20) * (height - 2)) + 1;
+  // Normalize from [-10, 10] to [0, 20] before scaling to grid
+  const normalizedAx = posA.x + 10;
+  const normalizedAy = posA.y + 10;
+  const normalizedBx = posB.x + 10;
+  const normalizedBy = posB.y + 10;
+
+  const gridAx = Math.round((normalizedAx / 20) * (width - 4)) + 2;
+  const gridAy = Math.round((normalizedAy / 20) * (height - 2)) + 1;
+  const gridBx = Math.round((normalizedBx / 20) * (width - 4)) + 2;
+  const gridBy = Math.round((normalizedBy / 20) * (height - 2)) + 1;
 
   // Build ring lines
   const lines = [];
@@ -239,7 +246,7 @@ function HitEffect({ effect, onComplete }) {
 /**
  * Main Fight Display Component
  */
-function FightDisplay({ fight, simulation }) {
+function FightDisplay({ fight, simulation, tui }) {
   const theme = useTheme();
   const { exit } = useApp();
 
@@ -254,6 +261,7 @@ function FightDisplay({ fight, simulation }) {
   const [isPaused, setIsPaused] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
   const [result, setResult] = useState(null);
+  const [isBetweenRounds, setIsBetweenRounds] = useState(false);
 
   const commentaryGen = React.useRef(new CommentaryGenerator()).current;
 
@@ -278,10 +286,13 @@ function FightDisplay({ fight, simulation }) {
       roundStart: (data) => {
         setRound(data.round);
         setTime(0);
+        setIsBetweenRounds(false);
         addCommentary(`Round ${data.round} begins!`);
       },
       roundEnd: (data) => {
+        setIsBetweenRounds(true);
         addCommentary(`End of Round ${data.round}`);
+        addCommentary('Press any key to continue...');
       },
       punchLanded: (data) => {
         const attacker = data.attacker === 'A'
@@ -346,6 +357,12 @@ function FightDisplay({ fight, simulation }) {
 
   // Input handling
   useInput((input, key) => {
+    // If between rounds, any key continues to next round
+    if (isBetweenRounds && tui) {
+      tui.continueToNextRound();
+      return;
+    }
+
     if (key.escape || input === 'q') {
       exit();
     } else if (input === 'p') {
@@ -456,6 +473,7 @@ export class InkArcadeTUI {
     this.inkInstance = null;
     this.exitPromise = null;
     this.exitResolve = null;
+    this.nextRoundResolve = null;
   }
 
   initialize() {
@@ -471,9 +489,45 @@ export class InkArcadeTUI {
 
     this.inkInstance = render(
       e(ThemeProvider, { themeName: this.theme },
-        e(FightDisplay, { fight, simulation })
+        e(FightDisplay, { fight, simulation, tui: this })
       )
     );
+  }
+
+  /**
+   * Wait for user input or timeout to proceed to next round
+   * @param {number} timeout - Time in ms before auto-advancing (default 5000)
+   * @returns {Promise} - Resolves when key pressed or timeout occurs
+   */
+  waitForNextRound(timeout = 5000) {
+    return new Promise((resolve) => {
+      let resolved = false;
+
+      const doResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          this.nextRoundResolve = null;
+          resolve();
+        }
+      };
+
+      // Store resolve so FightDisplay can call it on keypress
+      this.nextRoundResolve = doResolve;
+
+      // Auto-advance after timeout
+      setTimeout(() => {
+        doResolve();
+      }, timeout);
+    });
+  }
+
+  /**
+   * Called by FightDisplay when user presses key during round break
+   */
+  continueToNextRound() {
+    if (this.nextRoundResolve) {
+      this.nextRoundResolve();
+    }
   }
 
   async waitForExit() {

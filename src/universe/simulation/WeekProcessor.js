@@ -8,6 +8,7 @@ import { MatchmakingEngine } from './MatchmakingEngine.js';
 import { FightIntegration } from './FightIntegration.js';
 import { RivalryManager } from '../economics/RivalryManager.js';
 import { MoneyFightEngine } from '../economics/MoneyFightEngine.js';
+import { BodyRankingsManager } from './BodyRankingsManager.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
@@ -53,6 +54,7 @@ export class WeekProcessor {
     this.universe = universe;
     this.matchmaker = new MatchmakingEngine(universe);
     this.fightIntegration = new FightIntegration(universe);
+    this.bodyRankingsManager = new BodyRankingsManager(universe);
   }
 
   /**
@@ -77,6 +79,11 @@ export class WeekProcessor {
     // 5. Check for retirements (monthly, not weekly - reduces retirement rate)
     if (this.universe.currentDate.week % 4 === 0) {
       events.push(...this.processRetirements());
+    }
+
+    // 5b. Update per-body rankings (monthly)
+    if (this.universe.currentDate.week % 4 === 0) {
+      events.push(...this.updateBodyRankings());
     }
 
     // 6. Generate new prospects (periodically)
@@ -844,6 +851,64 @@ export class WeekProcessor {
         division: name,
         ...change
       })));
+    }
+
+    return events;
+  }
+
+  /**
+   * Update per-body rankings (WBC, WBA, IBF, WBO)
+   * Each body has unique ranking criteria
+   */
+  updateBodyRankings() {
+    const events = [];
+
+    try {
+      // Update all body rankings
+      this.bodyRankingsManager.updateAllBodyRankings();
+
+      // Check for mandatory statuses and generate events
+      events.push(...this.checkMandatoryStatuses());
+    } catch (error) {
+      // Body rankings are optional, don't crash if there's an issue
+      console.error('Error updating body rankings:', error.message);
+    }
+
+    return events;
+  }
+
+  /**
+   * Check for mandatory title defense deadlines across all bodies
+   */
+  checkMandatoryStatuses() {
+    const events = [];
+    const bodies = ['WBC', 'WBA', 'IBF', 'WBO'];
+
+    for (const bodyCode of bodies) {
+      for (const [divisionName] of this.universe.divisions) {
+        try {
+          const status = this.bodyRankingsManager.getMandatoryStatus(bodyCode, divisionName);
+
+          if (status?.mandatoryDue) {
+            const champion = this.universe.fighters.get(status.championId);
+            const challenger = this.universe.fighters.get(status.mandatoryChallengerId);
+
+            events.push({
+              type: 'MANDATORY_DUE',
+              body: bodyCode,
+              division: divisionName,
+              championId: status.championId,
+              championName: champion?.name || 'Unknown',
+              challengerId: status.mandatoryChallengerId,
+              challengerName: challenger?.name || 'Unknown',
+              weeksSinceDefense: status.weeksSinceDefense,
+              message: `${bodyCode} ${divisionName}: ${champion?.name || 'Champion'} must defend against mandatory challenger ${challenger?.name || '#1 contender'}`
+            });
+          }
+        } catch (error) {
+          // Skip this body/division if there's an issue
+        }
+      }
     }
 
     return events;

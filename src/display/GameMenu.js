@@ -247,11 +247,11 @@ export class GameMenu {
   updateMenuItem(box, item, selected) {
     const t = this.theme;
     const icon = item.icon || '>';
-    const prefix = selected ? '  ►  ' : '     ';
-    const suffix = selected ? '  ◄' : '';
-    box.setContent(`\n${prefix}${icon}  ${item.label}${suffix}`);
-    box.style.bg = selected ? t.fighterA : t.background;
-    box.style.fg = selected ? t.background : t.foreground;
+    const prefix = selected ? '> ' : '  ';
+    box.setContent(`\n${prefix}${icon}  ${item.label}`);
+    box.style.bg = t.background;
+    box.style.fg = selected ? 'red' : t.foreground;
+    box.style.bold = selected;
   }
 
   /**
@@ -356,7 +356,7 @@ export class GameMenu {
       style: {
         border: { fg: t.border },
         bg: t.background,
-        selected: { bg: t.fighterA, fg: t.background },
+        selected: { fg: 'red', bold: true },
         item: { fg: t.foreground }
       },
       keys: true,
@@ -364,8 +364,9 @@ export class GameMenu {
       mouse: true,
       scrollbar: {
         ch: '│',
-        style: { fg: t.fighterA }
-      }
+        style: { fg: 'red' }
+      },
+      itemPrefix: '  '
     });
 
     // Populate fighter list
@@ -648,19 +649,19 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, t.fighterA)}  ${mental.he
     const displaySelected = this.optionIndex === 2;
     const startSelected = this.optionIndex === 3;
 
-    const roundsPrefix = roundsSelected ? `{${t.round}-fg}► ` : '  ';
-    const roundsSuffix = roundsSelected ? ` ◄{/${t.round}-fg}` : '';
-    const speedPrefix = speedSelected ? `{${t.round}-fg}► ` : '  ';
-    const speedSuffix = speedSelected ? ` ◄{/${t.round}-fg}` : '';
-    const displayPrefix = displaySelected ? `{${t.round}-fg}► ` : '  ';
-    const displaySuffix = displaySelected ? ` ◄{/${t.round}-fg}` : '';
+    const roundsPrefix = roundsSelected ? `{red-fg}{bold}> ` : '  ';
+    const roundsSuffix = roundsSelected ? `{/bold}{/red-fg}` : '';
+    const speedPrefix = speedSelected ? `{red-fg}{bold}> ` : '  ';
+    const speedSuffix = speedSelected ? `{/bold}{/red-fg}` : '';
+    const displayPrefix = displaySelected ? `{red-fg}{bold}> ` : '  ';
+    const displaySuffix = displaySelected ? `{/bold}{/red-fg}` : '';
 
     this.roundsValue.setContent(
-      `${roundsPrefix}Rounds:  ◀  {bold}${this.fightOptions.rounds}{/bold}  ▶${roundsSuffix}`
+      `${roundsPrefix}Rounds:  <  {bold}${this.fightOptions.rounds}{/bold}  >${roundsSuffix}`
     );
 
     this.speedValue.setContent(
-      `${speedPrefix}Speed:   ◀  {bold}${this.fightOptions.speed}x{/bold}  ▶${speedSuffix}`
+      `${speedPrefix}Speed:   <  {bold}${this.fightOptions.speed}x{/bold}  >${speedSuffix}`
     );
 
     // Display mode names
@@ -668,13 +669,13 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, t.fighterA)}  ${mental.he
     const displayColor = this.fightOptions.display === 'arcade' ? t.fighterA : t.stamina;
 
     this.displayValue.setContent(
-      `${displayPrefix}Display: ◀  {${displayColor}-fg}{bold}${displayName}{/bold}{/${displayColor}-fg}  ▶${displaySuffix}`
+      `${displayPrefix}Display: <  {${displayColor}-fg}{bold}${displayName}{/bold}{/${displayColor}-fg}  >${displaySuffix}`
     );
 
     if (startSelected) {
-      this.startButton.setContent(`{center}{bold}{${t.health}-fg}[ ★ START FIGHT ★ ]{/${t.health}-fg}{/bold}{/center}`);
+      this.startButton.setContent(`{center}{red-fg}{bold}> [ START FIGHT ]{/bold}{/red-fg}{/center}`);
     } else {
-      this.startButton.setContent(`{center}{${t.commentary}-fg}[ START FIGHT ]{/${t.commentary}-fg}{/center}`);
+      this.startButton.setContent(`{center}{${t.commentary}-fg}  [ START FIGHT ]{/${t.commentary}-fg}{/center}`);
     }
 
     this.screen.render();
@@ -813,7 +814,7 @@ Heart     ${this.createStatBar(mental.heart || 70, 15, t.fighterA)}  ${mental.he
       style: {
         border: { fg: t.border },
         bg: t.background,
-        selected: { bg: t.fighterA, fg: t.background },
+        selected: { fg: 'red', bold: true },
         item: { fg: t.foreground }
       },
       keys: true,
@@ -958,7 +959,7 @@ Cutman:  ${corner.cutman?.name || 'Unknown'}
       style: {
         border: { fg: t.border },
         bg: t.background,
-        selected: { bg: t.fighterA, fg: t.background },
+        selected: { fg: 'red', bold: true },
         item: { fg: t.foreground }
       },
       keys: true,
@@ -1577,7 +1578,7 @@ compete for world titles!{/${t.commentary}-fg}
       style: {
         border: { fg: t.border },
         bg: t.background,
-        selected: { bg: t.fighterA, fg: t.background },
+        selected: { fg: 'red', bold: true },
         item: { fg: t.foreground }
       },
       keys: true,
@@ -1814,12 +1815,12 @@ compete for world titles!{/${t.commentary}-fg}
       style: {
         border: { fg: t.border },
         bg: t.background,
-        selected: { bg: t.fighterA, fg: t.background },
+        selected: { fg: 'red', bold: true },
         item: { fg: t.foreground }
       },
       keys: true,
       vi: true,
-      scrollbar: { ch: '│', style: { fg: t.fighterA } }
+      scrollbar: { ch: '│', style: { fg: 'red' } }
     });
 
     fighters.forEach(fighter => {
@@ -1938,7 +1939,7 @@ Peak Age: ${fighter.potential.peakAgePhysical}
       style: {
         border: { fg: t.border },
         bg: t.background,
-        selected: { bg: t.fighterA, fg: t.background },
+        selected: { fg: 'red', bold: true },
         item: { fg: t.foreground }
       },
       keys: true,

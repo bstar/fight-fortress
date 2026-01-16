@@ -7,12 +7,30 @@
 import React, { useState, useCallback } from 'react';
 import { render, Box, Text, useInput } from 'ink';
 import { ThemeProvider, useTheme, DEFAULT_THEME } from './InkTheme.js';
-import { Menu, TitleBanner, ProgressBar, LoadingSpinner, StatusBar, LayoutProvider, useLayout, TabBar, ContextBar, InfoPanel, CenteredLayout, NewsBanner } from './components.js';
+import { Menu, MenuItem, TitleBanner, ProgressBar, WhimsicalLoader, StatusBar, LayoutProvider, useLayout, TabBar, ContextBar, CenteredLayout, NewsBanner } from './components.js';
 import { getEventNearWeek } from '../../universe/data/HistoricalEvents.js';
 import { WeekProcessor } from '../../universe/simulation/WeekProcessor.js';
 import { MatchmakingEngine } from '../../universe/simulation/MatchmakingEngine.js';
 
 const e = React.createElement;
+
+/**
+ * Format body rankings for display
+ * Shows all 4 bodies: "WBC: #3, WBA: #7, IBF: NR, WBO: #5"
+ */
+function formatBodyRankings(bodyRankings) {
+  if (!bodyRankings || Object.keys(bodyRankings).length === 0) {
+    return 'Unranked';
+  }
+
+  const bodies = ['WBC', 'WBA', 'IBF', 'WBO'];
+  const parts = bodies.map(body => {
+    const rank = bodyRankings[body];
+    return `${body}: ${rank ? `#${rank}` : 'NR'}`;
+  });
+
+  return parts.join('  ');
+}
 
 /**
  * Main Menu View
@@ -285,8 +303,8 @@ function SimulateMenuView({ universe, processor, saveManager, onBack, onSimCompl
         fights: events.filter(e => e.type === 'FIGHT_RESULT').length
       });
 
-      // Yield to UI
-      await new Promise(r => setTimeout(r, 10));
+      // Yield to UI - use setImmediate for faster animation
+      await new Promise(r => setImmediate ? setImmediate(r) : setTimeout(r, 0));
     }
 
     // Auto-save
@@ -313,7 +331,10 @@ function SimulateMenuView({ universe, processor, saveManager, onBack, onSimCompl
         padding: 2,
         marginTop: 2
       },
-        e(LoadingSpinner, { message: `Week ${progress.week} of ${progress.total}` }),
+        e(WhimsicalLoader, {
+          primaryMessage: `Week ${progress.week} of ${progress.total}`,
+          showWhimsy: true
+        }),
         e(Box, { marginTop: 1, width: Math.min(50, width - 20) },
           e(ProgressBar, {
             value: pct,
@@ -442,10 +463,15 @@ function RankingsView({ universe, onBack }) {
         ...(division?.rankings || []).slice(0, 15).map((fighterId, i) => {
           const fighter = universe.fighters?.get(fighterId);
           if (!fighter) return null;
-          const age = fighter.getAge?.(universe.currentDate) || '?';
           const name = fighter.name.substring(0, nameWidth).padEnd(nameWidth);
+          const bodyRankings = fighter.career?.bodyRankings || {};
+          // Compact body ranking display: e.g., "WBC#3 IBF#5"
+          const rankedBodies = ['WBC', 'WBA', 'IBF', 'WBO']
+            .filter(b => bodyRankings[b])
+            .map(b => `${b}#${bodyRankings[b]}`)
+            .join(' ');
           return e(Text, { key: i, color: theme.foreground },
-            `${String(i + 1).padStart(2)}. ${name} ${(fighter.getRecordString?.() || '').padEnd(18)} Age ${age}`
+            `${String(i + 1).padStart(2)}. ${name} ${(fighter.getRecordString?.() || '').padEnd(15)} ${rankedBodies || 'NR'}`
           );
         }),
         (division?.rankings?.length || 0) === 0 && e(Text, { color: theme.commentary }, 'No ranked fighters')
@@ -526,15 +552,12 @@ function FightersView({ universe, onBack, onFighterSelect }) {
           const age = fighter.getAge?.(universe.currentDate) || '?';
           const record = fighter.getRecordString?.() || '';
           const name = fighter.name.substring(0, nameWidth);
-          return e(Box, { key: fighter.id, flexDirection: 'row' },
-            e(Text, { color: isSelected ? theme.fighterA : theme.border },
-              isSelected ? '▶ ' : '  '
-            ),
+          return e(Box, { key: fighter.id },
             e(Text, {
               bold: isSelected,
-              color: isSelected ? theme.fighterA : theme.foreground,
+              color: isSelected ? 'red' : 'white',
               wrap: 'truncate'
-            }, `${name} (${age}) ${record}`)
+            }, (isSelected ? '> ' : '  ') + `${name} (${age}) ${record}`)
           );
         })
       ),
@@ -558,6 +581,12 @@ function FightersView({ universe, onBack, onFighterSelect }) {
           e(Text, { wrap: 'truncate' }, `Record: ${selectedFighter.getRecordString?.() || ''}`),
           e(Text, { wrap: 'truncate' }, `Phase: ${selectedFighter.career?.phase || '?'}`),
           e(Text, { wrap: 'truncate' }, `Style: ${selectedFighter.style?.primary || '?'}`),
+          e(Box, { height: 1 }),
+          // Per-body rankings
+          e(Text, { bold: true }, 'RANKINGS'),
+          e(Text, { wrap: 'truncate', color: theme.foreground },
+            formatBodyRankings(selectedFighter.career?.bodyRankings)
+          ),
           e(Box, { height: 1 }),
           e(Text, { bold: true }, 'ATTRIBUTES'),
           e(Text, { wrap: 'truncate' }, `Power: ${Math.round(selectedFighter.power?.powerRight || 70)}`),
@@ -627,14 +656,16 @@ function FighterHistoryView({ fighter, onBack, onReplay }) {
           const resultColor = fight.result === 'W' ? 'green' : fight.result === 'L' ? 'red' : 'yellow';
           const hasReplay = fight.replayData ? ' [R]' : '';
           const oppName = (fight.opponentName || 'Unknown').substring(0, nameWidth);
+          const prefix = isSelected ? '> ' : '  ';
           return e(Box, { key: i, flexDirection: 'row' },
-            e(Text, { color: isSelected ? theme.fighterA : theme.border },
-              isSelected ? '> ' : '  '
-            ),
+            e(Text, {
+              bold: isSelected,
+              color: isSelected ? 'red' : 'white'
+            }, prefix),
             e(Text, { color: resultColor }, `${fight.result} `),
             e(Text, {
               bold: isSelected,
-              color: isSelected ? theme.fighterA : theme.foreground
+              color: isSelected ? 'red' : 'white'
             }, `vs ${oppName}${hasReplay}`)
           );
         })
@@ -851,15 +882,12 @@ function HallOfFameView({ universe, onBack }) {
           const isSelected = i === selectedIdx;
           const icon = ind.category === 'FIRST_BALLOT' ? '*' : ' ';
           const name = ind.name.substring(0, nameWidth);
-          return e(Box, { key: i, flexDirection: 'row' },
-            e(Text, { color: isSelected ? theme.fighterA : theme.border },
-              isSelected ? '▶ ' : '  '
-            ),
+          return e(Box, { key: i },
             e(Text, {
               bold: isSelected,
-              color: isSelected ? theme.fighterA : theme.foreground,
+              color: isSelected ? 'red' : 'white',
               wrap: 'truncate'
-            }, `${icon} ${name}`)
+            }, (isSelected ? '> ' : '  ') + `${icon} ${name}`)
           );
         })
       ),

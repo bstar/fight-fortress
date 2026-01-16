@@ -167,19 +167,62 @@ export class SanctioningBody {
 
   /**
    * Get rankings for a division
+   * Returns array of objects: [{ rank, fighterId, score }, ...]
+   * Or array of fighter IDs for backwards compatibility
    */
   getRankings(divisionName) {
     return this.rankings.get(divisionName) || [];
   }
 
   /**
-   * Update rankings for a division
+   * Get ranked fighter IDs for a division (just the IDs)
    */
-  updateRankings(divisionName, rankedFighterIds) {
+  getRankedFighterIds(divisionName) {
+    const rankings = this.rankings.get(divisionName) || [];
+    // Handle both new format (objects) and old format (strings)
+    if (rankings.length > 0 && typeof rankings[0] === 'object') {
+      return rankings.map(r => r.fighterId);
+    }
+    return rankings;
+  }
+
+  /**
+   * Get fighter's rank in this division (or null if not ranked)
+   */
+  getFighterRank(divisionName, fighterId) {
+    const rankings = this.rankings.get(divisionName) || [];
+    if (rankings.length === 0) return null;
+
+    // Handle new format (objects with rank)
+    if (typeof rankings[0] === 'object') {
+      const entry = rankings.find(r => r.fighterId === fighterId);
+      return entry ? entry.rank : null;
+    }
+
+    // Handle old format (array of IDs)
+    const index = rankings.indexOf(fighterId);
+    return index >= 0 ? index + 1 : null;
+  }
+
+  /**
+   * Update rankings for a division
+   * Accepts either:
+   * - Array of fighter IDs (legacy format)
+   * - Array of objects: [{ rank, fighterId, score }, ...]
+   */
+  updateRankings(divisionName, rankedFighters) {
     // Exclude champion from rankings
     const champion = this.champions.get(divisionName);
-    const filtered = rankedFighterIds.filter(id => id !== champion);
-    this.rankings.set(divisionName, filtered.slice(0, 15));
+
+    // Handle object format from BodyRankingsManager
+    if (rankedFighters.length > 0 && typeof rankedFighters[0] === 'object') {
+      const filtered = rankedFighters.filter(r => r.fighterId !== champion);
+      this.rankings.set(divisionName, filtered.slice(0, 15));
+    } else {
+      // Handle legacy array of IDs
+      const filtered = rankedFighters.filter(id => id !== champion);
+      this.rankings.set(divisionName, filtered.slice(0, 15));
+    }
   }
 
   /**
@@ -187,7 +230,14 @@ export class SanctioningBody {
    */
   getMandatoryChallenger(divisionName) {
     const rankings = this.rankings.get(divisionName) || [];
-    return rankings[0] || null;
+    if (rankings.length === 0) return null;
+
+    // Handle new format (objects)
+    if (typeof rankings[0] === 'object') {
+      return rankings[0].fighterId;
+    }
+    // Handle old format (IDs)
+    return rankings[0];
   }
 
   /**

@@ -80,7 +80,21 @@ export class UniverseFighter extends Fighter {
       fightsThisYear: universeData.fightsThisYear || 0,
       weeksInactive: universeData.weeksInactive || 0,
       consecutiveWins: universeData.consecutiveWins || 0,
-      consecutiveLosses: universeData.consecutiveLosses || 0
+      consecutiveLosses: universeData.consecutiveLosses || 0,
+
+      // Per-body rankings (WBC, WBA, IBF, WBO)
+      bodyRankings: universeData.bodyRankings || {},  // { WBC: 3, WBA: 7, IBF: null, WBO: 5 }
+      registeredBodies: universeData.registeredBodies || ['WBC', 'WBA', 'IBF', 'WBO'],
+
+      // Quality of opposition (moved to career for consistency)
+      oppositionQuality: {
+        averageOpponentTier: universeData.oppositionQuality?.averageOpponentTier || 0,
+        rankedWins: universeData.oppositionQuality?.rankedWins || 0,
+        championWins: universeData.oppositionQuality?.championWins || 0,
+        undefeatedWins: universeData.oppositionQuality?.undefeatedWins || 0,
+        qualityScore: universeData.oppositionQuality?.qualityScore || 0,
+        totalOpponentsRated: universeData.oppositionQuality?.totalOpponentsRated || 0
+      }
     };
 
     // Relationships
@@ -120,16 +134,6 @@ export class UniverseFighter extends Fighter {
     this.careerDamage = universeData.careerDamage
       ? CareerDamage.fromJSON(universeData.careerDamage)
       : new CareerDamage();
-
-    // Quality of opposition tracking
-    this.oppositionQuality = {
-      averageOpponentTier: universeData.oppositionQuality?.averageOpponentTier || 0,
-      rankedWins: universeData.oppositionQuality?.rankedWins || 0,
-      championWins: universeData.oppositionQuality?.championWins || 0,
-      undefeatedWins: universeData.oppositionQuality?.undefeatedWins || 0,
-      qualityScore: universeData.oppositionQuality?.qualityScore || 0,
-      totalOpponentsRated: universeData.oppositionQuality?.totalOpponentsRated || 0
-    };
   }
 
   /**
@@ -208,6 +212,54 @@ export class UniverseFighter extends Fighter {
   getKOPercentage() {
     if (this.career.record.wins === 0) return 0;
     return (this.career.record.kos / this.career.record.wins) * 100;
+  }
+
+  /**
+   * Get ranking display string (e.g., "#3 WBC, #7 WBA, NR IBF, #5 WBO")
+   */
+  getRankingDisplay() {
+    const rankings = this.career.bodyRankings || {};
+    const parts = [];
+
+    for (const [body, rank] of Object.entries(rankings)) {
+      if (rank) parts.push(`#${rank} ${body}`);
+    }
+
+    return parts.length > 0 ? parts.join(', ') : 'Unranked';
+  }
+
+  /**
+   * Get best ranking across all bodies
+   * @returns {number|null} Best ranking position or null if unranked
+   */
+  getBestRanking() {
+    const rankings = Object.values(this.career.bodyRankings || {}).filter(r => r);
+    return rankings.length > 0 ? Math.min(...rankings) : null;
+  }
+
+  /**
+   * Get ranking for a specific body
+   * @param {string} bodyCode - WBC, WBA, IBF, or WBO
+   * @returns {number|null} Ranking position or null if unranked
+   */
+  getBodyRanking(bodyCode) {
+    return this.career.bodyRankings?.[bodyCode] || null;
+  }
+
+  /**
+   * Check if fighter is ranked by any body
+   */
+  isRanked() {
+    const rankings = this.career.bodyRankings || {};
+    return Object.values(rankings).some(r => r !== null && r !== undefined);
+  }
+
+  /**
+   * Get count of bodies where fighter is ranked
+   */
+  getRankedBodyCount() {
+    const rankings = this.career.bodyRankings || {};
+    return Object.values(rankings).filter(r => r !== null && r !== undefined).length;
   }
 
   /**
@@ -354,6 +406,7 @@ export class UniverseFighter extends Fighter {
       'CONTENDER': 55, 'GATEKEEPER': 40, 'JOURNEYMAN': 25, 'CLUB': 10
     };
 
+    const oq = this.career.oppositionQuality;
     let fightQuality = tierQuality[opponentData.tier] || 30;
 
     // Bonus for ranked opponent
@@ -374,29 +427,29 @@ export class UniverseFighter extends Fighter {
     // Track specific quality wins
     if (isWin) {
       if (opponentData.ranking && opponentData.ranking <= 15) {
-        this.oppositionQuality.rankedWins++;
+        oq.rankedWins++;
       }
       if (opponentData.wasChampion || opponentData.isChampion) {
-        this.oppositionQuality.championWins++;
+        oq.championWins++;
       }
       if (opponentData.losses === 0 && opponentData.wins >= 5) {
-        this.oppositionQuality.undefeatedWins++;
+        oq.undefeatedWins++;
       }
     }
 
     // Update running average
-    const currentTotal = this.oppositionQuality.qualityScore * this.oppositionQuality.totalOpponentsRated;
+    const currentTotal = oq.qualityScore * oq.totalOpponentsRated;
     const fightScore = isWin ? fightQuality : fightQuality * 0.5;
-    this.oppositionQuality.totalOpponentsRated++;
-    this.oppositionQuality.qualityScore = Math.round(
-      (currentTotal + fightScore) / this.oppositionQuality.totalOpponentsRated
+    oq.totalOpponentsRated++;
+    oq.qualityScore = Math.round(
+      (currentTotal + fightScore) / oq.totalOpponentsRated
     );
 
     // Update tier tracking
     const opponentTierValue = tierQuality[opponentData.tier] || 30;
-    const currentTierTotal = this.oppositionQuality.averageOpponentTier * (this.oppositionQuality.totalOpponentsRated - 1);
-    this.oppositionQuality.averageOpponentTier = Math.round(
-      (currentTierTotal + opponentTierValue) / this.oppositionQuality.totalOpponentsRated
+    const currentTierTotal = oq.averageOpponentTier * (oq.totalOpponentsRated - 1);
+    oq.averageOpponentTier = Math.round(
+      (currentTierTotal + opponentTierValue) / oq.totalOpponentsRated
     );
   }
 
@@ -704,8 +757,7 @@ export class UniverseFighter extends Fighter {
       personality: this.personality,
 
       // Manager system additions
-      careerDamage: this.careerDamage?.toJSON() || null,
-      oppositionQuality: this.oppositionQuality
+      careerDamage: this.careerDamage?.toJSON() || null
     };
   }
 
@@ -713,6 +765,9 @@ export class UniverseFighter extends Fighter {
    * Create from saved JSON
    */
   static fromJSON(data) {
+    // Handle oppositionQuality - could be in career or at top level (backwards compat)
+    const oppositionQuality = data.career?.oppositionQuality || data.oppositionQuality || null;
+
     const fighter = new UniverseFighter(data, {
       id: data.id,
       ...data.career,
@@ -721,7 +776,9 @@ export class UniverseFighter extends Fighter {
       personality: data.personality,
       fightHistory: data.fightHistory,
       careerDamage: data.careerDamage,
-      oppositionQuality: data.oppositionQuality
+      oppositionQuality,
+      bodyRankings: data.career?.bodyRankings || {},
+      registeredBodies: data.career?.registeredBodies || ['WBC', 'WBA', 'IBF', 'WBO']
     });
 
     fighter.baseAttributes = data.baseAttributes;
