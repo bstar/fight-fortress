@@ -69,6 +69,9 @@ export class FightRecord {
     // Post-fight career effects (populated after processing)
     this.careerEffects = config.careerEffects ? deepFreeze(config.careerEffects) : null;
 
+    // Pattern analysis (detected patterns for both fighters)
+    this.patternAnalysis = config.patternAnalysis ? deepFreeze(config.patternAnalysis) : null;
+
     // Metadata
     this.metadata = deepFreeze(config.metadata || {
       simulationType: 'single',  // single, batch, validation
@@ -173,6 +176,33 @@ export class FightRecord {
   }
 
   /**
+   * Set pattern analysis for both fighters
+   * @param {object} analysis - Pattern analysis data
+   */
+  setPatternAnalysis(analysis) {
+    this.patternAnalysis = deepFreeze({
+      fighterA: analysis.fighterA || {
+        fighterId: this.fighterA?.id,
+        fightsAnalyzed: 0,
+        patterns: [],
+        metrics: {},
+        confidence: 0,
+        summary: 'No patterns detected'
+      },
+      fighterB: analysis.fighterB || {
+        fighterId: this.fighterB?.id,
+        fightsAnalyzed: 0,
+        patterns: [],
+        metrics: {},
+        confidence: 0,
+        summary: 'No patterns detected'
+      },
+      matchupInsights: analysis.matchupInsights || [],
+      analyzedAt: new Date().toISOString()
+    });
+  }
+
+  /**
    * Check if prediction was accurate
    * @returns {object} Accuracy analysis
    */
@@ -249,6 +279,7 @@ export class FightRecord {
       result: this.result,
       fightData: this.fightData,
       careerEffects: this.careerEffects,
+      patternAnalysis: this.patternAnalysis,
       metadata: this.metadata
     };
   }

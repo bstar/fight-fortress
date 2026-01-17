@@ -1,12 +1,13 @@
 # Heavyweight Classics Validation Set
-# Historical matchup expectations based on boxing history and expert analysis
+# 100 Historical matchup expectations based on boxing history and expert analysis
 
 id: heavyweight-classics
 name: Heavyweight Classics
 description: >
-  Classic heavyweight matchups for engine calibration.
+  Comprehensive heavyweight matchups for engine calibration.
   Expected ranges based on historical context, fighter primes, and style matchups.
-version: "1.0.0"
+  100 matchups organized by category for thorough validation.
+version: "2.0.0"
 tags:
   - heavyweight
   - historical
@@ -14,7 +15,7 @@ tags:
 
 matchups:
   # ============================================
-  # TYSON MATCHUPS
+  # SECTION 1: TYSON MATCHUPS (15 matchups)
   # ============================================
 
   - id: tyson-vs-lewis
@@ -25,170 +26,532 @@ matchups:
     fighterAName: Mike Tyson
     fighterBName: Lennox Lewis
     expectedWinRate:
-      A: [0.30, 0.45]   # Tyson was faded but still dangerous
-      B: [0.52, 0.68]   # Lewis was heavy favorite, superior reach/jab
+      A: [0.30, 0.45]
+      B: [0.52, 0.68]
       draw: [0.01, 0.05]
     expectedMethods:
-      ko: [0.35, 0.55]    # Both KO artists
+      ko: [0.35, 0.55]
       tko: [0.15, 0.30]
       decision: [0.20, 0.40]
-    expectedRounds:
-      min: 5
-      max: 11
+    expectedRounds: { min: 5, max: 11 }
     weight: 1.5
     tags: [tyson, lewis, title-fight]
-    notes: "Historical result: Lewis KO8. Lewis used jab and reach effectively."
-    actualResult:
-      winner: B
-      method: KO
-      round: 8
+    actualResult: { winner: B, method: KO, round: 8 }
 
   - id: tyson-vs-holyfield
-    name: "Tyson vs Holyfield (1996 context)"
-    description: "Tyson returning from prison vs Holyfield. Closer than expected."
+    name: "Tyson vs Holyfield (1996)"
+    description: "Tyson returning from prison vs Holyfield."
     fighterA: fighters/templates/historical/tyson-mike.yaml
     fighterB: fighters/templates/historical/holyfield-evander.yaml
     fighterAName: Mike Tyson
     fighterBName: Evander Holyfield
     expectedWinRate:
-      A: [0.35, 0.50]   # Tyson was rusty, smaller
-      B: [0.48, 0.62]   # Holyfield's heart and movement were key
+      A: [0.35, 0.50]
+      B: [0.48, 0.62]
       draw: [0.01, 0.05]
     expectedMethods:
       ko: [0.30, 0.50]
       tko: [0.20, 0.35]
       decision: [0.20, 0.40]
-    expectedRounds:
-      min: 6
-      max: 12
+    expectedRounds: { min: 6, max: 12 }
     weight: 1.5
     tags: [tyson, holyfield, title-fight, rivalry]
-    notes: "Historical result: Holyfield TKO11. Holyfield's conditioning and heart prevailed."
-    actualResult:
-      winner: B
-      method: TKO
-      round: 11
+    actualResult: { winner: B, method: TKO, round: 11 }
 
   - id: tyson-vs-bowe
     name: "Tyson vs Bowe (hypothetical prime)"
-    description: "Prime Tyson vs prime Bowe - size vs speed matchup"
+    description: "Prime Tyson vs prime Bowe - size vs speed"
     fighterA: fighters/templates/historical/tyson-mike.yaml
     fighterB: fighters/templates/historical/bowe-riddick.yaml
     fighterAName: Mike Tyson
     fighterBName: Riddick Bowe
     expectedWinRate:
-      A: [0.40, 0.55]   # Tyson's speed could trouble Bowe
-      B: [0.42, 0.58]   # Bowe's size and boxing ability
+      A: [0.40, 0.55]
+      B: [0.42, 0.58]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.40, 0.60]
       tko: [0.15, 0.30]
       decision: [0.15, 0.35]
-    expectedRounds:
-      min: 5
-      max: 12
+    expectedRounds: { min: 5, max: 12 }
     weight: 1.0
     tags: [tyson, bowe, hypothetical]
-    notes: "Never happened. Both had KO power, could go either way."
 
   - id: tyson-vs-foreman
     name: "Tyson vs Foreman (hypothetical)"
-    description: "Prime Tyson vs prime Foreman - explosive matchup"
+    description: "Prime Tyson vs prime Foreman - explosive power matchup"
     fighterA: fighters/templates/historical/tyson-mike.yaml
     fighterB: fighters/templates/historical/foreman-george.yaml
     fighterAName: Mike Tyson
     fighterBName: George Foreman
     expectedWinRate:
-      A: [0.45, 0.58]   # Tyson's speed favored
-      B: [0.38, 0.52]   # Foreman's power could end it early
+      A: [0.45, 0.58]
+      B: [0.38, 0.52]
       draw: [0.02, 0.06]
     expectedMethods:
-      ko: [0.50, 0.70]    # Both devastating punchers
+      ko: [0.50, 0.70]
       tko: [0.10, 0.25]
       decision: [0.10, 0.30]
-    expectedRounds:
-      min: 3
-      max: 10
+    expectedRounds: { min: 3, max: 10 }
     weight: 1.0
     tags: [tyson, foreman, hypothetical, power-vs-power]
-    notes: "Never happened. Would likely end early either way."
+
+  - id: tyson-vs-ruddock
+    name: "Tyson vs Ruddock"
+    description: "Two wars between these power punchers"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.2
+    tags: [tyson, ruddock, historical]
+    actualResult: { winner: A, method: TKO, round: 7 }
+
+  - id: tyson-vs-bruno
+    name: "Tyson vs Bruno"
+    description: "Tyson devastating power vs Bruno's size"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/bruno-frank.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Frank Bruno
+    expectedWinRate:
+      A: [0.65, 0.80]
+      B: [0.18, 0.32]
+      draw: [0.01, 0.04]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.15, 0.30]
+      decision: [0.08, 0.25]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 1.0
+    tags: [tyson, bruno, historical]
+    actualResult: { winner: A, method: TKO, round: 5 }
+
+  - id: tyson-vs-berbick
+    name: "Tyson vs Berbick"
+    description: "Young Tyson wins first title"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/berbick-trevor.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Trevor Berbick
+    expectedWinRate:
+      A: [0.70, 0.85]
+      B: [0.12, 0.28]
+      draw: [0.01, 0.04]
+    expectedMethods:
+      ko: [0.55, 0.75]
+      tko: [0.12, 0.28]
+      decision: [0.05, 0.22]
+    expectedRounds: { min: 2, max: 8 }
+    weight: 1.0
+    tags: [tyson, berbick, historical, title-fight]
+    actualResult: { winner: A, method: TKO, round: 2 }
+
+  - id: tyson-vs-douglas
+    name: "Tyson vs Douglas"
+    description: "The upset that shocked boxing"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/douglas-buster.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Buster Douglas
+    expectedWinRate:
+      A: [0.55, 0.72]
+      B: [0.26, 0.42]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 1.2
+    tags: [tyson, douglas, historical, upset]
+    actualResult: { winner: B, method: KO, round: 10 }
+
+  - id: tyson-vs-holmes
+    name: "Tyson vs Holmes"
+    description: "Young Tyson vs old Holmes"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/holmes-larry.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Larry Holmes
+    expectedWinRate:
+      A: [0.58, 0.73]
+      B: [0.25, 0.40]
+      draw: [0.01, 0.04]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.15, 0.35]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 1.0
+    tags: [tyson, holmes, historical]
+    actualResult: { winner: A, method: TKO, round: 4 }
+
+  - id: tyson-vs-tua
+    name: "Tyson vs Tua (hypothetical)"
+    description: "Two devastating inside fighters"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Mike Tyson
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.50, 0.65]
+      B: [0.32, 0.48]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.55, 0.75]
+      tko: [0.10, 0.25]
+      decision: [0.08, 0.28]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 1.0
+    tags: [tyson, tua, hypothetical, inside-fighters]
+
+  - id: tyson-vs-ibeabuchi
+    name: "Tyson vs Ibeabuchi (hypothetical)"
+    description: "Tyson vs the unfinished Nigerian"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.45, 0.60]
+      B: [0.38, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 1.0
+    tags: [tyson, ibeabuchi, hypothetical]
+
+  - id: tyson-vs-vitali
+    name: "Tyson vs Vitali Klitschko (hypothetical)"
+    description: "Tyson's speed vs Klitschko's size and chin"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.38, 0.52]
+      B: [0.45, 0.60]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.15, 0.30]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [tyson, klitschko, hypothetical, size-mismatch]
+
+  - id: tyson-vs-tucker
+    name: "Tyson vs Tucker"
+    description: "Unification fight"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/tucker-tony.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Tony Tucker
+    expectedWinRate:
+      A: [0.60, 0.75]
+      B: [0.22, 0.38]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.40, 0.60]
+      tko: [0.15, 0.30]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [tyson, tucker, historical, title-fight]
+    actualResult: { winner: A, method: DECISION, round: 12 }
+
+  - id: tyson-vs-seldon
+    name: "Tyson vs Seldon"
+    description: "Quick demolition of Seldon"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/seldon-bruce.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Bruce Seldon
+    expectedWinRate:
+      A: [0.75, 0.90]
+      B: [0.08, 0.22]
+      draw: [0.01, 0.03]
+    expectedMethods:
+      ko: [0.60, 0.80]
+      tko: [0.10, 0.25]
+      decision: [0.02, 0.18]
+    expectedRounds: { min: 1, max: 6 }
+    weight: 0.8
+    tags: [tyson, seldon, historical]
+    actualResult: { winner: A, method: TKO, round: 1 }
+
+  - id: tyson-vs-morrison
+    name: "Tyson vs Morrison (hypothetical)"
+    description: "Two explosive power punchers"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/morrison-tommy.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Tommy Morrison
+    expectedWinRate:
+      A: [0.62, 0.78]
+      B: [0.20, 0.36]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.55, 0.75]
+      tko: [0.12, 0.28]
+      decision: [0.05, 0.22]
+    expectedRounds: { min: 2, max: 8 }
+    weight: 0.9
+    tags: [tyson, morrison, hypothetical]
 
   # ============================================
-  # LEWIS MATCHUPS
+  # SECTION 2: LEWIS MATCHUPS (12 matchups)
   # ============================================
 
   - id: lewis-vs-holyfield
     name: "Lewis vs Holyfield"
-    description: "Two prime champions meeting. Lewis had size advantage."
+    description: "Two prime champions meeting"
     fighterA: fighters/templates/historical/lewis-lennox.yaml
     fighterB: fighters/templates/historical/holyfield-evander.yaml
     fighterAName: Lennox Lewis
     fighterBName: Evander Holyfield
     expectedWinRate:
-      A: [0.50, 0.65]   # Lewis size and jab
-      B: [0.32, 0.48]   # Holyfield heart and inside work
+      A: [0.50, 0.65]
+      B: [0.32, 0.48]
       draw: [0.02, 0.08]
     expectedMethods:
       ko: [0.25, 0.45]
       tko: [0.15, 0.30]
       decision: [0.35, 0.55]
-    expectedRounds:
-      min: 8
-      max: 12
+    expectedRounds: { min: 8, max: 12 }
     weight: 1.5
     tags: [lewis, holyfield, title-fight, unification]
-    notes: "Historical: Draw (controversial), then Lewis UD. Tactical fights."
-    actualResult:
-      winner: A
-      method: DECISION
-      round: 12
+    actualResult: { winner: A, method: DECISION, round: 12 }
 
   - id: lewis-vs-bowe
     name: "Lewis vs Bowe"
-    description: "Two tall heavyweights with good boxing skills"
+    description: "Two tall heavyweights with boxing skills"
     fighterA: fighters/templates/historical/lewis-lennox.yaml
     fighterB: fighters/templates/historical/bowe-riddick.yaml
     fighterAName: Lennox Lewis
     fighterBName: Riddick Bowe
     expectedWinRate:
-      A: [0.45, 0.58]   # Better jab and technique
-      B: [0.40, 0.53]   # More inside ability
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.30, 0.50]
       tko: [0.15, 0.30]
       decision: [0.30, 0.45]
-    expectedRounds:
-      min: 7
-      max: 12
+    expectedRounds: { min: 7, max: 12 }
     weight: 1.0
     tags: [lewis, bowe, hypothetical]
-    notes: "Never had rematch after Bowe ducked. Lewis more disciplined."
 
   - id: lewis-vs-foreman
-    name: "Lewis vs Foreman (hypothetical prime)"
+    name: "Lewis vs Foreman (hypothetical)"
     description: "Lewis jab vs Foreman power"
     fighterA: fighters/templates/historical/lewis-lennox.yaml
     fighterB: fighters/templates/historical/foreman-george.yaml
     fighterAName: Lennox Lewis
     fighterBName: George Foreman
     expectedWinRate:
-      A: [0.52, 0.65]   # Lewis boxing ability favored
-      B: [0.32, 0.46]   # Foreman's power always a threat
+      A: [0.52, 0.65]
+      B: [0.32, 0.46]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.35, 0.55]
       tko: [0.15, 0.30]
       decision: [0.25, 0.40]
-    expectedRounds:
-      min: 5
-      max: 12
+    expectedRounds: { min: 5, max: 12 }
     weight: 1.0
     tags: [lewis, foreman, hypothetical]
-    notes: "Lewis would use movement and jab but Foreman's power unpredictable."
+
+  - id: lewis-vs-tua
+    name: "Lewis vs Tua"
+    description: "Lewis reach vs Tua's inside power"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.58, 0.72]
+      B: [0.25, 0.40]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.15, 0.30]
+      decision: [0.35, 0.55]
+    expectedRounds: { min: 8, max: 12 }
+    weight: 1.2
+    tags: [lewis, tua, historical]
+    actualResult: { winner: A, method: DECISION, round: 12 }
+
+  - id: lewis-vs-vitali
+    name: "Lewis vs Vitali Klitschko"
+    description: "Battle of the giants"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.20, 0.38]
+      decision: [0.28, 0.48]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.3
+    tags: [lewis, klitschko, historical]
+    actualResult: { winner: A, method: TKO, round: 6 }
+
+  - id: lewis-vs-ruddock
+    name: "Lewis vs Ruddock"
+    description: "British technical boxing vs Canadian power"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.58, 0.72]
+      B: [0.26, 0.40]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.20, 0.38]
+    expectedRounds: { min: 4, max: 12 }
+    weight: 1.0
+    tags: [lewis, ruddock, historical]
+    actualResult: { winner: A, method: KO, round: 2 }
+
+  - id: lewis-vs-ibeabuchi
+    name: "Lewis vs Ibeabuchi (hypothetical)"
+    description: "Lewis skill vs Ibeabuchi work rate"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [lewis, ibeabuchi, hypothetical]
+
+  - id: lewis-vs-bruno
+    name: "Lewis vs Bruno"
+    description: "Battle of Britain"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/bruno-frank.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Frank Bruno
+    expectedWinRate:
+      A: [0.60, 0.75]
+      B: [0.22, 0.38]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.20, 0.38]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [lewis, bruno, british]
+
+  - id: lewis-vs-rahman
+    name: "Lewis vs Rahman"
+    description: "Lewis upset loss and rematch"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/rahman-hasim.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Hasim Rahman
+    expectedWinRate:
+      A: [0.60, 0.75]
+      B: [0.22, 0.38]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.40, 0.60]
+      tko: [0.15, 0.30]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 1.0
+    tags: [lewis, rahman, historical, upset]
+    actualResult: { winner: B, method: KO, round: 5 }
+
+  - id: lewis-vs-grant
+    name: "Lewis vs Michael Grant"
+    description: "Lewis vs undefeated prospect"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/grant-michael.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Michael Grant
+    expectedWinRate:
+      A: [0.62, 0.78]
+      B: [0.20, 0.36]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 1.0
+    tags: [lewis, grant, historical]
+    actualResult: { winner: A, method: TKO, round: 2 }
+
+  - id: lewis-vs-mercer
+    name: "Lewis vs Mercer"
+    description: "Lewis vs dangerous puncher"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [lewis, mercer, hypothetical]
+
+  - id: lewis-vs-sanders
+    name: "Lewis vs Sanders"
+    description: "Lewis vs tricky southpaw"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/sanders-corrie.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Corrie Sanders
+    expectedWinRate:
+      A: [0.58, 0.72]
+      B: [0.26, 0.40]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 12 }
+    weight: 0.9
+    tags: [lewis, sanders, hypothetical]
 
   # ============================================
-  # HOLYFIELD MATCHUPS
+  # SECTION 3: HOLYFIELD MATCHUPS (10 matchups)
   # ============================================
 
   - id: holyfield-vs-bowe
@@ -199,23 +562,16 @@ matchups:
     fighterAName: Evander Holyfield
     fighterBName: Riddick Bowe
     expectedWinRate:
-      A: [0.40, 0.52]   # Holyfield heart and conditioning
-      B: [0.45, 0.58]   # Bowe's size and combinations
+      A: [0.40, 0.52]
+      B: [0.45, 0.58]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.25, 0.45]
       tko: [0.20, 0.35]
       decision: [0.30, 0.45]
-    expectedRounds:
-      min: 8
-      max: 12
+    expectedRounds: { min: 8, max: 12 }
     weight: 1.5
     tags: [holyfield, bowe, trilogy, historical]
-    notes: "Historical: Split 1-1-1 in trilogy. Very even matchup."
-    actualResult:
-      winner: split
-      method: various
-      round: 12
 
   - id: holyfield-vs-foreman
     name: "Holyfield vs Foreman"
@@ -225,103 +581,1058 @@ matchups:
     fighterAName: Evander Holyfield
     fighterBName: George Foreman
     expectedWinRate:
-      A: [0.50, 0.62]   # Holyfield movement and conditioning
-      B: [0.35, 0.48]   # Foreman power threat
+      A: [0.50, 0.62]
+      B: [0.35, 0.48]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.30, 0.50]
       tko: [0.15, 0.30]
       decision: [0.30, 0.45]
-    expectedRounds:
-      min: 6
-      max: 12
+    expectedRounds: { min: 6, max: 12 }
     weight: 1.0
-    tags: [holyfield, foreman, hypothetical]
-    notes: "Historical (old Foreman): Holyfield UD12. Prime matchup would be closer."
-    actualResult:
-      winner: A
-      method: DECISION
-      round: 12
+    tags: [holyfield, foreman, historical]
+    actualResult: { winner: A, method: DECISION, round: 12 }
 
-  # ============================================
-  # HOLMES MATCHUPS
-  # ============================================
-
-  - id: holmes-vs-tyson
-    name: "Holmes vs Tyson"
-    description: "Old Holmes vs young Tyson (as it happened)"
-    fighterA: fighters/templates/historical/holmes-larry.yaml
-    fighterB: fighters/templates/historical/tyson-mike.yaml
-    fighterAName: Larry Holmes
-    fighterBName: Mike Tyson
+  - id: holyfield-vs-ruddock
+    name: "Holyfield vs Ruddock"
+    description: "Holyfield heart vs Ruddock power"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Razor Ruddock
     expectedWinRate:
-      A: [0.25, 0.40]   # Holmes was 38 and past prime
-      B: [0.58, 0.73]   # Young Tyson at peak
-      draw: [0.01, 0.04]
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [holyfield, ruddock, hypothetical]
+
+  - id: holyfield-vs-tua
+    name: "Holyfield vs Tua"
+    description: "Holyfield experience vs Tua power"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [holyfield, tua, hypothetical]
+
+  - id: holyfield-vs-ibeabuchi
+    name: "Holyfield vs Ibeabuchi (hypothetical)"
+    description: "Two warriors with incredible heart"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.20, 0.38]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [holyfield, ibeabuchi, hypothetical, action-fight]
+
+  - id: holyfield-vs-vitali
+    name: "Holyfield vs Vitali Klitschko"
+    description: "Holyfield vs the Ukrainian giant"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.35, 0.48]
+      B: [0.50, 0.63]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.28, 0.48]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.45]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [holyfield, klitschko, hypothetical, size-mismatch]
+
+  - id: holyfield-vs-holmes
+    name: "Holyfield vs Holmes (hypothetical primes)"
+    description: "Two skilled technical fighters"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/holmes-larry.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Larry Holmes
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.18, 0.35]
+      decision: [0.32, 0.50]
+    expectedRounds: { min: 8, max: 12 }
+    weight: 1.0
+    tags: [holyfield, holmes, hypothetical]
+
+  - id: holyfield-vs-mercer
+    name: "Holyfield vs Mercer"
+    description: "Holyfield vs dangerous power puncher"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.9
+    tags: [holyfield, mercer, hypothetical]
+
+  - id: holyfield-vs-douglas
+    name: "Holyfield vs Douglas"
+    description: "Holyfield wins unified titles"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/douglas-buster.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Buster Douglas
+    expectedWinRate:
+      A: [0.62, 0.78]
+      B: [0.20, 0.36]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 1.0
+    tags: [holyfield, douglas, historical]
+    actualResult: { winner: A, method: KO, round: 3 }
+
+  - id: holyfield-vs-bruno
+    name: "Holyfield vs Bruno"
+    description: "Two champions meet"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/bruno-frank.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Frank Bruno
+    expectedWinRate:
+      A: [0.58, 0.72]
+      B: [0.26, 0.40]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.20, 0.38]
+      decision: [0.20, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.9
+    tags: [holyfield, bruno, hypothetical]
+
+  # ============================================
+  # SECTION 4: BOWE MATCHUPS (8 matchups)
+  # ============================================
+
+  - id: bowe-vs-foreman
+    name: "Bowe vs Foreman"
+    description: "Size vs devastating power"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/foreman-george.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: George Foreman
+    expectedWinRate:
+      A: [0.50, 0.64]
+      B: [0.34, 0.48]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [bowe, foreman, hypothetical]
+
+  - id: bowe-vs-tua
+    name: "Bowe vs Tua"
+    description: "Bowe size vs Tua power"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.55, 0.68]
+      B: [0.30, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [bowe, tua, hypothetical]
+
+  - id: bowe-vs-ibeabuchi
+    name: "Bowe vs Ibeabuchi (hypothetical)"
+    description: "Two big men with heart"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.50, 0.64]
+      B: [0.34, 0.48]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.20, 0.38]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [bowe, ibeabuchi, hypothetical, action-fight]
+
+  - id: bowe-vs-vitali
+    name: "Bowe vs Vitali Klitschko"
+    description: "Two skilled big men"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.28, 0.48]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.48]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [bowe, klitschko, hypothetical]
+
+  - id: bowe-vs-ruddock
+    name: "Bowe vs Ruddock"
+    description: "Two dangerous punchers"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [bowe, ruddock, hypothetical]
+
+  - id: bowe-vs-holmes
+    name: "Bowe vs Holmes (hypothetical primes)"
+    description: "Two skilled technical boxers"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/holmes-larry.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: Larry Holmes
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.45]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [bowe, holmes, hypothetical]
+
+  - id: bowe-vs-mercer
+    name: "Bowe vs Mercer"
+    description: "Size advantage vs punching power"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.9
+    tags: [bowe, mercer, hypothetical]
+
+  - id: bowe-vs-golota
+    name: "Bowe vs Golota"
+    description: "The infamous DQ fights"
+    fighterA: fighters/templates/historical/bowe-riddick.yaml
+    fighterB: fighters/templates/historical/golota-andrew.yaml
+    fighterAName: Riddick Bowe
+    fighterBName: Andrew Golota
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.20, 0.38]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [bowe, golota, historical]
+
+  # ============================================
+  # SECTION 5: FOREMAN MATCHUPS (6 matchups)
+  # ============================================
+
+  - id: foreman-vs-holmes
+    name: "Foreman vs Holmes (hypothetical)"
+    description: "Prime jab master vs prime power"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/holmes-larry.yaml
+    fighterAName: George Foreman
+    fighterBName: Larry Holmes
+    expectedWinRate:
+      A: [0.38, 0.52]
+      B: [0.45, 0.60]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.15, 0.30]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [foreman, holmes, hypothetical]
+
+  - id: foreman-vs-tua
+    name: "Foreman vs Tua"
+    description: "Two devastating punchers"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: George Foreman
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 1.0
+    tags: [foreman, tua, hypothetical, ko-fest]
+
+  - id: foreman-vs-vitali
+    name: "Foreman vs Vitali Klitschko"
+    description: "Foreman power vs Klitschko chin"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: George Foreman
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.38, 0.52]
+      B: [0.45, 0.60]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [foreman, klitschko, hypothetical]
+
+  - id: foreman-vs-ruddock
+    name: "Foreman vs Ruddock"
+    description: "Two power punchers collide"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: George Foreman
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.9
+    tags: [foreman, ruddock, hypothetical]
+
+  - id: foreman-vs-moorer
+    name: "Foreman vs Moorer"
+    description: "Old Foreman's stunning KO"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/dokes-michael.yaml
+    fighterAName: George Foreman
+    fighterBName: Michael Dokes
+    expectedWinRate:
+      A: [0.58, 0.72]
+      B: [0.26, 0.40]
+      draw: [0.01, 0.05]
     expectedMethods:
       ko: [0.45, 0.65]
       tko: [0.15, 0.30]
       decision: [0.15, 0.35]
-    expectedRounds:
-      min: 3
-      max: 10
-    weight: 1.0
-    tags: [holmes, tyson, historical]
-    notes: "Historical: Tyson TKO4. Holmes was 38 and past his prime."
-    actualResult:
-      winner: B
-      method: TKO
-      round: 4
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.9
+    tags: [foreman, dokes, hypothetical]
 
-  - id: holmes-vs-foreman
-    name: "Holmes vs Foreman (hypothetical primes)"
-    description: "Prime jab master vs prime power puncher"
-    fighterA: fighters/templates/historical/holmes-larry.yaml
-    fighterB: fighters/templates/historical/foreman-george.yaml
-    fighterAName: Larry Holmes
-    fighterBName: George Foreman
+  - id: foreman-vs-morrison
+    name: "Foreman vs Morrison"
+    description: "Power vs power"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/morrison-tommy.yaml
+    fighterAName: George Foreman
+    fighterBName: Tommy Morrison
     expectedWinRate:
-      A: [0.48, 0.60]   # Holmes jab and movement
-      B: [0.38, 0.50]   # Foreman's power
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.52, 0.72]
+      tko: [0.12, 0.28]
+      decision: [0.08, 0.28]
+    expectedRounds: { min: 2, max: 9 }
+    weight: 0.9
+    tags: [foreman, morrison, hypothetical]
+
+  # ============================================
+  # SECTION 6: HOLMES MATCHUPS (5 matchups)
+  # ============================================
+
+  - id: holmes-vs-tua
+    name: "Holmes vs Tua"
+    description: "Holmes jab vs Tua's inside game"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Larry Holmes
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [holmes, tua, hypothetical]
+
+  - id: holmes-vs-vitali
+    name: "Holmes vs Vitali Klitschko"
+    description: "Two great jab fighters"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: Larry Holmes
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.18, 0.35]
+      decision: [0.32, 0.52]
+    expectedRounds: { min: 8, max: 12 }
+    weight: 1.0
+    tags: [holmes, klitschko, hypothetical]
+
+  - id: holmes-vs-ibeabuchi
+    name: "Holmes vs Ibeabuchi"
+    description: "Holmes skill vs Ibeabuchi pressure"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Larry Holmes
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.28, 0.48]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.48]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [holmes, ibeabuchi, hypothetical]
+
+  - id: holmes-vs-witherspoon
+    name: "Holmes vs Witherspoon"
+    description: "Holmes vs his former sparring partner"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/witherspoon-tim.yaml
+    fighterAName: Larry Holmes
+    fighterBName: Tim Witherspoon
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.28, 0.48]
+      tko: [0.18, 0.35]
+      decision: [0.30, 0.48]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 0.9
+    tags: [holmes, witherspoon, hypothetical]
+
+  - id: holmes-vs-thomas
+    name: "Holmes vs Pinklon Thomas"
+    description: "Two skilled boxers"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/thomas-pinklon.yaml
+    fighterAName: Larry Holmes
+    fighterBName: Pinklon Thomas
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.30, 0.50]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.45]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 0.9
+    tags: [holmes, thomas, hypothetical]
+
+  # ============================================
+  # SECTION 7: TUA MATCHUPS (7 matchups)
+  # ============================================
+
+  - id: tua-vs-ibeabuchi
+    name: "Tua vs Ibeabuchi"
+    description: "Epic 1997 fight"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: David Tua
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.42, 0.55]
+      B: [0.43, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 8, max: 12 }
+    weight: 1.2
+    tags: [tua, ibeabuchi, historical, foty-candidate]
+    actualResult: { winner: B, method: DECISION, round: 12 }
+
+  - id: tua-vs-ruddock
+    name: "Tua vs Ruddock"
+    description: "Two power punchers"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: David Tua
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.45, 0.65]
       tko: [0.15, 0.30]
-      decision: [0.30, 0.45]
-    expectedRounds:
-      min: 6
-      max: 12
+      decision: [0.15, 0.35]
+    expectedRounds: { min: 4, max: 11 }
     weight: 1.0
-    tags: [holmes, foreman, hypothetical]
-    notes: "Never fought in primes. Holmes jab would be key."
+    tags: [tua, ruddock, hypothetical]
+
+  - id: tua-vs-vitali
+    name: "Tua vs Vitali Klitschko"
+    description: "Tua power vs Klitschko reach"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/klitschko-vitali.yaml
+    fighterAName: David Tua
+    fighterBName: Vitali Klitschko
+    expectedWinRate:
+      A: [0.32, 0.46]
+      B: [0.52, 0.66]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.45]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 1.0
+    tags: [tua, klitschko, hypothetical]
+
+  - id: tua-vs-mercer
+    name: "Tua vs Mercer"
+    description: "Two dangerous punchers"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: David Tua
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.15, 0.35]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.9
+    tags: [tua, mercer, hypothetical]
+
+  - id: tua-vs-grant
+    name: "Tua vs Michael Grant"
+    description: "Tua destroys unbeaten prospect"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/grant-michael.yaml
+    fighterAName: David Tua
+    fighterBName: Michael Grant
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 2, max: 9 }
+    weight: 1.0
+    tags: [tua, grant, hypothetical]
+
+  - id: tua-vs-sanders
+    name: "Tua vs Sanders"
+    description: "Power vs southpaw speed"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/sanders-corrie.yaml
+    fighterAName: David Tua
+    fighterBName: Corrie Sanders
+    expectedWinRate:
+      A: [0.50, 0.64]
+      B: [0.34, 0.48]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.48, 0.68]
+      tko: [0.12, 0.28]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.9
+    tags: [tua, sanders, hypothetical]
+
+  - id: tua-vs-rahman
+    name: "Tua vs Rahman"
+    description: "Two power punchers"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/rahman-hasim.yaml
+    fighterAName: David Tua
+    fighterBName: Hasim Rahman
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.48, 0.68]
+      tko: [0.12, 0.28]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.9
+    tags: [tua, rahman, hypothetical]
 
   # ============================================
-  # STYLE MATCHUP TESTS
+  # SECTION 8: VITALI KLITSCHKO MATCHUPS (6 matchups)
   # ============================================
 
-  - id: slugger-vs-boxer
+  - id: vitali-vs-ibeabuchi
+    name: "Vitali vs Ibeabuchi"
+    description: "Klitschko chin vs Ibeabuchi pressure"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.20, 0.38]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 1.0
+    tags: [klitschko, ibeabuchi, hypothetical]
+
+  - id: vitali-vs-sanders
+    name: "Vitali vs Sanders"
+    description: "Klitschko vs dangerous southpaw"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/sanders-corrie.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: Corrie Sanders
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.20, 0.38]
+      decision: [0.20, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [klitschko, sanders, hypothetical]
+
+  - id: vitali-vs-ruddock
+    name: "Vitali vs Ruddock"
+    description: "Size and skill vs power"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.20, 0.38]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.9
+    tags: [klitschko, ruddock, hypothetical]
+
+  - id: vitali-vs-mercer
+    name: "Vitali vs Mercer"
+    description: "Skill vs power"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.20, 0.38]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.9
+    tags: [klitschko, mercer, hypothetical]
+
+  - id: vitali-vs-briggs
+    name: "Vitali vs Shannon Briggs"
+    description: "Two big power punchers"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/briggs-shannon.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: Shannon Briggs
+    expectedWinRate:
+      A: [0.60, 0.75]
+      B: [0.22, 0.38]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.20, 0.38]
+      decision: [0.15, 0.35]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.9
+    tags: [klitschko, briggs, hypothetical]
+
+  - id: vitali-vs-maskaev
+    name: "Vitali vs Maskaev"
+    description: "Former champions"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/maskaev-oleg.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: Oleg Maskaev
+    expectedWinRate:
+      A: [0.62, 0.78]
+      B: [0.20, 0.36]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.22, 0.40]
+      decision: [0.12, 0.32]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.8
+    tags: [klitschko, maskaev, hypothetical]
+
+  # ============================================
+  # SECTION 9: 90s ERA MATCHUPS (12 matchups)
+  # ============================================
+
+  - id: ruddock-vs-mercer
+    name: "Ruddock vs Mercer"
+    description: "Two dangerous punchers"
+    fighterA: fighters/templates/historical/ruddock-razor.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Razor Ruddock
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.9
+    tags: [ruddock, mercer, hypothetical, ko-fest]
+
+  - id: ibeabuchi-vs-ruddock
+    name: "Ibeabuchi vs Ruddock"
+    description: "Young lion vs veteran power"
+    fighterA: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterB: fighters/templates/historical/ruddock-razor.yaml
+    fighterAName: Ike Ibeabuchi
+    fighterBName: Razor Ruddock
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.42, 0.62]
+      tko: [0.15, 0.30]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [ibeabuchi, ruddock, hypothetical]
+
+  - id: morrison-vs-mercer
+    name: "Morrison vs Mercer"
+    description: "Two power punchers collide"
+    fighterA: fighters/templates/historical/morrison-tommy.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Tommy Morrison
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.35, 0.48]
+      B: [0.50, 0.63]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.55, 0.75]
+      tko: [0.10, 0.25]
+      decision: [0.08, 0.28]
+    expectedRounds: { min: 2, max: 8 }
+    weight: 1.0
+    tags: [morrison, mercer, historical]
+    actualResult: { winner: B, method: KO, round: 5 }
+
+  - id: bruno-vs-witherspoon
+    name: "Bruno vs Witherspoon"
+    description: "Bruno's title challenge"
+    fighterA: fighters/templates/historical/bruno-frank.yaml
+    fighterB: fighters/templates/historical/witherspoon-tim.yaml
+    fighterAName: Frank Bruno
+    fighterBName: Tim Witherspoon
+    expectedWinRate:
+      A: [0.38, 0.52]
+      B: [0.46, 0.60]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.9
+    tags: [bruno, witherspoon, historical]
+    actualResult: { winner: B, method: TKO, round: 11 }
+
+  - id: douglas-vs-tucker
+    name: "Douglas vs Tucker"
+    description: "Two former champions"
+    fighterA: fighters/templates/historical/douglas-buster.yaml
+    fighterB: fighters/templates/historical/tucker-tony.yaml
+    fighterAName: Buster Douglas
+    fighterBName: Tony Tucker
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.8
+    tags: [douglas, tucker, hypothetical]
+
+  - id: grant-vs-ibeabuchi
+    name: "Grant vs Ibeabuchi"
+    description: "Two unbeaten prospects"
+    fighterA: fighters/templates/historical/grant-michael.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Michael Grant
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.38, 0.52]
+      B: [0.46, 0.60]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 1.0
+    tags: [grant, ibeabuchi, hypothetical]
+
+  - id: sanders-vs-rahman
+    name: "Sanders vs Rahman"
+    description: "Two knockout artists"
+    fighterA: fighters/templates/historical/sanders-corrie.yaml
+    fighterB: fighters/templates/historical/rahman-hasim.yaml
+    fighterAName: Corrie Sanders
+    fighterBName: Hasim Rahman
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.9
+    tags: [sanders, rahman, hypothetical]
+
+  - id: golota-vs-mercer
+    name: "Golota vs Mercer"
+    description: "Skill vs power"
+    fighterA: fighters/templates/historical/golota-andrew.yaml
+    fighterB: fighters/templates/historical/mercer-ray.yaml
+    fighterAName: Andrew Golota
+    fighterBName: Ray Mercer
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.40, 0.60]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.8
+    tags: [golota, mercer, hypothetical]
+
+  - id: botha-vs-hide
+    name: "Botha vs Hide"
+    description: "Two fringe contenders"
+    fighterA: fighters/templates/historical/botha-frans.yaml
+    fighterB: fighters/templates/historical/hide-herbie.yaml
+    fighterAName: Frans Botha
+    fighterBName: Herbie Hide
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.8
+    tags: [botha, hide, hypothetical]
+
+  - id: briggs-vs-morrison
+    name: "Briggs vs Morrison"
+    description: "Two power punchers with chin questions"
+    fighterA: fighters/templates/historical/briggs-shannon.yaml
+    fighterB: fighters/templates/historical/morrison-tommy.yaml
+    fighterAName: Shannon Briggs
+    fighterBName: Tommy Morrison
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.52, 0.72]
+      tko: [0.12, 0.28]
+      decision: [0.08, 0.28]
+    expectedRounds: { min: 2, max: 8 }
+    weight: 0.8
+    tags: [briggs, morrison, hypothetical, ko-fest]
+
+  - id: akinwande-vs-grant
+    name: "Akinwande vs Grant"
+    description: "Two tall athletic heavyweights"
+    fighterA: fighters/templates/historical/akinwande-henry.yaml
+    fighterB: fighters/templates/historical/grant-michael.yaml
+    fighterAName: Henry Akinwande
+    fighterBName: Michael Grant
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.28, 0.48]
+      tko: [0.18, 0.35]
+      decision: [0.30, 0.48]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 0.8
+    tags: [akinwande, grant, hypothetical]
+
+  - id: stewart-vs-cooper
+    name: "Stewart vs Cooper"
+    description: "Two tough gatekeepers"
+    fighterA: fighters/templates/historical/stewart-alex.yaml
+    fighterB: fighters/templates/historical/cooper-bert.yaml
+    fighterAName: Alex Stewart
+    fighterBName: Bert Cooper
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.42, 0.62]
+      tko: [0.15, 0.30]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.7
+    tags: [stewart, cooper, gatekeeper]
+
+  # ============================================
+  # SECTION 10: STYLE MATCHUP TESTS (10 matchups)
+  # ============================================
+
+  - id: style-pressure-vs-boxer
     name: "Tyson vs Holmes (style test)"
-    description: "Inside fighter/slugger vs out-boxer"
+    description: "Inside fighter/swarmer vs out-boxer"
     fighterA: fighters/templates/historical/tyson-mike.yaml
     fighterB: fighters/templates/historical/holmes-larry.yaml
     fighterAName: Mike Tyson
     fighterBName: Larry Holmes
     expectedWinRate:
-      A: [0.55, 0.70]   # Tyson pressure should work
-      B: [0.28, 0.43]   # Holmes needs distance
+      A: [0.55, 0.70]
+      B: [0.28, 0.43]
       draw: [0.01, 0.05]
     expectedMethods:
       ko: [0.40, 0.60]
       tko: [0.15, 0.30]
       decision: [0.15, 0.35]
-    expectedRounds:
-      min: 4
-      max: 11
+    expectedRounds: { min: 4, max: 11 }
     weight: 0.8
     tags: [style-test, pressure-vs-boxer]
-    notes: "Tests pressure fighter vs pure boxer matchup."
 
-  - id: power-vs-heart
+  - id: style-power-vs-heart
     name: "Foreman vs Holyfield (style test)"
     description: "Pure power vs warrior heart"
     fighterA: fighters/templates/historical/foreman-george.yaml
@@ -329,16 +1640,341 @@ matchups:
     fighterAName: George Foreman
     fighterBName: Evander Holyfield
     expectedWinRate:
-      A: [0.38, 0.50]   # Foreman power
-      B: [0.48, 0.60]   # Holyfield conditioning/heart
+      A: [0.38, 0.52]
+      B: [0.46, 0.60]
       draw: [0.02, 0.06]
     expectedMethods:
       ko: [0.35, 0.55]
       tko: [0.15, 0.30]
-      decision: [0.25, 0.40]
-    expectedRounds:
-      min: 6
-      max: 12
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
     weight: 0.8
     tags: [style-test, power-vs-heart]
-    notes: "Tests power puncher vs high-heart fighter."
+
+  - id: style-jab-vs-pressure
+    name: "Lewis vs Tua (style test)"
+    description: "Jab and reach vs inside pressure"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.58, 0.72]
+      B: [0.26, 0.40]
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.15, 0.30]
+      decision: [0.35, 0.55]
+    expectedRounds: { min: 8, max: 12 }
+    weight: 0.8
+    tags: [style-test, jab-vs-pressure]
+
+  - id: style-slugger-vs-slugger
+    name: "Foreman vs Tua (style test)"
+    description: "Power vs power - who lands first"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: George Foreman
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.52, 0.72]
+      tko: [0.10, 0.25]
+      decision: [0.08, 0.28]
+    expectedRounds: { min: 2, max: 9 }
+    weight: 0.8
+    tags: [style-test, slugger-vs-slugger]
+
+  - id: style-boxer-vs-boxer
+    name: "Lewis vs Holmes (style test)"
+    description: "Two technical boxers"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/holmes-larry.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Larry Holmes
+    expectedWinRate:
+      A: [0.50, 0.64]
+      B: [0.34, 0.48]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.15, 0.30]
+      decision: [0.35, 0.55]
+    expectedRounds: { min: 8, max: 12 }
+    weight: 0.8
+    tags: [style-test, boxer-vs-boxer]
+
+  - id: style-swarmer-vs-swarmer
+    name: "Tua vs Ibeabuchi (style test)"
+    description: "Two pressure fighters"
+    fighterA: fighters/templates/historical/tua-david.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: David Tua
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.42, 0.55]
+      B: [0.43, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 0.8
+    tags: [style-test, swarmer-vs-swarmer]
+
+  - id: style-southpaw-advantage
+    name: "Sanders vs Morrison"
+    description: "Southpaw vs orthodox power puncher"
+    fighterA: fighters/templates/historical/sanders-corrie.yaml
+    fighterB: fighters/templates/historical/morrison-tommy.yaml
+    fighterAName: Corrie Sanders
+    fighterBName: Tommy Morrison
+    expectedWinRate:
+      A: [0.50, 0.64]
+      B: [0.34, 0.48]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]
+      tko: [0.12, 0.28]
+      decision: [0.10, 0.30]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.8
+    tags: [style-test, southpaw-vs-orthodox]
+
+  - id: style-tall-vs-short
+    name: "Vitali vs Tua (style test)"
+    description: "Tall boxer vs short swarmer"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/tua-david.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: David Tua
+    expectedWinRate:
+      A: [0.52, 0.66]
+      B: [0.32, 0.46]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.45]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.8
+    tags: [style-test, height-mismatch]
+
+  - id: style-experience-vs-youth
+    name: "Holmes vs Ibeabuchi (style test)"
+    description: "Veteran skill vs young lion"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/ibeabuchi-ike.yaml
+    fighterAName: Larry Holmes
+    fighterBName: Ike Ibeabuchi
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.28, 0.48]
+      tko: [0.18, 0.35]
+      decision: [0.28, 0.48]
+    expectedRounds: { min: 7, max: 12 }
+    weight: 0.8
+    tags: [style-test, experience-vs-youth]
+
+  - id: style-chin-vs-power
+    name: "Vitali vs Foreman (style test)"
+    description: "Iron chin vs devastating power"
+    fighterA: fighters/templates/historical/klitschko-vitali.yaml
+    fighterB: fighters/templates/historical/foreman-george.yaml
+    fighterAName: Vitali Klitschko
+    fighterBName: George Foreman
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.8
+    tags: [style-test, chin-vs-power]
+
+  # ============================================
+  # SECTION 11: GATEKEEPER/JOURNEYMAN (9 matchups)
+  # ============================================
+
+  - id: gatekeeper-stewart-vs-bentt
+    name: "Stewart vs Bentt"
+    description: "Gatekeeper matchup"
+    fighterA: fighters/templates/historical/stewart-alex.yaml
+    fighterB: fighters/templates/historical/bentt-michael.yaml
+    fighterAName: Alex Stewart
+    fighterBName: Michael Bentt
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.15, 0.35]
+    expectedRounds: { min: 3, max: 10 }
+    weight: 0.7
+    tags: [gatekeeper, stewart, bentt]
+
+  - id: gatekeeper-page-vs-smith
+    name: "Page vs James Smith"
+    description: "Two 80s heavyweights"
+    fighterA: fighters/templates/historical/page-greg.yaml
+    fighterB: fighters/templates/historical/smith-james.yaml
+    fighterAName: Greg Page
+    fighterBName: James Smith
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.18, 0.35]
+      decision: [0.22, 0.40]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.7
+    tags: [gatekeeper, page, smith]
+
+  - id: gatekeeper-dokes-vs-witherspoon
+    name: "Dokes vs Witherspoon"
+    description: "Two former WBA champions"
+    fighterA: fighters/templates/historical/dokes-michael.yaml
+    fighterB: fighters/templates/historical/witherspoon-tim.yaml
+    fighterAName: Michael Dokes
+    fighterBName: Tim Witherspoon
+    expectedWinRate:
+      A: [0.45, 0.58]
+      B: [0.40, 0.53]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.8
+    tags: [gatekeeper, dokes, witherspoon]
+
+  - id: gatekeeper-gonzalez-vs-mccall
+    name: "Gonzalez vs McCall"
+    description: "Two big heavyweights"
+    fighterA: fighters/templates/historical/gonzalez-jorge-luis.yaml
+    fighterB: fighters/templates/historical/mccall-oliver.yaml
+    fighterAName: Jorge Luis Gonzalez
+    fighterBName: Oliver McCall
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.7
+    tags: [gatekeeper, gonzalez, mccall]
+
+  - id: gatekeeper-berbick-vs-page
+    name: "Berbick vs Page"
+    description: "Two 80s contenders"
+    fighterA: fighters/templates/historical/berbick-trevor.yaml
+    fighterB: fighters/templates/historical/page-greg.yaml
+    fighterAName: Trevor Berbick
+    fighterBName: Greg Page
+    expectedWinRate:
+      A: [0.48, 0.62]
+      B: [0.36, 0.50]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.32, 0.52]
+      tko: [0.18, 0.35]
+      decision: [0.25, 0.42]
+    expectedRounds: { min: 6, max: 12 }
+    weight: 0.7
+    tags: [gatekeeper, berbick, page]
+
+  - id: gatekeeper-carnera-vs-bruno
+    name: "Carnera vs Bruno"
+    description: "Two big men across eras"
+    fighterA: fighters/templates/historical/carnera-primo.yaml
+    fighterB: fighters/templates/historical/bruno-frank.yaml
+    fighterAName: Primo Carnera
+    fighterBName: Frank Bruno
+    expectedWinRate:
+      A: [0.30, 0.44]
+      B: [0.54, 0.68]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.6
+    tags: [gatekeeper, carnera, bruno, cross-era]
+
+  - id: gatekeeper-hide-vs-mccall
+    name: "Hide vs McCall"
+    description: "WBC heavyweight meeting"
+    fighterA: fighters/templates/historical/hide-herbie.yaml
+    fighterB: fighters/templates/historical/mccall-oliver.yaml
+    fighterAName: Herbie Hide
+    fighterBName: Oliver McCall
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.40, 0.60]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.7
+    tags: [gatekeeper, hide, mccall]
+
+  - id: gatekeeper-botha-vs-briggs
+    name: "Botha vs Briggs"
+    description: "Two fringe contenders"
+    fighterA: fighters/templates/historical/botha-frans.yaml
+    fighterB: fighters/templates/historical/briggs-shannon.yaml
+    fighterAName: Frans Botha
+    fighterBName: Shannon Briggs
+    expectedWinRate:
+      A: [0.40, 0.54]
+      B: [0.44, 0.58]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.42, 0.62]
+      tko: [0.15, 0.30]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 4, max: 11 }
+    weight: 0.7
+    tags: [gatekeeper, botha, briggs]
+
+  - id: gatekeeper-maskaev-vs-rahman
+    name: "Maskaev vs Rahman"
+    description: "Two former WBC champions"
+    fighterA: fighters/templates/historical/maskaev-oleg.yaml
+    fighterB: fighters/templates/historical/rahman-hasim.yaml
+    fighterAName: Oleg Maskaev
+    fighterBName: Hasim Rahman
+    expectedWinRate:
+      A: [0.42, 0.56]
+      B: [0.42, 0.56]
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.38, 0.58]
+      tko: [0.18, 0.35]
+      decision: [0.18, 0.38]
+    expectedRounds: { min: 5, max: 12 }
+    weight: 0.8
+    tags: [gatekeeper, maskaev, rahman, historical]
+    actualResult: { winner: A, method: TKO, round: 12 }

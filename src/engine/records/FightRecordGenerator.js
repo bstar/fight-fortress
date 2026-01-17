@@ -8,6 +8,7 @@
 import FighterSnapshot from './FighterSnapshot.js';
 import FightRecord from './FightRecord.js';
 import ModelParameters from '../model/ModelParameters.js';
+import { PatternAnalyzer } from '../patterns/PatternAnalyzer.js';
 
 export class FightRecordGenerator {
   /**
@@ -18,6 +19,10 @@ export class FightRecordGenerator {
     this.includeDetailedStats = options.includeDetailedStats !== false;
     this.includeRoundByRound = options.includeRoundByRound !== false;
     this.includePrediction = options.includePrediction !== false;
+    this.includePatternAnalysis = options.includePatternAnalysis !== false;
+
+    // Pattern analyzer instance (can be shared across records)
+    this.patternAnalyzer = options.patternAnalyzer || new PatternAnalyzer();
   }
 
   /**
@@ -62,6 +67,15 @@ export class FightRecordGenerator {
     // Set detailed fight data
     if (this.includeDetailedStats) {
       record.setFightData(this.extractFightData(fight));
+    }
+
+    // Set pattern analysis if available
+    if (this.includePatternAnalysis && options.fightHistory) {
+      record.setPatternAnalysis(this.analyzePatterns(
+        fight.fighterA,
+        fight.fighterB,
+        options.fightHistory
+      ));
     }
 
     return record;
@@ -364,6 +378,161 @@ export class FightRecordGenerator {
     };
 
     return descriptions[event.type] || event.type;
+  }
+
+  /**
+   * Set fight history for pattern analysis
+   * @param {Array} history - Array of FightRecord objects
+   */
+  setFightHistory(history) {
+    this.patternAnalyzer.setHistory(history);
+  }
+
+  /**
+   * Add a fight to the history for future pattern analysis
+   * @param {FightRecord} fightRecord - Completed fight record
+   */
+  addToHistory(fightRecord) {
+    this.patternAnalyzer.addFight(fightRecord);
+  }
+
+  /**
+   * Analyze patterns for both fighters based on fight history
+   * @param {Fighter} fighterA - Fighter A
+   * @param {Fighter} fighterB - Fighter B
+   * @param {Array} fightHistory - Optional specific history to use
+   * @returns {object} Pattern analysis for both fighters
+   */
+  analyzePatterns(fighterA, fighterB, fightHistory = null) {
+    // Use provided history or the analyzer's internal history
+    if (fightHistory) {
+      this.patternAnalyzer.setHistory(fightHistory);
+    }
+
+    const analysisA = this.patternAnalyzer.analyzePatterns(fighterA.id);
+    const analysisB = this.patternAnalyzer.analyzePatterns(fighterB.id);
+
+    // Generate matchup-specific insights
+    const matchupInsights = this.generateMatchupInsights(
+      fighterA, fighterB, analysisA, analysisB
+    );
+
+    return {
+      fighterA: analysisA,
+      fighterB: analysisB,
+      matchupInsights
+    };
+  }
+
+  /**
+   * Generate matchup-specific insights from pattern analysis
+   * @param {Fighter} fighterA - Fighter A
+   * @param {Fighter} fighterB - Fighter B
+   * @param {object} analysisA - Pattern analysis for A
+   * @param {object} analysisB - Pattern analysis for B
+   * @returns {Array} Matchup insights
+   */
+  generateMatchupInsights(fighterA, fighterB, analysisA, analysisB) {
+    const insights = [];
+
+    // Check for style-based advantages
+    const styleA = fighterA.style?.primary?.toLowerCase();
+    const styleB = fighterB.style?.primary?.toLowerCase();
+
+    // Check if A has pattern for beating B's style
+    const aVsStyle = analysisA.patterns?.find(p =>
+      p.id === 'pressure_destroyer' && this.isPressureStyle(styleB) ||
+      p.id === 'boxer_killer' && this.isBoxerStyle(styleB)
+    );
+    if (aVsStyle) {
+      insights.push({
+        type: 'STYLE_ADVANTAGE',
+        favoredFighter: 'A',
+        pattern: aVsStyle.id,
+        confidence: aVsStyle.confidence,
+        description: `${fighterA.name} has proven effective against ${styleB} fighters`
+      });
+    }
+
+    // Check if B has pattern for beating A's style
+    const bVsStyle = analysisB.patterns?.find(p =>
+      p.id === 'pressure_destroyer' && this.isPressureStyle(styleA) ||
+      p.id === 'boxer_killer' && this.isBoxerStyle(styleA)
+    );
+    if (bVsStyle) {
+      insights.push({
+        type: 'STYLE_ADVANTAGE',
+        favoredFighter: 'B',
+        pattern: bVsStyle.id,
+        confidence: bVsStyle.confidence,
+        description: `${fighterB.name} has proven effective against ${styleA} fighters`
+      });
+    }
+
+    // Check for vulnerability matchups
+    const glassJawA = analysisA.patterns?.find(p => p.id === 'glass_chin');
+    const koArtistB = analysisB.patterns?.find(p => p.id === 'ko_artist');
+    if (glassJawA && koArtistB) {
+      insights.push({
+        type: 'VULNERABILITY_MATCH',
+        favoredFighter: 'B',
+        description: `${fighterA.name}'s chin issues vs ${fighterB.name}'s KO power is a dangerous combination`,
+        confidence: Math.min(glassJawA.confidence, koArtistB.confidence)
+      });
+    }
+
+    const glassJawB = analysisB.patterns?.find(p => p.id === 'glass_chin');
+    const koArtistA = analysisA.patterns?.find(p => p.id === 'ko_artist');
+    if (glassJawB && koArtistA) {
+      insights.push({
+        type: 'VULNERABILITY_MATCH',
+        favoredFighter: 'A',
+        description: `${fighterB.name}'s chin issues vs ${fighterA.name}'s KO power is a dangerous combination`,
+        confidence: Math.min(glassJawB.confidence, koArtistA.confidence)
+      });
+    }
+
+    // Check for momentum patterns
+    const clutchA = analysisA.patterns?.find(p => p.id === 'clutch_performer');
+    const chokesA = analysisA.patterns?.find(p => p.id === 'chokes_under_pressure');
+    const clutchB = analysisB.patterns?.find(p => p.id === 'clutch_performer');
+    const chokesB = analysisB.patterns?.find(p => p.id === 'chokes_under_pressure');
+
+    if (clutchA && chokesB) {
+      insights.push({
+        type: 'MENTAL_EDGE',
+        favoredFighter: 'A',
+        description: `${fighterA.name} thrives in big moments while ${fighterB.name} tends to struggle`,
+        confidence: Math.min(clutchA.confidence, chokesB.confidence)
+      });
+    }
+
+    if (clutchB && chokesA) {
+      insights.push({
+        type: 'MENTAL_EDGE',
+        favoredFighter: 'B',
+        description: `${fighterB.name} thrives in big moments while ${fighterA.name} tends to struggle`,
+        confidence: Math.min(clutchB.confidence, chokesA.confidence)
+      });
+    }
+
+    return insights;
+  }
+
+  /**
+   * Check if style is pressure-based
+   */
+  isPressureStyle(style) {
+    const pressureStyles = ['swarmer', 'pressure-fighter', 'inside-fighter', 'brawler'];
+    return pressureStyles.includes(style?.toLowerCase());
+  }
+
+  /**
+   * Check if style is boxer-based
+   */
+  isBoxerStyle(style) {
+    const boxerStyles = ['out-boxer', 'boxer', 'counter-puncher', 'stick-and-move'];
+    return boxerStyles.includes(style?.toLowerCase());
   }
 
   /**
