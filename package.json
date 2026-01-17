@@ -12,7 +12,9 @@
     "tui": "node src/tui.js",
     "test": "node --test tests/",
     "generate": "node src/index.js generate",
-    "simulate": "node src/index.js simulate"
+    "simulate": "node src/index.js simulate",
+    "validate": "node scripts/validate.js",
+    "validate:verbose": "node scripts/validate.js --verbose --report"
   },
   "keywords": [
     "boxing",

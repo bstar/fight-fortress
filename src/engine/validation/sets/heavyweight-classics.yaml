@@ -1,0 +1,344 @@
+# Heavyweight Classics Validation Set
+# Historical matchup expectations based on boxing history and expert analysis
+
+id: heavyweight-classics
+name: Heavyweight Classics
+description: >
+  Classic heavyweight matchups for engine calibration.
+  Expected ranges based on historical context, fighter primes, and style matchups.
+version: "1.0.0"
+tags:
+  - heavyweight
+  - historical
+  - calibration
+
+matchups:
+  # ============================================
+  # TYSON MATCHUPS
+  # ============================================
+
+  - id: tyson-vs-lewis
+    name: "Tyson vs Lewis (2002 context)"
+    description: "Late-career Tyson vs prime Lewis. Lewis should be favored."
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/lewis-lennox.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Lennox Lewis
+    expectedWinRate:
+      A: [0.30, 0.45]   # Tyson was faded but still dangerous
+      B: [0.52, 0.68]   # Lewis was heavy favorite, superior reach/jab
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.35, 0.55]    # Both KO artists
+      tko: [0.15, 0.30]
+      decision: [0.20, 0.40]
+    expectedRounds:
+      min: 5
+      max: 11
+    weight: 1.5
+    tags: [tyson, lewis, title-fight]
+    notes: "Historical result: Lewis KO8. Lewis used jab and reach effectively."
+    actualResult:
+      winner: B
+      method: KO
+      round: 8
+
+  - id: tyson-vs-holyfield
+    name: "Tyson vs Holyfield (1996 context)"
+    description: "Tyson returning from prison vs Holyfield. Closer than expected."
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/holyfield-evander.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Evander Holyfield
+    expectedWinRate:
+      A: [0.35, 0.50]   # Tyson was rusty, smaller
+      B: [0.48, 0.62]   # Holyfield's heart and movement were key
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.20, 0.35]
+      decision: [0.20, 0.40]
+    expectedRounds:
+      min: 6
+      max: 12
+    weight: 1.5
+    tags: [tyson, holyfield, title-fight, rivalry]
+    notes: "Historical result: Holyfield TKO11. Holyfield's conditioning and heart prevailed."
+    actualResult:
+      winner: B
+      method: TKO
+      round: 11
+
+  - id: tyson-vs-bowe
+    name: "Tyson vs Bowe (hypothetical prime)"
+    description: "Prime Tyson vs prime Bowe - size vs speed matchup"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/bowe-riddick.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Riddick Bowe
+    expectedWinRate:
+      A: [0.40, 0.55]   # Tyson's speed could trouble Bowe
+      B: [0.42, 0.58]   # Bowe's size and boxing ability
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.40, 0.60]
+      tko: [0.15, 0.30]
+      decision: [0.15, 0.35]
+    expectedRounds:
+      min: 5
+      max: 12
+    weight: 1.0
+    tags: [tyson, bowe, hypothetical]
+    notes: "Never happened. Both had KO power, could go either way."
+
+  - id: tyson-vs-foreman
+    name: "Tyson vs Foreman (hypothetical)"
+    description: "Prime Tyson vs prime Foreman - explosive matchup"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/foreman-george.yaml
+    fighterAName: Mike Tyson
+    fighterBName: George Foreman
+    expectedWinRate:
+      A: [0.45, 0.58]   # Tyson's speed favored
+      B: [0.38, 0.52]   # Foreman's power could end it early
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.50, 0.70]    # Both devastating punchers
+      tko: [0.10, 0.25]
+      decision: [0.10, 0.30]
+    expectedRounds:
+      min: 3
+      max: 10
+    weight: 1.0
+    tags: [tyson, foreman, hypothetical, power-vs-power]
+    notes: "Never happened. Would likely end early either way."
+
+  # ============================================
+  # LEWIS MATCHUPS
+  # ============================================
+
+  - id: lewis-vs-holyfield
+    name: "Lewis vs Holyfield"
+    description: "Two prime champions meeting. Lewis had size advantage."
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/holyfield-evander.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Evander Holyfield
+    expectedWinRate:
+      A: [0.50, 0.65]   # Lewis size and jab
+      B: [0.32, 0.48]   # Holyfield heart and inside work
+      draw: [0.02, 0.08]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.15, 0.30]
+      decision: [0.35, 0.55]
+    expectedRounds:
+      min: 8
+      max: 12
+    weight: 1.5
+    tags: [lewis, holyfield, title-fight, unification]
+    notes: "Historical: Draw (controversial), then Lewis UD. Tactical fights."
+    actualResult:
+      winner: A
+      method: DECISION
+      round: 12
+
+  - id: lewis-vs-bowe
+    name: "Lewis vs Bowe"
+    description: "Two tall heavyweights with good boxing skills"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/bowe-riddick.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: Riddick Bowe
+    expectedWinRate:
+      A: [0.45, 0.58]   # Better jab and technique
+      B: [0.40, 0.53]   # More inside ability
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.15, 0.30]
+      decision: [0.30, 0.45]
+    expectedRounds:
+      min: 7
+      max: 12
+    weight: 1.0
+    tags: [lewis, bowe, hypothetical]
+    notes: "Never had rematch after Bowe ducked. Lewis more disciplined."
+
+  - id: lewis-vs-foreman
+    name: "Lewis vs Foreman (hypothetical prime)"
+    description: "Lewis jab vs Foreman power"
+    fighterA: fighters/templates/historical/lewis-lennox.yaml
+    fighterB: fighters/templates/historical/foreman-george.yaml
+    fighterAName: Lennox Lewis
+    fighterBName: George Foreman
+    expectedWinRate:
+      A: [0.52, 0.65]   # Lewis boxing ability favored
+      B: [0.32, 0.46]   # Foreman's power always a threat
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.15, 0.30]
+      decision: [0.25, 0.40]
+    expectedRounds:
+      min: 5
+      max: 12
+    weight: 1.0
+    tags: [lewis, foreman, hypothetical]
+    notes: "Lewis would use movement and jab but Foreman's power unpredictable."
+
+  # ============================================
+  # HOLYFIELD MATCHUPS
+  # ============================================
+
+  - id: holyfield-vs-bowe
+    name: "Holyfield vs Bowe"
+    description: "Classic trilogy matchup"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/bowe-riddick.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: Riddick Bowe
+    expectedWinRate:
+      A: [0.40, 0.52]   # Holyfield heart and conditioning
+      B: [0.45, 0.58]   # Bowe's size and combinations
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.25, 0.45]
+      tko: [0.20, 0.35]
+      decision: [0.30, 0.45]
+    expectedRounds:
+      min: 8
+      max: 12
+    weight: 1.5
+    tags: [holyfield, bowe, trilogy, historical]
+    notes: "Historical: Split 1-1-1 in trilogy. Very even matchup."
+    actualResult:
+      winner: split
+      method: various
+      round: 12
+
+  - id: holyfield-vs-foreman
+    name: "Holyfield vs Foreman"
+    description: "Prime Holyfield vs prime Foreman"
+    fighterA: fighters/templates/historical/holyfield-evander.yaml
+    fighterB: fighters/templates/historical/foreman-george.yaml
+    fighterAName: Evander Holyfield
+    fighterBName: George Foreman
+    expectedWinRate:
+      A: [0.50, 0.62]   # Holyfield movement and conditioning
+      B: [0.35, 0.48]   # Foreman power threat
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.15, 0.30]
+      decision: [0.30, 0.45]
+    expectedRounds:
+      min: 6
+      max: 12
+    weight: 1.0
+    tags: [holyfield, foreman, hypothetical]
+    notes: "Historical (old Foreman): Holyfield UD12. Prime matchup would be closer."
+    actualResult:
+      winner: A
+      method: DECISION
+      round: 12
+
+  # ============================================
+  # HOLMES MATCHUPS
+  # ============================================
+
+  - id: holmes-vs-tyson
+    name: "Holmes vs Tyson"
+    description: "Old Holmes vs young Tyson (as it happened)"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/tyson-mike.yaml
+    fighterAName: Larry Holmes
+    fighterBName: Mike Tyson
+    expectedWinRate:
+      A: [0.25, 0.40]   # Holmes was 38 and past prime
+      B: [0.58, 0.73]   # Young Tyson at peak
+      draw: [0.01, 0.04]
+    expectedMethods:
+      ko: [0.45, 0.65]
+      tko: [0.15, 0.30]
+      decision: [0.15, 0.35]
+    expectedRounds:
+      min: 3
+      max: 10
+    weight: 1.0
+    tags: [holmes, tyson, historical]
+    notes: "Historical: Tyson TKO4. Holmes was 38 and past his prime."
+    actualResult:
+      winner: B
+      method: TKO
+      round: 4
+
+  - id: holmes-vs-foreman
+    name: "Holmes vs Foreman (hypothetical primes)"
+    description: "Prime jab master vs prime power puncher"
+    fighterA: fighters/templates/historical/holmes-larry.yaml
+    fighterB: fighters/templates/historical/foreman-george.yaml
+    fighterAName: Larry Holmes
+    fighterBName: George Foreman
+    expectedWinRate:
+      A: [0.48, 0.60]   # Holmes jab and movement
+      B: [0.38, 0.50]   # Foreman's power
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.30, 0.50]
+      tko: [0.15, 0.30]
+      decision: [0.30, 0.45]
+    expectedRounds:
+      min: 6
+      max: 12
+    weight: 1.0
+    tags: [holmes, foreman, hypothetical]
+    notes: "Never fought in primes. Holmes jab would be key."
+
+  # ============================================
+  # STYLE MATCHUP TESTS
+  # ============================================
+
+  - id: slugger-vs-boxer
+    name: "Tyson vs Holmes (style test)"
+    description: "Inside fighter/slugger vs out-boxer"
+    fighterA: fighters/templates/historical/tyson-mike.yaml
+    fighterB: fighters/templates/historical/holmes-larry.yaml
+    fighterAName: Mike Tyson
+    fighterBName: Larry Holmes
+    expectedWinRate:
+      A: [0.55, 0.70]   # Tyson pressure should work
+      B: [0.28, 0.43]   # Holmes needs distance
+      draw: [0.01, 0.05]
+    expectedMethods:
+      ko: [0.40, 0.60]
+      tko: [0.15, 0.30]
+      decision: [0.15, 0.35]
+    expectedRounds:
+      min: 4
+      max: 11
+    weight: 0.8
+    tags: [style-test, pressure-vs-boxer]
+    notes: "Tests pressure fighter vs pure boxer matchup."
+
+  - id: power-vs-heart
+    name: "Foreman vs Holyfield (style test)"
+    description: "Pure power vs warrior heart"
+    fighterA: fighters/templates/historical/foreman-george.yaml
+    fighterB: fighters/templates/historical/holyfield-evander.yaml
+    fighterAName: George Foreman
+    fighterBName: Evander Holyfield
+    expectedWinRate:
+      A: [0.38, 0.50]   # Foreman power
+      B: [0.48, 0.60]   # Holyfield conditioning/heart
+      draw: [0.02, 0.06]
+    expectedMethods:
+      ko: [0.35, 0.55]
+      tko: [0.15, 0.30]
+      decision: [0.25, 0.40]
+    expectedRounds:
+      min: 6
+      max: 12
+    weight: 0.8
+    tags: [style-test, power-vs-heart]
+    notes: "Tests power puncher vs high-heart fighter."
