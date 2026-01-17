@@ -5,6 +5,12 @@
  */
 
 import { SimulationLoop } from '../../engine/SimulationLoop.js';
+import { FighterAI } from '../../engine/FighterAI.js';
+import { CombatResolver } from '../../engine/CombatResolver.js';
+import { DamageCalculator } from '../../engine/DamageCalculator.js';
+import { StaminaManager } from '../../engine/StaminaManager.js';
+import { PositionTracker } from '../../engine/PositionTracker.js';
+import { Fight } from '../../models/Fight.js';
 import { FightType } from './MatchmakingEngine.js';
 
 export class FightIntegration {
@@ -29,21 +35,91 @@ export class FightIntegration {
     const combatA = fighterA.toCombatFighter();
     const combatB = fighterB.toCombatFighter();
 
-    // Run the simulation instantly (no display)
-    const simulation = new SimulationLoop(combatA, combatB, {
-      rounds: fightCard.rounds || 10,
-      tickRate: 0.5
+    // Create Fight object
+    const fight = new Fight(combatA, combatB, {
+      rounds: fightCard.rounds || 10
+    });
+
+    // Create engine components
+    const fighterAI = new FighterAI();
+    const combatResolver = new CombatResolver();
+    const damageCalculator = new DamageCalculator();
+    const staminaManager = new StaminaManager();
+    const positionTracker = new PositionTracker();
+
+    // Create simulation with display disabled for headless operation
+    const simulation = new SimulationLoop(fight, {
+      tickRate: 0.5,
+      enableRenderer: false,  // No display for batch fights
+      enableLogging: false    // No logging for batch fights
+    });
+
+    // Inject engine components
+    simulation.setComponents({
+      fighterAI,
+      combatResolver,
+      damageCalculator,
+      staminaManager,
+      positionTracker
     });
 
     try {
-      const result = await simulation.runInstant();
+      const simResult = await simulation.runInstant();
+
+      // Transform simulation result to match expected format
+      const transformedResult = this.transformSimulationResult(simResult);
 
       // Process the result
-      return this.processResult(fightCard, fighterA, fighterB, result);
+      return this.processResult(fightCard, fighterA, fighterB, transformedResult);
     } catch (error) {
       console.error('Fight simulation error:', error);
       return { error: error.message, cancelled: true };
     }
+  }
+
+  /**
+   * Transform SimulationLoop result to the format expected by processResult
+   * SimulationLoop returns: { fighterA, fighterB, result: { winner: 'A'|'B', method, round }, stats: { A, B } }
+   * processResult expects: { winnerId: 'fighterA'|'fighterB', method, round, stats: { fighterA, fighterB } }
+   */
+  transformSimulationResult(simResult) {
+    // Map winner from 'A'/'B' to 'fighterA'/'fighterB'
+    const winnerId = simResult.result?.winner === 'A' ? 'fighterA' :
+                     simResult.result?.winner === 'B' ? 'fighterB' : null;
+
+    // Extract and normalize method
+    let method = simResult.result?.method || 'Decision';
+    // Normalize stoppage type names (e.g., 'DECISION_UNANIMOUS' -> 'Decision')
+    if (method.startsWith('DECISION') || method.startsWith('Decision')) {
+      method = 'Decision';
+    } else if (method === 'TKO' || method === 'STOPPAGE_TKO') {
+      method = 'TKO';
+    } else if (method === 'KO' || method === 'STOPPAGE_KO') {
+      method = 'KO';
+    }
+
+    // Transform stats from A/B to fighterA/fighterB
+    const stats = {
+      fighterA: simResult.stats?.A || {
+        punchesThrown: 0,
+        punchesLanded: 0,
+        knockdowns: 0
+      },
+      fighterB: simResult.stats?.B || {
+        punchesThrown: 0,
+        punchesLanded: 0,
+        knockdowns: 0
+      }
+    };
+
+    return {
+      winnerId,
+      winner: winnerId === 'fighterA' ? simResult.fighterA : simResult.fighterB,
+      method,
+      round: simResult.result?.round || 1,
+      totalRounds: simResult.result?.round || 10,
+      stats
+    };
   }
 
   /**
