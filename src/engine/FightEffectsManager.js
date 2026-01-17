@@ -113,7 +113,10 @@ export class FightEffectsManager {
     this.effects = new Map();  // Map<fighterId, Map<effectType, FightEffect>>
     this.history = new Map();  // Map<fighterId, Array>
     this.momentum = new Map(); // Map<fighterId, number>
+    this.previousMomentum = new Map(); // Map<fighterId, number> - for shift detection
     this.recentEvents = new Map(); // Map<fighterId, object>
+    this.lastMomentumLeader = null; // Who had momentum last check
+    this.momentumShiftCooldown = 0; // Prevent rapid shift announcements
 
     // Pre-initialize for standard A/B fighter IDs
     this.initializeFighter('A');
@@ -128,6 +131,7 @@ export class FightEffectsManager {
       this.effects.set(fighterId, new Map());
       this.history.set(fighterId, []);
       this.momentum.set(fighterId, 0);
+      this.previousMomentum.set(fighterId, 0);
       this.recentEvents.set(fighterId, {
         punchesLanded: 0,
         punchesTaken: 0,
@@ -180,6 +184,13 @@ export class FightEffectsManager {
     const category = Object.values(BuffType).includes(type)
       ? EffectCategory.BUFF
       : EffectCategory.DEBUFF;
+
+    // MOMENTUM is exclusive - only one fighter can have it at a time
+    // When one fighter gains momentum, the opponent loses it
+    if (type === BuffType.MOMENTUM) {
+      const opponentId = fighterId === 'A' ? 'B' : 'A';
+      this.removeEffect(opponentId, BuffType.MOMENTUM);
+    }
 
     const fighterEffects = this.effects.get(fighterId);
     const existingEffect = fighterEffects.get(type);
@@ -262,7 +273,7 @@ export class FightEffectsManager {
    * Tick all effects (called each simulation tick)
    */
   tick() {
-    for (const [fighterId, fighterEffects] of this.effects) {
+    for (const [, fighterEffects] of this.effects) {
       const toRemove = [];
 
       for (const [type, effect] of fighterEffects) {
@@ -276,6 +287,97 @@ export class FightEffectsManager {
         fighterEffects.delete(type);
       }
     }
+
+    // Decrement momentum shift cooldown
+    if (this.momentumShiftCooldown > 0) {
+      this.momentumShiftCooldown--;
+    }
+  }
+
+  /**
+   * Check for momentum shift and return event data if shift occurred
+   * A momentum shift happens when:
+   * 1. The lead changes (A was ahead, now B is ahead)
+   * 2. A significant swing occurs (30+ point change)
+   * 3. One fighter gains dominant momentum (60+ points ahead)
+   */
+  checkMomentumShift() {
+    if (this.momentumShiftCooldown > 0) return null;
+
+    const momA = this.momentum.get('A') || 0;
+    const momB = this.momentum.get('B') || 0;
+    const prevMomA = this.previousMomentum.get('A') || 0;
+    const prevMomB = this.previousMomentum.get('B') || 0;
+
+    // Determine current and previous leaders
+    const currentLeader = momA > momB + 15 ? 'A' : momB > momA + 15 ? 'B' : null;
+    const prevLeader = prevMomA > prevMomB + 15 ? 'A' : prevMomB > prevMomA + 15 ? 'B' : null;
+
+    // Update previous momentum for next check
+    this.previousMomentum.set('A', momA);
+    this.previousMomentum.set('B', momB);
+
+    let shiftEvent = null;
+
+    // Check for lead change
+    if (currentLeader && prevLeader && currentLeader !== prevLeader) {
+      shiftEvent = {
+        type: 'MOMENTUM_SHIFT',
+        newLeader: currentLeader,
+        previousLeader: prevLeader,
+        magnitude: 'change',
+        momentumA: momA,
+        momentumB: momB
+      };
+      this.momentumShiftCooldown = 40; // ~20 seconds cooldown
+    }
+    // Check for gaining control (neutral to dominant)
+    else if (currentLeader && !this.lastMomentumLeader) {
+      const diff = Math.abs(momA - momB);
+      if (diff >= 30) {
+        shiftEvent = {
+          type: 'MOMENTUM_SHIFT',
+          newLeader: currentLeader,
+          previousLeader: null,
+          magnitude: diff >= 50 ? 'dominant' : 'gaining',
+          momentumA: momA,
+          momentumB: momB
+        };
+        this.momentumShiftCooldown = 30; // ~15 seconds cooldown
+      }
+    }
+    // Check for dominant momentum (big lead)
+    else if (currentLeader === this.lastMomentumLeader) {
+      const diff = Math.abs(momA - momB);
+      if (diff >= 60 && this.momentumShiftCooldown === 0) {
+        shiftEvent = {
+          type: 'MOMENTUM_SHIFT',
+          newLeader: currentLeader,
+          previousLeader: currentLeader,
+          magnitude: 'dominant',
+          momentumA: momA,
+          momentumB: momB
+        };
+        this.momentumShiftCooldown = 60; // ~30 seconds cooldown
+      }
+    }
+
+    this.lastMomentumLeader = currentLeader;
+    return shiftEvent;
+  }
+
+  /**
+   * Get current momentum state for display
+   */
+  getMomentumState() {
+    const momA = this.momentum.get('A') || 0;
+    const momB = this.momentum.get('B') || 0;
+    return {
+      A: momA,
+      B: momB,
+      leader: momA > momB + 15 ? 'A' : momB > momA + 15 ? 'B' : null,
+      margin: Math.abs(momA - momB)
+    };
   }
 
   /**

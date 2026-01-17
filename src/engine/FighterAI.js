@@ -321,6 +321,13 @@ export class FighterAI {
   }
 
   /**
+   * Get fighter memory (read-only access, returns null if not exists)
+   */
+  getMemory(fighterId) {
+    return this.fighterMemory.get(fighterId) || null;
+  }
+
+  /**
    * Record that fighter was hurt (called by SimulationLoop)
    */
   recordHurt(fighterId, round, time) {
@@ -493,6 +500,111 @@ export class FighterAI {
       aggressionModifier: baseAggression + roundVariation + lateRoundBoost + postHurtModifier,
       isRestRound: memory.restingRounds.includes(round)
     };
+  }
+
+  /**
+   * Get current visible strategy for display
+   * Returns a human-readable strategy name based on fight situation
+   */
+  getCurrentStrategy(fighter, opponent, situation, memory) {
+    const style = fighter.style?.primary || 'boxer-puncher';
+    const scoreDiff = situation.scoreDiff || 0;
+    const round = situation.round || 1;
+    const totalRounds = situation.totalRounds || 12;
+    const staminaPercent = situation.staminaPercent || 1;
+    const healthPercent = situation.healthPercent || 1;
+    const opponentHurt = opponent.isHurt || opponent.isBuzzed;
+    const isPowerPuncher = ['slugger', 'boxer-puncher'].includes(style);
+    const isBoxer = ['out-boxer', 'counter-puncher'].includes(style);
+    const isSwarmer = ['swarmer', 'pressure-fighter', 'inside-fighter'].includes(style);
+    const roundsRemaining = totalRounds - round;
+    const isLateRounds = round >= totalRounds - 3;
+    const isChampionshipRounds = round >= 9;
+    const killerInstinct = fighter.mental?.killerInstinct || 65;
+
+    // PRIORITY 1: Survival mode - very hurt or exhausted
+    if (healthPercent < 0.25 || (fighter.isHurt && staminaPercent < 0.3)) {
+      return { name: 'SURVIVAL', description: 'Trying to survive', priority: 'critical' };
+    }
+
+    // PRIORITY 2: Opponent is hurt - go for finish
+    if (opponentHurt && killerInstinct >= 60) {
+      if (isPowerPuncher) {
+        return { name: 'GOING FOR KO', description: 'Smells blood', priority: 'high' };
+      } else if (isSwarmer) {
+        return { name: 'SWARMING', description: 'Pouring it on', priority: 'high' };
+      } else {
+        return { name: 'FINISHING', description: 'Looking to end it', priority: 'high' };
+      }
+    }
+
+    // PRIORITY 3: Rest round (from memory)
+    if (memory?.roundStrategy?.isRestRound) {
+      return { name: 'PACING', description: 'Conserving energy', priority: 'normal' };
+    }
+
+    // PRIORITY 4: Score-based strategy
+    if (scoreDiff < -3 && isLateRounds) {
+      // Down badly in late rounds - need knockout
+      if (isPowerPuncher) {
+        return { name: 'HUNTING KO', description: 'Needs knockout to win', priority: 'urgent' };
+      } else if (isSwarmer) {
+        return { name: 'ALL OUT', description: 'Throwing everything', priority: 'urgent' };
+      } else {
+        return { name: 'DESPERATION', description: 'Running out of time', priority: 'urgent' };
+      }
+    }
+
+    if (scoreDiff < -2) {
+      // Behind on cards - need to push
+      if (isPowerPuncher) {
+        return { name: 'LOADING UP', description: 'Looking for big shot', priority: 'high' };
+      } else if (isSwarmer) {
+        return { name: 'PRESSING', description: 'Applying pressure', priority: 'high' };
+      } else {
+        return { name: 'INCREASING OUTPUT', description: 'Picking up pace', priority: 'high' };
+      }
+    }
+
+    if (scoreDiff > 3 && roundsRemaining <= 3) {
+      // Big lead late - coast
+      return { name: 'COASTING', description: 'Protecting big lead', priority: 'low' };
+    }
+
+    if (scoreDiff > 1) {
+      // Ahead - protect lead
+      if (isBoxer) {
+        return { name: 'BOXING', description: 'Sticking and moving', priority: 'normal' };
+      } else {
+        return { name: 'PROTECT LEAD', description: 'Smart boxing', priority: 'normal' };
+      }
+    }
+
+    // PRIORITY 5: Style-based default strategies
+    if (staminaPercent < 0.4) {
+      return { name: 'CONSERVING', description: 'Managing energy', priority: 'normal' };
+    }
+
+    // Style-specific strategies
+    switch (style) {
+      case 'out-boxer':
+        return { name: 'BOXING', description: 'Working the jab', priority: 'normal' };
+      case 'counter-puncher':
+        return { name: 'COUNTERING', description: 'Waiting for openings', priority: 'normal' };
+      case 'swarmer':
+      case 'pressure-fighter':
+        return { name: 'PRESSING', description: 'Applying pressure', priority: 'normal' };
+      case 'slugger':
+        return { name: 'STALKING', description: 'Setting up power shots', priority: 'normal' };
+      case 'inside-fighter':
+        return { name: 'WORKING INSIDE', description: 'Fighting in close', priority: 'normal' };
+      case 'boxer-puncher':
+        return { name: 'MEASURING', description: 'Picking shots', priority: 'normal' };
+      case 'volume-puncher':
+        return { name: 'HIGH OUTPUT', description: 'Throwing volume', priority: 'normal' };
+      default:
+        return { name: 'BOXING', description: 'Working', priority: 'normal' };
+    }
   }
 
   /**

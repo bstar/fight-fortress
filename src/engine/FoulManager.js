@@ -15,7 +15,11 @@ export const FoulType = {
   ELBOW: 'elbow',
   PUSH: 'push',
   HITTING_AFTER_BREAK: 'hitting_after_break',
-  HITTING_ON_BREAK: 'hitting_on_break'
+  HITTING_ON_BREAK: 'hitting_on_break',
+  WRESTLING: 'wrestling',
+  THROWING: 'throwing',
+  SHOULDER: 'shoulder',
+  KIDNEY_PUNCH: 'kidney_punch'
 };
 
 // Foul characteristics
@@ -80,6 +84,36 @@ const FOUL_DATA = {
     detectChance: 0.85,
     warningThreshold: 2,
     description: 'hits during break'
+  },
+  [FoulType.WRESTLING]: {
+    name: 'Wrestling',
+    damage: { min: 0, max: 0 },
+    detectChance: 0.85,
+    warningThreshold: 2,
+    description: 'wrestles opponent to the ground'
+  },
+  [FoulType.THROWING]: {
+    name: 'Throwing',
+    damage: { min: 1, max: 3 },
+    detectChance: 0.9,
+    warningThreshold: 1,
+    description: 'throws opponent to the canvas'
+  },
+  [FoulType.SHOULDER]: {
+    name: 'Shoulder',
+    damage: { min: 1, max: 3 },
+    cutChance: 0.1,
+    detectChance: 0.5,
+    warningThreshold: 2,
+    description: 'uses shoulder illegally'
+  },
+  [FoulType.KIDNEY_PUNCH]: {
+    name: 'Kidney Punch',
+    damage: { min: 2, max: 5 },
+    staminaDrain: 8,
+    detectChance: 0.6,
+    warningThreshold: 2,
+    description: 'hits the kidneys'
   }
 };
 
@@ -109,6 +143,26 @@ export class FoulManager {
   }
 
   /**
+   * Check if fighter is at risk of disqualification
+   * Returns { atRisk: boolean, severity: 'low'|'medium'|'high'|'critical' }
+   */
+  getDQRisk(fighterId) {
+    const deductions = this.pointDeductions[fighterId] || 0;
+    const totalWarnings = Object.values(this.warnings[fighterId] || {}).reduce((a, b) => a + b, 0);
+
+    if (deductions >= 2) {
+      return { atRisk: true, severity: 'critical', deductions, warnings: totalWarnings };
+    } else if (deductions >= 1 && totalWarnings >= 3) {
+      return { atRisk: true, severity: 'high', deductions, warnings: totalWarnings };
+    } else if (deductions >= 1 || totalWarnings >= 4) {
+      return { atRisk: true, severity: 'medium', deductions, warnings: totalWarnings };
+    } else if (totalWarnings >= 2) {
+      return { atRisk: false, severity: 'low', deductions, warnings: totalWarnings };
+    }
+    return { atRisk: false, severity: 'none', deductions, warnings: totalWarnings };
+  }
+
+  /**
    * Check if fighter should attempt a foul based on situation and tendencies
    */
   shouldAttemptFoul(fighter, opponent, situation, fighterId) {
@@ -117,6 +171,36 @@ export class FoulManager {
 
     // Clean fighters don't foul intentionally
     if (dirtiness < 20) return null;
+
+    // Check DQ risk - fighters become more careful when at risk
+    const dqRisk = this.getDQRisk(fighterId);
+
+    // CRITICAL: At 2 point deductions, almost never foul (unless seeking DQ escape)
+    if (dqRisk.severity === 'critical') {
+      // Rare case: Fighter wants to escape via DQ rather than be knocked out
+      // Only happens if getting badly beaten, very low heart, and desperate
+      const heart = fighter.mental?.heart || 70;
+      const isGettingDestroyed = situation.healthPercent < 0.25 && situation.scoreDiff < -5;
+      const wantsEscape = heart < 50 && isGettingDestroyed && Math.random() < 0.02; // Very rare
+
+      if (wantsEscape) {
+        // Intentional DQ - fighter has given up and wants out
+        return this.selectFoulType(fighter, situation);
+      }
+
+      // Otherwise, almost completely stop fouling at critical DQ risk
+      if (Math.random() > 0.02) return null; // 98% chance to not foul
+    }
+
+    // HIGH: Very cautious, major reduction in fouling
+    if (dqRisk.severity === 'high') {
+      if (Math.random() > 0.15) return null; // 85% chance to not foul
+    }
+
+    // MEDIUM: Cautious, reduced fouling
+    if (dqRisk.severity === 'medium') {
+      if (Math.random() > 0.40) return null; // 60% chance to not foul
+    }
 
     // Base chance from dirtiness (0-100 scale)
     let foulChance = dirtiness * 0.001; // 0-10% base
@@ -148,12 +232,12 @@ export class FoulManager {
       foulChance *= 0.5;
     }
 
-    // Less likely if already warned multiple times
-    const totalWarnings = Object.values(this.warnings[fighterId] || {}).reduce((a, b) => a + b, 0);
+    // Less likely if already warned (in addition to severity checks above)
+    const totalWarnings = dqRisk.warnings;
     if (totalWarnings >= 2) {
       foulChance *= 0.6;
     }
-    if (this.pointDeductions[fighterId] > 0) {
+    if (dqRisk.deductions > 0) {
       foulChance *= 0.4;
     }
 
@@ -192,6 +276,22 @@ export class FoulManager {
     // Push - minor foul, mostly for creating distance
     weights[FoulType.PUSH] = (tactics.pushTendency || 0) *
       (situation.distance < 2 ? 1.5 : 0.3);
+
+    // Wrestling - used by strong inside fighters to smother
+    weights[FoulType.WRESTLING] = (tactics.wrestlingTendency || tactics.holdingTendency || 0) *
+      (situation.distance < 2 ? 1.5 : 0.2);
+
+    // Throwing - when in clinch position
+    weights[FoulType.THROWING] = (tactics.throwingTendency || 0) *
+      (fighter.state === FighterState.CLINCH ? 2 : 0.3);
+
+    // Shoulder - close range infighting
+    weights[FoulType.SHOULDER] = (tactics.shoulderTendency || tactics.dirtiness * 0.01 || 0) *
+      (situation.distance < 2 ? 1.5 : 0.2);
+
+    // Kidney punch - body punchers might stray low on the back
+    weights[FoulType.KIDNEY_PUNCH] = (tactics.kidneyPunchTendency || tactics.dirtiness * 0.01 || 0) *
+      (situation.distance < 3 ? 1.0 : 0.3);
 
     // Calculate total weight
     const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);

@@ -386,6 +386,9 @@ export class SimpleTUI {
     sim.on('count', (data) => this.onCount(data));
     sim.on('fightEnding', (data) => this.onFightEnding(data));
     sim.on('fightEnd', (data) => this.onFightEnd(data));
+    sim.on('foul', (data) => this.onFoul(data));
+    sim.on('speedChange', (speed) => this.onSpeedChange(speed));
+    sim.on('momentumShift', (data) => this.onMomentumShift(data));
   }
 
   /**
@@ -906,6 +909,86 @@ export class SimpleTUI {
   }
 
   /**
+   * Handle foul events
+   */
+  onFoul(data) {
+    if (!data.detected) return;
+
+    const fouler = this.fight.getFighter(data.attacker);
+    const victim = this.fight.getFighter(data.target);
+    const foulerName = fouler?.getShortName?.() || fouler?.name || 'Fighter';
+    const victimName = victim?.getShortName?.() || victim?.name || 'Opponent';
+    const foulName = data.foulName || 'foul';
+
+    if (data.disqualification) {
+      this.addCommentary('');
+      this.addCommentary(`{bold}{red-fg}═══ DISQUALIFICATION ═══{/red-fg}{/bold}`);
+      this.addCommentary(`{bold}{red-fg}${foulerName.toUpperCase()} HAS BEEN DISQUALIFIED!{/red-fg}{/bold}`);
+      this.addCommentary(`{yellow-fg}${victimName} wins by DQ{/yellow-fg}`);
+      this.addCommentary(`{bold}{red-fg}════════════════════════{/red-fg}{/bold}`);
+    } else if (data.pointDeduction) {
+      this.addCommentary(`{bold}{yellow-fg}POINT DEDUCTION: ${foulerName} loses a point for ${foulName}{/yellow-fg}{/bold}`);
+    } else if (data.warning) {
+      this.addCommentary(`{yellow-fg}WARNING: ${foulerName} warned for ${foulName}{/yellow-fg}`);
+    }
+
+    this.screen.render();
+  }
+
+  /**
+   * Handle speed change events
+   */
+  onSpeedChange(speed) {
+    const speedStr = speed.toFixed(1);
+    this.updateStatus(`Speed: ${speedStr}x | [+/-] Speed | [P] Pause | [Q] Quit`);
+    this.screen.render();
+  }
+
+  /**
+   * Handle momentum shift events
+   */
+  onMomentumShift(data) {
+    const { leaderName, previousName, type } = data;
+
+    if (type === 'TAKEOVER') {
+      // Major momentum swing - previous leader loses control
+      this.addCommentary('');
+      this.addCommentary(`{bold}{cyan-fg}═══ MOMENTUM SHIFT ═══{/cyan-fg}{/bold}`);
+      this.addCommentary(`{bold}LAMPLEY:{/bold} ${leaderName.toUpperCase()} HAS TURNED THIS FIGHT AROUND!`);
+      const takeoverComments = [
+        `{cyan-fg}{bold}FOREMAN:{/bold} Look at the shift in body language! ${leaderName} smells blood now!{/cyan-fg}`,
+        `{yellow-fg}{bold}MERCHANT:{/bold} ${previousName} was in control but that's all changed! ${leaderName} has found his rhythm!{/yellow-fg}`,
+        `{cyan-fg}{bold}FOREMAN:{/bold} This is a completely different fight now! ${leaderName} has figured him out!{/cyan-fg}`,
+        `{yellow-fg}{bold}MERCHANT:{/bold} The momentum has swung dramatically! ${previousName} needs to stop the bleeding!{/yellow-fg}`
+      ];
+      this.addCommentary(takeoverComments[Math.floor(Math.random() * takeoverComments.length)]);
+    } else if (type === 'CONTROL') {
+      // Taking control when it was even
+      const controlComments = [
+        `{bold}LAMPLEY:{/bold} ${leaderName} is starting to take control of this fight!`,
+        `{cyan-fg}{bold}FOREMAN:{/bold} ${leaderName} is asserting himself now. He's found his range.{/cyan-fg}`,
+        `{yellow-fg}{bold}MERCHANT:{/bold} You can see ${leaderName} gaining confidence with every exchange.{/yellow-fg}`,
+        `{bold}LAMPLEY:{/bold} The tide is turning in ${leaderName}'s favor!`
+      ];
+      this.addCommentary(controlComments[Math.floor(Math.random() * controlComments.length)]);
+    } else if (type === 'DOMINATION') {
+      // Building a dominant lead
+      this.addCommentary('');
+      this.addCommentary(`{bold}{cyan-fg}═══ DOMINATION ═══{/cyan-fg}{/bold}`);
+      this.addCommentary(`{bold}LAMPLEY:{/bold} ${leaderName} is DOMINATING this fight!`);
+      const domComments = [
+        `{cyan-fg}{bold}FOREMAN:{/bold} This is a one-sided affair right now! ${leaderName} is in complete control!{/cyan-fg}`,
+        `{yellow-fg}{bold}MERCHANT:{/bold} I don't see how ${previousName || 'his opponent'} can turn this around!{/yellow-fg}`,
+        `{cyan-fg}{bold}FOREMAN:{/bold} ${leaderName} is putting on a clinic out there!{/cyan-fg}`,
+        `{yellow-fg}{bold}MERCHANT:{/bold} The corner needs to make an adjustment or this fight is getting away from them!{/yellow-fg}`
+      ];
+      this.addCommentary(domComments[Math.floor(Math.random() * domComments.length)]);
+    }
+
+    this.screen.render();
+  }
+
+  /**
    * Wait for user to exit after fight ends
    * Returns a promise that resolves when user presses a key
    */
@@ -1037,6 +1120,7 @@ export class SimpleTUI {
     const isHurt = state?.isHurt ?? false;
     const isBuzzed = state?.isBuzzed ?? fighter?.isBuzzed ?? false;
     const effects = state?.effects || { buffs: [], debuffs: [], momentum: 0 };
+    const strategy = state?.strategy;
 
     const staminaBar = this.createBar(stamina, 15);
     const healthBar = this.createBar(health, 15);
@@ -1063,6 +1147,13 @@ export class SimpleTUI {
       nameDisplay = `{bold}${name}{/bold}`;
     }
 
+    // Format strategy display
+    let strategyLine = '';
+    if (strategy?.name) {
+      const strategyColor = this.getStrategyColor(strategy.priority);
+      strategyLine = `{${strategyColor}}» ${strategy.name}{/${strategyColor}}`;
+    }
+
     // Format active effects (buffs in green, debuffs in red)
     const effectsLine = this.formatEffectsLine(effects);
 
@@ -1072,12 +1163,26 @@ export class SimpleTUI {
       `Stamina: ${staminaBar} ${Math.round(stamina * 100)}%`,
       `Health:  ${healthBar} ${Math.round(health * 100)}%`,
       '',
+      strategyLine,
       statusLine,
       kds > 0 ? `{red-fg}Knockdowns: ${kds}{/red-fg}` : '',
       effectsLine
-    ];
+    ].filter(line => line !== '');
 
     box.setContent(lines.join('\n'));
+  }
+
+  /**
+   * Get color for strategy priority
+   */
+  getStrategyColor(priority) {
+    switch (priority) {
+      case 'critical': return 'red-fg}{bold';
+      case 'urgent': return '#ff8800-fg}{bold';
+      case 'high': return 'yellow-fg';
+      case 'low': return 'gray-fg';
+      default: return 'cyan-fg';
+    }
   }
 
   /**
@@ -1297,6 +1402,12 @@ export class SimpleTUI {
    * Add commentary line
    */
   addCommentary(text) {
+    // Prevent duplicate consecutive commentary
+    if (this.commentaryLines.length > 0 &&
+        this.commentaryLines[this.commentaryLines.length - 1] === text) {
+      return;
+    }
+
     this.commentaryLines.push(text);
 
     // Keep reasonable history
@@ -1377,13 +1488,18 @@ export class SimpleTUI {
       'TKO_REFEREE': 'TKO (Referee Stoppage)',
       'TKO_CORNER': 'TKO (Corner Stoppage)',
       'TKO_DOCTOR': 'TKO (Doctor Stoppage)',
+      'TKO_INJURY': 'TKO (Injury)',
       'TKO_THREE_KNOCKDOWNS': 'TKO (Three Knockdowns)',
       'DECISION_UNANIMOUS': 'Unanimous Decision',
       'DECISION_SPLIT': 'Split Decision',
       'DECISION_MAJORITY': 'Majority Decision',
-      'DRAW': 'Draw'
+      'DRAW_UNANIMOUS': 'Unanimous Draw',
+      'DRAW_SPLIT': 'Split Draw',
+      'DRAW_MAJORITY': 'Majority Draw',
+      'DISQUALIFICATION': 'Disqualification',
+      'NO_CONTEST': 'No Contest'
     };
-    return formats[method] || method;
+    return formats[method] || method || 'Unknown';
   }
 
   /**

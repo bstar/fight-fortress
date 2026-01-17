@@ -543,6 +543,7 @@ export class ArcadeTUI {
 
     const statusStr = this.getStatusString(state);
     const kds = state?.knockdowns?.total ?? 0;
+    const strategy = state?.strategy;
 
     // Get stance/position info
     const stance = fighter.config?.physical?.stance || 'orthodox';
@@ -550,16 +551,36 @@ export class ArcadeTUI {
     // Fighter ASCII art based on state
     const art = this.getFighterArt(state?.state, id);
 
+    // Format strategy display
+    let strategyLine = '';
+    if (strategy?.name) {
+      const strategyColor = this.getStrategyColor(strategy.priority);
+      strategyLine = `{${strategyColor}}» ${strategy.name}{/${strategyColor}}`;
+    }
+
     const lines = [
       art,
       '',
       `{${color}-fg}${statusStr}{/${color}-fg}`,
-      '',
+      strategyLine,
       kds > 0 ? `{red-fg}KD: ${kds}{/red-fg}` : `{#444-fg}KD: 0{/#444-fg}`,
       `{#666-fg}${stance}{/#666-fg}`
     ];
 
     box.setContent(lines.join('\n'));
+  }
+
+  /**
+   * Get color for strategy priority
+   */
+  getStrategyColor(priority) {
+    switch (priority) {
+      case 'critical': return 'red-fg}{bold';
+      case 'urgent': return '#ff8800-fg}{bold';
+      case 'high': return 'yellow-fg';
+      case 'low': return '#666-fg';
+      default: return '#88ccff-fg';
+    }
   }
 
   getFighterArt(state, id) {
@@ -803,6 +824,8 @@ export class ArcadeTUI {
     sim.on('refereeCommand', (data) => this.onRefereeCommand(data));
     sim.on('fightEnding', (data) => this.onFightEnding(data));
     sim.on('fightEnd', (data) => this.onFightEnd(data));
+    sim.on('speedChange', (speed) => this.onSpeedChange(speed));
+    sim.on('momentumShift', (data) => this.onMomentumShift(data));
   }
 
   onRoundStart(data) {
@@ -1098,7 +1121,15 @@ export class ArcadeTUI {
     }
 
     // Consequence
-    if (data.warning) {
+    if (data.disqualification) {
+      this.addCommentary('');
+      this.addCommentary(`{bold}{#ff0000-fg}═══ DISQUALIFICATION ═══{/#ff0000-fg}{/bold}`);
+      this.addCommentary(`{bold}{#ff0000-fg}${attacker.getShortName().toUpperCase()} IS DISQUALIFIED!{/#ff0000-fg}{/bold}`);
+      this.addCommentary(`${target.getShortName()} wins by DQ!`);
+      this.addAction(`{#ff0000-fg}★ DQ! ${attacker.getShortName()} LOSES! ★{/#ff0000-fg}`);
+    } else if (data.pointDeduction) {
+      // Point deduction handled separately in onPointDeduction
+    } else if (data.warning) {
       this.addCommentary(`Referee issues a warning to ${attacker.getShortName()}`);
     }
 
@@ -1117,6 +1148,62 @@ export class ArcadeTUI {
     this.addCommentary(`Total deductions: ${data.totalDeductions}`);
 
     this.addAction(`{#ff0000-fg}★ -1 POINT: ${fighter.getShortName()} ★{/#ff0000-fg}`);
+
+    this.screen.render();
+  }
+
+  /**
+   * Handle speed change events
+   */
+  onSpeedChange(speed) {
+    const speedStr = speed.toFixed(1);
+    this.updateStatus(`Speed: ${speedStr}x | [+/-] Speed | [P] Pause | [Q] Quit`);
+    this.screen.render();
+  }
+
+  /**
+   * Handle momentum shift events
+   */
+  onMomentumShift(data) {
+    const { leaderName, previousName, type } = data;
+
+    if (type === 'TAKEOVER') {
+      // Major momentum swing - arcade style announcement
+      this.addAction(`{#00ffff-fg}{bold}>>> MOMENTUM SHIFT! <<<{/bold}{/#00ffff-fg}`);
+      this.addCommentary('');
+      this.addCommentary(`{bold}{#00ffff-fg}═══ MOMENTUM SHIFT ═══{/#00ffff-fg}{/bold}`);
+      this.addCommentary(`{bold}LAMPLEY:{/bold} ${leaderName.toUpperCase()} HAS TURNED THIS FIGHT AROUND!`);
+      const takeoverComments = [
+        `{#00ffff-fg}{bold}FOREMAN:{/bold} Look at the shift in body language! ${leaderName} smells blood now!{/#00ffff-fg}`,
+        `{#ffcc00-fg}{bold}MERCHANT:{/bold} ${previousName} was in control but that's all changed!{/#ffcc00-fg}`,
+        `{#00ffff-fg}{bold}FOREMAN:{/bold} This is a completely different fight now!{/#00ffff-fg}`,
+        `{#ffcc00-fg}{bold}MERCHANT:{/bold} The momentum has swung dramatically!{/#ffcc00-fg}`
+      ];
+      this.addCommentary(takeoverComments[Math.floor(Math.random() * takeoverComments.length)]);
+    } else if (type === 'CONTROL') {
+      // Taking control - smaller announcement
+      this.addAction(`{#88ff88-fg}${leaderName} taking control!{/#88ff88-fg}`);
+      const controlComments = [
+        `{bold}LAMPLEY:{/bold} ${leaderName} is starting to take control!`,
+        `{#00ffff-fg}{bold}FOREMAN:{/bold} ${leaderName} is asserting himself now.{/#00ffff-fg}`,
+        `{#ffcc00-fg}{bold}MERCHANT:{/bold} ${leaderName} gaining confidence with every exchange.{/#ffcc00-fg}`,
+        `{bold}LAMPLEY:{/bold} The tide is turning in ${leaderName}'s favor!`
+      ];
+      this.addCommentary(controlComments[Math.floor(Math.random() * controlComments.length)]);
+    } else if (type === 'DOMINATION') {
+      // Complete domination - big announcement
+      this.addAction(`{#ff4444-fg}{bold}>>> DOMINATION! <<<{/bold}{/#ff4444-fg}`);
+      this.addCommentary('');
+      this.addCommentary(`{bold}{#ff4444-fg}═══ DOMINATION ═══{/#ff4444-fg}{/bold}`);
+      this.addCommentary(`{bold}LAMPLEY:{/bold} ${leaderName} is DOMINATING this fight!`);
+      const domComments = [
+        `{#00ffff-fg}{bold}FOREMAN:{/bold} This is a one-sided affair! ${leaderName} is in complete control!{/#00ffff-fg}`,
+        `{#ffcc00-fg}{bold}MERCHANT:{/bold} I don't see how ${previousName || 'his opponent'} can turn this around!{/#ffcc00-fg}`,
+        `{#00ffff-fg}{bold}FOREMAN:{/bold} ${leaderName} is putting on a clinic out there!{/#00ffff-fg}`,
+        `{#ffcc00-fg}{bold}MERCHANT:{/bold} The corner needs to make an adjustment!{/#ffcc00-fg}`
+      ];
+      this.addCommentary(domComments[Math.floor(Math.random() * domComments.length)]);
+    }
 
     this.screen.render();
   }
@@ -1318,6 +1405,12 @@ export class ArcadeTUI {
     const box = this.boxes.commentary;
     const content = box.getContent();
     const lines = content.split('\n');
+
+    // Prevent duplicate consecutive commentary
+    if (lines.length > 0 && lines[lines.length - 1] === text) {
+      return;
+    }
+
     lines.push(text);
 
     if (lines.length > 100) {
@@ -1377,12 +1470,19 @@ export class ArcadeTUI {
       'KO': 'KNOCKOUT',
       'TKO_REFEREE': 'TKO (Ref Stop)',
       'TKO_CORNER': 'TKO (Corner)',
+      'TKO_DOCTOR': 'TKO (Doctor)',
+      'TKO_INJURY': 'TKO (Injury)',
       'TKO_THREE_KNOCKDOWNS': 'TKO (3 KDs)',
       'DECISION_UNANIMOUS': 'Unanimous Decision',
       'DECISION_SPLIT': 'Split Decision',
-      'DECISION_MAJORITY': 'Majority Decision'
+      'DECISION_MAJORITY': 'Majority Decision',
+      'DRAW_UNANIMOUS': 'Unanimous Draw',
+      'DRAW_SPLIT': 'Split Draw',
+      'DRAW_MAJORITY': 'Majority Draw',
+      'DISQUALIFICATION': 'Disqualification',
+      'NO_CONTEST': 'No Contest'
     };
-    return formats[method] || method;
+    return formats[method] || method || 'Unknown';
   }
 
   cleanup() {

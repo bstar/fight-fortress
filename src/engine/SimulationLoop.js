@@ -544,6 +544,25 @@ export class SimulationLoop extends EventEmitter {
     this.effectsManager.checkFocusLapse('A', this.fight.fighterA);
     this.effectsManager.checkFocusLapse('B', this.fight.fighterB);
 
+    // Check for momentum shifts
+    const momentumShift = this.effectsManager.checkMomentumShift();
+    if (momentumShift) {
+      const leaderName = momentumShift.newLeader === 'A'
+        ? this.fight.fighterA.getShortName()
+        : this.fight.fighterB.getShortName();
+      const previousName = momentumShift.previousLeader
+        ? (momentumShift.previousLeader === 'A' ? this.fight.fighterA.getShortName() : this.fight.fighterB.getShortName())
+        : null;
+
+      this.emit('momentumShift', {
+        ...momentumShift,
+        leaderName,
+        previousName,
+        round: round.number,
+        time: round.currentTime
+      });
+    }
+
     // Emit tick event
     const tickEvent = {
       type: 'TICK',
@@ -651,6 +670,10 @@ export class SimulationLoop extends EventEmitter {
     // Apply effects
     this.foulManager.applyFoulEffects(result, fighter, opponent);
 
+    // Get foul tracking context for display
+    const foulSummary = this.foulManager.getFoulSummary(fighterId);
+    const warningsForThisFoul = foulSummary.warnings[result.type] || 0;
+
     // Emit foul event
     const foulEvent = {
       type: 'FOUL',
@@ -667,7 +690,12 @@ export class SimulationLoop extends EventEmitter {
       cutCaused: result.cutCaused,
       description: result.description,
       round: round?.number,
-      time: round?.currentTime
+      time: round?.currentTime,
+      // Additional context for display
+      warningsForThisFoul,
+      totalWarnings: Object.values(foulSummary.warnings).reduce((a, b) => a + b, 0),
+      totalPointDeductions: foulSummary.pointDeductions,
+      foulHistory: foulSummary.totalFouls
     };
 
     this.emit('foul', foulEvent);
@@ -675,7 +703,7 @@ export class SimulationLoop extends EventEmitter {
 
     // Handle consequences
     if (result.disqualification) {
-      this.fight.stopFight(StoppageType.DQ, opponentId);
+      this.fight.stopFight(StoppageType.DISQUALIFICATION, opponentId);
     } else if (result.pointDeduction) {
       // Emit point deduction event (FoulManager already tracks deductions)
       this.emit('pointDeduction', {
@@ -1761,11 +1789,33 @@ export class SimulationLoop extends EventEmitter {
    */
   getFighterState(fighterId) {
     const fighter = this.fight.getFighter(fighterId);
+    const opponent = this.fight.getOpponent(fighterId);
+
+    // Calculate current strategy if AI is available
+    let strategy = null;
+    if (this.fighterAI) {
+      const round = this.fight.currentRound || 1;
+      const staminaPercent = fighter.getStaminaPercent();
+      const healthPercent = 1 - ((fighter.headDamage + fighter.bodyDamage) / 200);
+      const scoreDiff = this.fighterAI.estimateScoreDiff(this.fight, fighterId);
+      const memory = this.fighterAI.getMemory(fighterId);
+
+      const situation = {
+        round,
+        totalRounds: this.fight.config.rounds || 12,
+        staminaPercent,
+        healthPercent,
+        scoreDiff
+      };
+
+      strategy = this.fighterAI.getCurrentStrategy(fighter, opponent, situation, memory);
+    }
 
     return {
       name: fighter.name,
       state: fighter.state,
       subState: fighter.subState,
+      strategy,  // Current tactical strategy
       stamina: {
         current: fighter.currentStamina,
         max: fighter.maxStamina,
@@ -1816,6 +1866,15 @@ export class SimulationLoop extends EventEmitter {
    * Slows down the action and spaces out events for dramatic effect
    */
   async playCinematicEnding() {
+    // Safeguard: if no result (e.g., simulation was stopped manually), don't emit fight end
+    if (!this.fight.result) {
+      this.emit('fightAborted', {
+        round: this.fight.currentRound,
+        reason: 'SIMULATION_STOPPED'
+      });
+      return;
+    }
+
     const result = this.fight.result;
     const isKO = result?.method === 'KO' || result?.method?.startsWith('TKO');
 

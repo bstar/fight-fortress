@@ -162,10 +162,12 @@ export function FighterPanel({ fighter, state, corner = 'A', width, flexGrow, mi
 /**
  * Round Timer Display
  */
-export function RoundTimer({ round, time, maxRounds = 12 }) {
+export function RoundTimer({ round, time, maxRounds = 12, roundDuration = 180 }) {
   const theme = useTheme();
-  const mins = Math.floor(time / 60);
-  const secs = Math.floor(time % 60);
+  // Calculate remaining time (countdown from 3:00)
+  const remaining = Math.max(0, roundDuration - time);
+  const mins = Math.floor(remaining / 60);
+  const secs = Math.floor(remaining % 60);
   const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
 
   return e(Box, {
@@ -177,7 +179,7 @@ export function RoundTimer({ round, time, maxRounds = 12 }) {
     paddingY: 1
   },
     e(Text, { bold: true, color: theme.round }, `ROUND ${round}`),
-    e(Text, { color: theme.timer }, `${timeStr} / 3:00`),
+    e(Text, { color: theme.timer }, timeStr),
     e(Text, { dimColor: true }, `${maxRounds - round + 1} rounds left`)
   );
 }
