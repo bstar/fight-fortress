@@ -1459,13 +1459,14 @@ Watch careers unfold over years of simulation.
 
     let currentWeek = 0;
 
-    const simulateBatch = () => {
+    const simulateBatch = async () => {
       // Simulate 26 weeks at a time for responsiveness
       const batchSize = 26;
       const endWeek = Math.min(currentWeek + batchSize, totalWeeks);
 
+      // Process weeks sequentially with full combat engine
       for (let i = currentWeek; i < endWeek; i++) {
-        processor.processWeek();
+        await processor.processWeek();
       }
 
       currentWeek = endWeek;

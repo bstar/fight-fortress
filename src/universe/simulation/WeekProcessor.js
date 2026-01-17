@@ -59,9 +59,9 @@ export class WeekProcessor {
 
   /**
    * Process one week of simulation
-   * @returns {Object[]} Array of events that occurred
+   * @returns {Promise<Object[]>} Array of events that occurred
    */
-  processWeek() {
+  async processWeek() {
     const events = [];
 
     // 1. Process fighter aging and attribute changes
@@ -73,8 +73,8 @@ export class WeekProcessor {
     // 3. Update activity tracking
     this.updateActivityTracking();
 
-    // 4. Generate and run fights
-    events.push(...this.processFights());
+    // 4. Generate and run fights (uses full SimulationLoop combat engine)
+    events.push(...await this.processFights());
 
     // 5. Check for retirements (monthly, not weekly - reduces retirement rate)
     if (this.universe.currentDate.week % 4 === 0) {
@@ -247,8 +247,9 @@ export class WeekProcessor {
 
   /**
    * Generate and run this week's fights
+   * @returns {Promise<Object[]>} Array of fight events
    */
-  processFights() {
+  async processFights() {
     const events = [];
 
     // Generate fight cards
@@ -256,8 +257,8 @@ export class WeekProcessor {
 
     if (fightCards.length === 0) return events;
 
-    // Run all fights
-    const results = this.fightIntegration.runFightsBatch(fightCards);
+    // Run all fights using full SimulationLoop combat engine
+    const results = await this.fightIntegration.runFightsBatch(fightCards);
 
     // Convert results to events
     for (const result of results) {

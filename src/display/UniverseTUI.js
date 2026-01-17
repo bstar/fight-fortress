@@ -546,11 +546,12 @@ fighter records and rankings.{/${t.commentary}-fg}
     this.lastEvents = [];
     let currentWeek = 0;
 
-    const simulateBatch = () => {
+    const simulateBatch = async () => {
       const batchSize = Math.min(4, weeks - currentWeek);
 
+      // Process weeks sequentially with full combat engine
       for (let i = 0; i < batchSize; i++) {
-        const events = this.processor.processWeek();
+        const events = await this.processor.processWeek();
         this.lastEvents.push(...events);
         currentWeek++;
       }

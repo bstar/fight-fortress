@@ -284,12 +284,12 @@ function UniverseCreation({ onComplete, onBack }) {
     setProgress(p => ({ ...p, fighters: targetFighters }));
     setStage('simulating');
 
-    // Simulate 5 years
+    // Simulate 5 years using full SimulationLoop combat engine
     const processor = new WeekProcessor(universe);
     const totalWeeks = 5 * 52;
 
     for (let week = 0; week < totalWeeks; week++) {
-      processor.processWeek();
+      await processor.processWeek();
 
       // Yield frequently to keep UI responsive (every 4 weeks)
       if (week % 4 === 0) {

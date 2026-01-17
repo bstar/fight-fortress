@@ -294,7 +294,8 @@ function SimulateMenuView({ universe, processor, saveManager, onBack, onSimCompl
 
     const events = [];
     for (let i = 0; i < weeks; i++) {
-      const weekEvents = processor.processWeek();
+      // Uses full SimulationLoop combat engine for realistic fights
+      const weekEvents = await processor.processWeek();
       events.push(...weekEvents);
 
       setProgress({

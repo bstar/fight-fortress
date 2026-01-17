@@ -332,19 +332,34 @@ export class FightIntegration {
   }
 
   /**
-   * Run multiple fights in batch
+   * Run multiple fights in batch using full simulation engine
+   * @param {Object[]} fightCards - Array of fight configurations
+   * @returns {Promise<Object[]>} Array of fight results
    */
-  runFightsBatch(fightCards) {
+  async runFightsBatch(fightCards) {
     const results = [];
 
+    // Run fights sequentially to avoid overwhelming memory
+    // Each fight uses the full SimulationLoop combat engine
     for (const card of fightCards) {
-      const result = this.runFightSync(card);
+      const result = await this.runFight(card);
       if (!result.cancelled) {
         results.push(result);
       }
     }
 
     return results;
+  }
+
+  /**
+   * Run multiple fights in parallel (faster but uses more memory)
+   * @param {Object[]} fightCards - Array of fight configurations
+   * @returns {Promise<Object[]>} Array of fight results
+   */
+  async runFightsBatchParallel(fightCards) {
+    const promises = fightCards.map(card => this.runFight(card));
+    const results = await Promise.all(promises);
+    return results.filter(r => !r.cancelled);
   }
 }
 

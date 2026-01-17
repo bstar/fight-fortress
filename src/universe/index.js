@@ -56,18 +56,18 @@ export function createUniverse(config = {}) {
 }
 
 /**
- * Simulate a number of weeks
+ * Simulate a number of weeks (uses full SimulationLoop combat engine)
  * @param {Universe} universe
  * @param {number} weeks
  * @param {Function} onEvent - Callback for events
- * @returns {Object[]} All events
+ * @returns {Promise<Object[]>} All events
  */
-export function simulateWeeks(universe, weeks, onEvent = null) {
+export async function simulateWeeks(universe, weeks, onEvent = null) {
   const processor = new WeekProcessor(universe);
   const allEvents = [];
 
   for (let i = 0; i < weeks; i++) {
-    const events = processor.processWeek();
+    const events = await processor.processWeek();
     allEvents.push(...events);
 
     if (onEvent) {
