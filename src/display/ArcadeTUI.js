@@ -468,9 +468,10 @@ export class ArcadeTUI {
 
   updateRoundDisplay() {
     const totalRounds = this.fight?.config?.rounds || 12;
+    const roundsRemaining = totalRounds - this.currentRound + 1;
     this.boxes.roundBox.setContent(
       `{center}{bold}{#ffcc00-fg}ROUND ${this.currentRound}{/#ffcc00-fg}{/bold}{/center}\n` +
-      `{center}{gray-fg}of ${totalRounds}{/gray-fg}{/center}`
+      `{center}{gray-fg}${roundsRemaining} rounds left{/gray-fg}{/center}`
     );
   }
 

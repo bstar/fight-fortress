@@ -339,9 +339,11 @@ ${'='.repeat(70)}
    * Render round start
    */
   renderRoundStart(round) {
+    const totalRounds = this.fight?.config?.rounds || 12;
+    const roundsRemaining = totalRounds - round + 1;
     const roundHeader = `
 ${'─'.repeat(70)}
-${this.centerText(`ROUND ${round}`, 70)}
+${this.centerText(`ROUND ${round} of ${totalRounds} (${roundsRemaining} remaining)`, 70)}
 ${'─'.repeat(70)}
 `;
     console.log(roundHeader);

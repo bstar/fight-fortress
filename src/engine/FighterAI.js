@@ -303,10 +303,39 @@ export class FighterAI {
         successfulActions: [],
         failedActions: [],
         lastActions: [],
-        adaptationLevel: 0
+        adaptationLevel: 0,
+        // NEW: Track recent hurt/buzzed state
+        lastHurtTime: 0,           // When was fighter last hurt
+        hurtCount: 0,              // Times hurt this fight
+        knockdownsTotal: 0,        // Total knockdowns suffered
+        lastKnockdownRound: 0,     // Round of last knockdown
+        // NEW: Round-by-round strategy variation
+        roundStrategy: null,       // Current round's strategy modifier
+        lastStrategyRound: 0,      // Round when strategy was set
+        // NEW: Taking rounds off
+        restingRounds: [],         // Rounds designated for rest
+        consecutiveHighOutputRounds: 0  // Track sustained pressure
       });
     }
     return this.fighterMemory.get(fighterId);
+  }
+
+  /**
+   * Record that fighter was hurt (called by SimulationLoop)
+   */
+  recordHurt(fighterId, round, time) {
+    const memory = this.getOrCreateMemory(fighterId);
+    memory.lastHurtTime = time;
+    memory.hurtCount++;
+  }
+
+  /**
+   * Record knockdown (called by SimulationLoop)
+   */
+  recordKnockdown(fighterId, round) {
+    const memory = this.getOrCreateMemory(fighterId);
+    memory.knockdownsTotal++;
+    memory.lastKnockdownRound = round;
   }
 
   /**
@@ -314,6 +343,25 @@ export class FighterAI {
    */
   assessSituation(fighter, opponent, fight) {
     const round = fight.getCurrentRound();
+    const fighterId = fighter.id || (fighter === fight.fighterA ? 'A' : 'B');
+    const memory = this.getOrCreateMemory(fighterId);
+    const currentTime = round?.currentTime || 0;
+    const currentRound = fight.currentRound;
+
+    // Calculate time since last hurt (in seconds)
+    const timeSinceHurt = memory.lastHurtTime > 0 ? currentTime - memory.lastHurtTime : 999;
+    const wasRecentlyHurt = timeSinceHurt < 45; // Within 45 seconds = recently hurt
+    const wasRecentlyKnockedDown = memory.lastKnockdownRound === currentRound ||
+                                    memory.lastKnockdownRound === currentRound - 1;
+
+    // Determine if this should be a "rest round" based on stamina and fight IQ
+    const shouldRestThisRound = this.shouldTakeRoundOff(fighter, memory, currentRound, fight);
+
+    // Generate round-specific strategy variation (changes each round)
+    if (memory.lastStrategyRound !== currentRound) {
+      memory.roundStrategy = this.generateRoundStrategy(fighter, opponent, currentRound, memory);
+      memory.lastStrategyRound = currentRound;
+    }
 
     return {
       // Fighter state
@@ -349,7 +397,101 @@ export class FighterAI {
       scoreDiff: this.estimateScoreDiff(fight, fighter.id === 'A' ? 'A' : 'B'),
 
       // Momentum
-      momentum: this.assessMomentum(fighter, opponent, round)
+      momentum: this.assessMomentum(fighter, opponent, round),
+
+      // NEW: Recent damage/hurt memory
+      wasRecentlyHurt,
+      wasRecentlyKnockedDown,
+      timeSinceHurt,
+      totalHurtCount: memory.hurtCount,
+      totalKnockdowns: memory.knockdownsTotal,
+
+      // NEW: Round strategy variation
+      roundStrategy: memory.roundStrategy,
+      shouldRestThisRound
+    };
+  }
+
+  /**
+   * Determine if fighter should take this round off to recover
+   * Smart fighters with good fight IQ recognize when to conserve
+   */
+  shouldTakeRoundOff(fighter, memory, round, fight) {
+    const staminaPercent = fighter.getStaminaPercent();
+    const fightIQ = fighter.technical?.fightIQ || 65;
+    const paceControl = fighter.stamina?.paceControl || 60;
+    const totalRounds = fight.config?.rounds || 12;
+
+    // Don't rest in first 2 rounds or last 2 rounds
+    if (round <= 2 || round >= totalRounds - 1) return false;
+
+    // Don't rest if stamina is fine
+    if (staminaPercent > 0.60) return false;
+
+    // Low fight IQ fighters don't know how to pace
+    if (fightIQ < 70) return false;
+
+    // Calculate rest probability based on stamina and attributes
+    let restChance = 0;
+
+    // Low stamina increases rest chance
+    if (staminaPercent < 0.40) restChance += 0.3;
+    if (staminaPercent < 0.30) restChance += 0.2;
+
+    // High fight IQ increases willingness to rest strategically
+    restChance += (fightIQ - 70) * 0.01;
+
+    // High pace control means better at managing output
+    restChance += (paceControl - 60) * 0.008;
+
+    // Don't rest every round - check if rested recently
+    if (memory.restingRounds.includes(round - 1)) {
+      restChance *= 0.3; // Much less likely to rest two rounds in a row
+    }
+
+    // Roll for rest
+    if (Math.random() < restChance) {
+      memory.restingRounds.push(round);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Generate round-specific strategy variation
+   * This creates natural ebb and flow in fights
+   */
+  generateRoundStrategy(fighter, opponent, round, memory) {
+    const baseAggression = 0;
+    const variation = (Math.random() - 0.5) * 0.4; // -0.2 to +0.2 random variation
+
+    // Some fighters have more variable output (less consistent)
+    const consistency = (fighter.mental?.composure || 70) / 100;
+    const roundVariation = variation * (1.5 - consistency); // Less composure = more variation
+
+    // Aggression tends to increase in later rounds
+    const lateRoundBoost = round >= 9 ? 0.1 : 0;
+
+    // After being hurt, fighter may come out more cautious OR more aggressive
+    // Depends on personality
+    let postHurtModifier = 0;
+    if (memory.hurtCount > 0 && round > 1) {
+      const heart = fighter.mental?.heart || 70;
+      const composure = fighter.mental?.composure || 70;
+
+      if (heart >= 85) {
+        // High heart = respond with aggression ("I'll show you")
+        postHurtModifier = 0.1;
+      } else if (composure < 60) {
+        // Low composure = become gun-shy
+        postHurtModifier = -0.15;
+      }
+    }
+
+    return {
+      aggressionModifier: baseAggression + roundVariation + lateRoundBoost + postHurtModifier,
+      isRestRound: memory.restingRounds.includes(round)
     };
   }
 
@@ -488,11 +630,88 @@ export class FighterAI {
    */
   applyStateModifiers(weights, fighter, opponent, situation) {
     // =========================================================================
+    // CRITICAL STAMINA - SURVIVAL/CONSERVATION MODE
+    // When stamina is critically low, finding energy becomes the #1 priority
+    // Fighter enters a defensive posture focused on recovery
+    // BUT fighters with the right attributes can still throw dangerous punches
+    // =========================================================================
+    if (situation.staminaPercent < 0.20) {
+      const criticalLevel = situation.staminaPercent / 0.20; // 0 at 0%, 1 at 20%
+      const fightIQ = fighter.technical?.fightIQ || 65;
+      const heart = fighter.mental?.heart || 70;
+      const killerInstinct = fighter.mental?.killerInstinct || 65;
+      const knockoutPower = fighter.power?.knockoutPower || 65;
+
+      // Base conservation - dramatically reduce offense
+      // Smart fighters (high IQ) conserve more aggressively
+      const iqFactor = Math.min(1.5, fightIQ / 65);
+      const conservationIntensity = (1 - criticalLevel) * iqFactor;
+
+      // MAJOR reduction to offense - can barely throw punches
+      weights[FighterState.OFFENSIVE] *= Math.max(0.15, 0.4 - conservationIntensity * 0.3);
+
+      // MAJOR increase to defensive posture - focus on not getting hit
+      weights[FighterState.DEFENSIVE] *= 1.8 + conservationIntensity * 0.6;
+
+      // Timing/counters - only throw when there's a clear opening
+      // This becomes MORE important when exhausted - waiting for the perfect shot
+      weights[FighterState.TIMING] *= 1.5 + conservationIntensity * 0.3;
+
+      // Movement - move to avoid but don't waste energy on lateral movement
+      weights[FighterState.MOVING] *= 0.7; // Reduce movement to conserve
+
+      // Clinch becomes attractive for rest (but refs break it)
+      weights[FighterState.CLINCH] *= 1.3 + conservationIntensity * 0.4;
+
+      // =========================================================================
+      // RISKY POWER SHOT OPTION - Exhausted fighters can still be dangerous
+      // Fighters with KO power and killer instinct may load up for one big shot
+      // This is the "hail mary" - spend remaining energy on one bomb
+      // =========================================================================
+      const canStillHurt = knockoutPower >= 75;
+      const willTakeRisk = killerInstinct >= 70 || heart >= 85;
+
+      if (canStillHurt && willTakeRisk && criticalLevel > 0.25) {
+        // Fighter has enough left to potentially end it with one shot
+        // Boost TIMING over OFFENSIVE - they're waiting for the perfect moment
+        weights[FighterState.TIMING] *= 1.4;
+
+        // Sluggers especially will load up for one big shot
+        if (fighter.style?.primary === 'slugger' || fighter.style?.primary === 'boxer-puncher') {
+          weights[FighterState.TIMING] *= 1.2;
+          weights[FighterState.OFFENSIVE] *= 1.3; // Some willingness to load up
+        }
+
+        // Being behind on cards increases desperation shots
+        const scoreDiff = situation.scoreDiff || 0;
+        if (scoreDiff < -2) {
+          weights[FighterState.OFFENSIVE] *= 1.3;
+          weights[FighterState.TIMING] *= 1.2;
+        }
+      }
+
+      // High heart fighters may still push despite exhaustion
+      // But even they need to conserve at truly critical levels
+      if (heart >= 90 && criticalLevel > 0.5) {
+        // Holyfield-type heart - can still push when gassed
+        weights[FighterState.OFFENSIVE] *= 1.4;
+        weights[FighterState.DEFENSIVE] *= 0.85;
+      }
+
+      // Exception: If opponent is hurt, even exhausted fighters may go for the kill
+      // But only if they have killer instinct and some stamina left
+      if (situation.opponentIsHurt && killerInstinct >= 75 && criticalLevel > 0.3) {
+        weights[FighterState.OFFENSIVE] *= 1.6;
+        weights[FighterState.TIMING] *= 0.7; // Don't wait, attack!
+      }
+    }
+
+    // =========================================================================
     // HIGH STAMINA AGGRESSION
     // Fresh fighters should be comfortable letting their hands go
     // More offensive, more power shots, more combinations
     // =========================================================================
-    if (situation.staminaPercent >= 0.80) {
+    else if (situation.staminaPercent >= 0.80) {
       // Fresh fighter - be aggressive, throw big shots
       const freshBonus = (situation.staminaPercent - 0.80) / 0.20; // 0 at 80%, 1 at 100%
 
@@ -721,6 +940,111 @@ export class FighterAI {
       if (situation.round < 4 && situation.staminaPercent > 0.8) {
         weights[FighterState.TIMING] *= 1.2;
       }
+    }
+
+    // =========================================================================
+    // RECENT HURT/KNOCKDOWN MEMORY
+    // Fighters who just got buzzed or knocked down are more cautious
+    // =========================================================================
+    if (situation.wasRecentlyKnockedDown) {
+      // Just got knocked down - be VERY cautious
+      // Even brave fighters need time to recover mentally
+      const composure = fighter.mental?.composure || 70;
+      const heart = fighter.mental?.heart || 70;
+
+      // Base caution from knockdown
+      weights[FighterState.OFFENSIVE] *= 0.5;
+      weights[FighterState.DEFENSIVE] *= 1.6;
+      weights[FighterState.MOVING] *= 1.3;
+      weights[FighterState.TIMING] *= 1.4; // Wait for counters instead of leading
+
+      // High composure fighters recover mental equilibrium faster
+      if (composure >= 85) {
+        weights[FighterState.OFFENSIVE] *= 1.2; // Partial recovery
+      }
+
+      // Fighters with low heart may become gun-shy for the rest of the fight
+      if (heart < 60) {
+        weights[FighterState.OFFENSIVE] *= 0.8;
+        weights[FighterState.CLINCH] *= 1.3;
+      }
+    } else if (situation.wasRecentlyHurt) {
+      // Got buzzed recently but not knocked down - moderate caution
+      const composure = fighter.mental?.composure || 70;
+      const heart = fighter.mental?.heart || 70;
+
+      // How cautious depends on personality
+      if (composure < 70 || heart < 70) {
+        // Nervous/less brave fighters become very cautious
+        weights[FighterState.OFFENSIVE] *= 0.65;
+        weights[FighterState.DEFENSIVE] *= 1.4;
+        weights[FighterState.MOVING] *= 1.2;
+      } else if (composure >= 85 && heart >= 80) {
+        // Elite composure + heart = "I'll show you" mentality
+        // Some fighters respond to getting hurt by fighting back harder
+        weights[FighterState.OFFENSIVE] *= 1.1;
+      } else {
+        // Average fighters - moderate caution
+        weights[FighterState.OFFENSIVE] *= 0.8;
+        weights[FighterState.DEFENSIVE] *= 1.2;
+      }
+    }
+
+    // =========================================================================
+    // REST ROUND / TAKE A ROUND OFF
+    // Smart fighters with good fight IQ recognize when to conserve
+    // =========================================================================
+    if (situation.shouldRestThisRound) {
+      // This is a designated rest round - significantly reduce output
+      weights[FighterState.OFFENSIVE] *= 0.5;
+      weights[FighterState.TIMING] *= 1.5;    // Wait for counters, don't lead
+      weights[FighterState.DEFENSIVE] *= 1.4;
+      weights[FighterState.MOVING] *= 1.3;    // Move more, punch less
+
+      // Still throw enough to not lose the round completely
+      // But focus on landing efficient shots, not volume
+    }
+
+    // =========================================================================
+    // ROUND-TO-ROUND STRATEGY VARIATION
+    // Natural ebb and flow - fighters don't perform identically every round
+    // =========================================================================
+    if (situation.roundStrategy?.aggressionModifier) {
+      const stratMod = situation.roundStrategy.aggressionModifier;
+
+      if (stratMod > 0) {
+        // More aggressive this round
+        weights[FighterState.OFFENSIVE] *= 1 + stratMod;
+        weights[FighterState.DEFENSIVE] *= 1 - (stratMod * 0.3);
+      } else {
+        // More conservative this round
+        weights[FighterState.OFFENSIVE] *= 1 + stratMod; // stratMod is negative
+        weights[FighterState.DEFENSIVE] *= 1 - stratMod; // Increases defense
+        weights[FighterState.TIMING] *= 1 - (stratMod * 0.5);
+      }
+    }
+
+    // =========================================================================
+    // ACCUMULATED DAMAGE AFFECTS OVERALL AGGRESSION
+    // Fighters with high total hurt count become more careful as fight goes on
+    // =========================================================================
+    if (situation.totalHurtCount >= 3) {
+      // Been hurt multiple times - self-preservation kicks in
+      const heart = fighter.mental?.heart || 70;
+
+      if (heart < 80) {
+        // Average heart - starts to think about survival
+        weights[FighterState.OFFENSIVE] *= 0.85;
+        weights[FighterState.DEFENSIVE] *= 1.15;
+      }
+      // High heart fighters keep pushing regardless
+    }
+
+    if (situation.totalKnockdowns >= 2) {
+      // Multiple knockdowns - even brave fighters get cautious
+      weights[FighterState.OFFENSIVE] *= 0.8;
+      weights[FighterState.DEFENSIVE] *= 1.2;
+      weights[FighterState.CLINCH] *= 1.2; // May try to survive
     }
 
     // Apply effects modifiers (from FightEffectsManager)

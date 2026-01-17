@@ -407,6 +407,84 @@ export class HBOTeam extends BroadcastTeam {
       }
     },
 
+    // Scoring assessment - Lampley's read on who's winning
+    scoringAssessment: (round, scoreA, scoreB, knockdownsA, knockdownsB) => {
+      const diff = scoreA - scoreB;  // Positive = A leading, Negative = B leading
+      const absDiff = Math.abs(diff);
+      const fighterAName = this.fighterA.name;
+      const fighterBName = this.fighterB.name;
+      const leader = diff >= 0 ? fighterAName : fighterBName;
+      const trailer = diff >= 0 ? fighterBName : fighterAName;
+      const leaderKnockdowns = diff >= 0 ? knockdownsA : knockdownsB;
+      const trailerKnockdowns = diff >= 0 ? knockdownsB : knockdownsA;
+
+      // Very close fight (within 1-2 points)
+      if (absDiff <= 2) {
+        const templates = [
+          `As we sit here after ${round} rounds, I have this fight DEAD EVEN. Anyone's to take.`,
+          `My unofficial read through ${round}? This fight is razor close. Could go either way.`,
+          `I'm having a hard time separating these two through ${round}. This is as tight as it gets.`,
+          `Through ${round} rounds, I see a fight that's too close to call. The championship rounds will decide this.`,
+          `Neither fighter has established clear control through ${round}. This one's going down to the wire.`,
+          `If I had to score this fight right now through ${round}? I honestly couldn't tell you who's ahead.`,
+          `A pick 'em fight through ${round} rounds. The judges are earning their money tonight.`
+        ];
+        return this.pick(templates);
+      }
+
+      // One fighter has a clear lead (3-5 points)
+      if (absDiff <= 5) {
+        const templates = [
+          `Through ${round} rounds, I have ${leader} slightly ahead. But ${trailer} is right there.`,
+          `My read right now? ${leader} is up on the cards, but not by much. ${trailer} can absolutely turn this around.`,
+          `${leader} has edged ahead through ${round}, but this fight is far from over.`,
+          `I give ${leader} a slight lead through ${round}. The margin is there, but it's not comfortable.`,
+          `${leader} is winning this fight in my eyes through ${round}, but one big round changes everything.`,
+          `${leader} ahead on my card through ${round}. ${trailer} needs to pick up the pace.`,
+          `Through ${round}, ${leader} has done enough to build a small lead. But ${trailer} is still very much in this.`
+        ];
+        return this.fill(this.pick(templates), {});
+      }
+
+      // One fighter has a comfortable lead (6-8 points)
+      if (absDiff <= 8) {
+        const templates = [
+          `${leader} is building a solid lead through ${round}. ${trailer} needs to make something happen.`,
+          `Through ${round} rounds, ${leader} is clearly ahead. ${trailer} has work to do.`,
+          `${leader} is in command through ${round}. ${trailer} is going to need a knockout to turn this around.`,
+          `My scorecard has ${leader} comfortably ahead after ${round}. ${trailer} is running out of real estate.`,
+          `${leader} has established control of this fight. Through ${round}, it's been ${leader}'s night.`,
+          `${trailer} is behind the 8-ball through ${round}. ${leader} is boxing brilliantly.`,
+          `${leader} is winning this fight convincingly through ${round}. ${trailer} needs a statement round.`
+        ];
+        return this.fill(this.pick(templates), {});
+      }
+
+      // Dominant lead (9+ points)
+      const templates = [
+        `This has been one-way traffic. ${leader} is dominating through ${round} rounds.`,
+        `${leader} is running away with this fight. Through ${round}, it's been a masterclass.`,
+        `${trailer} has no answers through ${round}. ${leader} is in complete control.`,
+        `Through ${round} rounds, ${leader} is absolutely schooling ${trailer}. This one might not go the distance.`,
+        `${leader} has been brilliant tonight. Through ${round}, ${trailer} hasn't found a single answer.`,
+        `This is a beatdown through ${round}. ${leader} is putting on a clinic.`,
+        `${trailer}'s corner needs to consider stopping this. ${leader} is too far ahead through ${round}.`
+      ];
+
+      // Add knockdown context if applicable
+      if (leaderKnockdowns > 0) {
+        const kdTemplates = [
+          `${leader} is way ahead through ${round}, and don't forget the knockdown${leaderKnockdowns > 1 ? 's' : ''}. ${trailer} needs a miracle.`,
+          `With ${leaderKnockdowns} knockdown${leaderKnockdowns > 1 ? 's' : ''} in the bank, ${leader} is cruising through ${round}. ${trailer} is in deep trouble.`
+        ];
+        if (Math.random() < 0.5) {
+          return this.fill(this.pick(kdTemplates), {});
+        }
+      }
+
+      return this.fill(this.pick(templates), {});
+    },
+
     // Fight end - KO
     koAnnouncement: (winner, loser, round, punch) => {
       const templates = [
@@ -1335,6 +1413,38 @@ export class HBOTeam extends BroadcastTeam {
     // Lampley always calls the end
     commentary.push({ speaker: 'Lampley', text: `The bell sounds to end round ${round}.`, priority: 'high' });
     commentary.push({ speaker: 'Lampley', text: this.lampley.roundEnd(round, statsA, statsB), priority: 'normal' });
+
+    // Lampley's scoring assessment - every 2 rounds starting from round 2
+    // But NOT on rounds 3, 6, 9, 12 (when Lederman gives his scorecard)
+    const isLedermanRound = round % 3 === 0;
+    const isAssessmentRound = round >= 2 && round % 2 === 0;
+
+    if (isAssessmentRound && !isLedermanRound) {
+      // Get scores from event.scores (array of per-round scores)
+      const scores = event.scores || [];
+      let scoreA = 0;
+      let scoreB = 0;
+      let knockdownsA = 0;
+      let knockdownsB = 0;
+
+      if (scores.length > 0) {
+        scoreA = scores.reduce((sum, s) => sum + (s.A || 0), 0);
+        scoreB = scores.reduce((sum, s) => sum + (s.B || 0), 0);
+      } else {
+        // Fallback: estimate from round stats
+        scoreA = round * 10;
+        scoreB = round * 10;
+      }
+
+      // Get knockdowns from stats if available
+      knockdownsA = statsA.knockdowns || 0;
+      knockdownsB = statsB.knockdowns || 0;
+
+      const assessment = this.lampley.scoringAssessment(round, scoreA, scoreB, knockdownsA, knockdownsB);
+      if (assessment) {
+        commentary.push({ speaker: 'Lampley', text: assessment, priority: 'high' });
+      }
+    }
 
     // Foreman observation (frequent)
     if (Math.random() < 0.7) {

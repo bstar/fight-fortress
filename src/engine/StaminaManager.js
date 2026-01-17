@@ -11,51 +11,55 @@ import { ActionType, PunchType } from './FighterAI.js';
 // Throwing punches drains you fast, but rest recovers quickly
 // This makes energy management a visible, tactical element
 const STAMINA_COSTS = {
-  // Punches - Balanced costs for visible but sustainable drain
+  // Punches - Reduced costs so fighters can sustain activity across 12 rounds
+  // A fighter throwing 50 punches/round shouldn't gas out by round 6
   punches: {
-    [PunchType.JAB]: 0.35,
-    [PunchType.CROSS]: 0.80,
-    [PunchType.LEAD_HOOK]: 0.70,
-    [PunchType.REAR_HOOK]: 0.95,
-    [PunchType.LEAD_UPPERCUT]: 0.65,
-    [PunchType.REAR_UPPERCUT]: 1.0,
-    [PunchType.BODY_JAB]: 0.40,
-    [PunchType.BODY_CROSS]: 0.85,
-    [PunchType.BODY_HOOK_LEAD]: 0.75,
-    [PunchType.BODY_HOOK_REAR]: 1.0
+    [PunchType.JAB]: 0.20,          // Light, efficient punch
+    [PunchType.CROSS]: 0.50,        // Power punch but common
+    [PunchType.LEAD_HOOK]: 0.45,    // Solid power punch
+    [PunchType.REAR_HOOK]: 0.60,    // Heavy power punch
+    [PunchType.LEAD_UPPERCUT]: 0.40,
+    [PunchType.REAR_UPPERCUT]: 0.65,
+    [PunchType.BODY_JAB]: 0.25,
+    [PunchType.BODY_CROSS]: 0.55,
+    [PunchType.BODY_HOOK_LEAD]: 0.50,
+    [PunchType.BODY_HOOK_REAR]: 0.65
   },
 
-  // Combination bonus costs
+  // Combination bonus costs - reduced to allow sustained combinations
   combination: {
-    2: 0.15,
-    3: 0.35,
-    4: 0.60,
-    5: 1.0
+    2: 0.10,
+    3: 0.20,
+    4: 0.35,
+    5: 0.55
   },
 
-  // Defensive actions (per second) - light ongoing cost
+  // Defensive actions (per second) - very light ongoing cost
+  // Holding guard shouldn't drain you fast - it's a resting position
   defense: {
-    [DefensiveSubState.HIGH_GUARD]: 0.1,      // Holding guard up
-    [DefensiveSubState.PHILLY_SHELL]: 0.05,   // Efficient shoulder roll
-    [DefensiveSubState.HEAD_MOVEMENT]: 0.2,   // Active bobbing/weaving
-    [DefensiveSubState.DISTANCE]: 0.08,       // Footwork-based
-    [DefensiveSubState.PARRYING]: 0.15        // Active hand defense
+    [DefensiveSubState.HIGH_GUARD]: 0.03,      // Holding guard up - minimal cost
+    [DefensiveSubState.PHILLY_SHELL]: 0.02,    // Efficient shoulder roll
+    [DefensiveSubState.HEAD_MOVEMENT]: 0.08,   // Active bobbing/weaving
+    [DefensiveSubState.DISTANCE]: 0.04,        // Footwork-based
+    [DefensiveSubState.PARRYING]: 0.06         // Active hand defense
   },
 
-  // Movement (per second) - light movement costs
+  // Movement (per second) - reduced movement costs
+  // Footwork is tiring but shouldn't drain fighters rapidly
   movement: {
-    forward: 0.08,        // Pressing forward
-    backward: 0.05,       // Backing up
-    lateral: 0.1,         // Side to side
-    circling: 0.12,       // Circling opponent
-    cutting: 0.2,         // Ring cutting
-    retreating: 0.1,      // Quick retreat
-    burst: 0.3            // Explosive movement
+    forward: 0.04,        // Pressing forward
+    backward: 0.03,       // Backing up
+    lateral: 0.05,        // Side to side
+    circling: 0.06,       // Circling opponent
+    cutting: 0.10,        // Ring cutting (most intensive)
+    retreating: 0.05,     // Quick retreat
+    burst: 0.15           // Explosive movement
   },
 
   // Baseline fight cost - constant energy expenditure
   // Being in a boxing match is exhausting even when not throwing punches
-  baseline: 0.12,  // Per second - moderate drain just for being active (~22/round)
+  // But this should be LOW - most stamina drain comes from ACTIONS not just existing
+  baseline: 0.04,  // Per second - light drain just for being active (~7/round)
 
   // Other
   clinch: {
@@ -66,11 +70,20 @@ const STAMINA_COSTS = {
 
   // Damage effects - getting hit saps energy, hard shots drain more
   damage: {
-    gettingHitBase: 0.3,       // Base drain per hit
-    gettingHitPerPower: 0.02,  // Additional drain per power point (30 power = +0.6)
-    bodyHitMultiplier: 1.5,    // Body shots drain 50% more stamina
-    beingHurt: 1.5,            // Per second while hurt
-    knockdownRecovery: 10.0
+    gettingHitBase: 0.5,       // Base drain per hit (increased)
+    gettingHitPerPower: 0.05,  // Additional drain per power point (30 power = +1.5)
+    bodyHitMultiplier: 1.8,    // Body shots drain 80% more stamina
+    beingHurt: 2.0,            // Per second while hurt (increased)
+    knockdownRecovery: 15.0,   // Knockdowns are devastating
+    buzzedDrainPerSec: 1.0     // Drain while buzzed/stunned
+  },
+
+  // Miss penalties - swinging and missing is exhausting
+  miss: {
+    baseMissMultiplier: 1.3,   // Missed punches cost 30% more than landing
+    powerMissMultiplier: 1.8,  // Missed power punches cost 80% more
+    haymakMissMultiplier: 2.5, // Wild haymakers that miss drain hard
+    comboMissPenalty: 0.3      // Per missed punch in a combination
   }
 };
 
@@ -149,6 +162,11 @@ export class StaminaManager {
       cost += STAMINA_COSTS.damage.beingHurt * deltaTime;
     }
 
+    // Buzzed state also drains stamina - trying to stay upright while wobbled
+    if (fighter.isBuzzed) {
+      cost += STAMINA_COSTS.damage.buzzedDrainPerSec * deltaTime;
+    }
+
     // Work rate reduces costs dramatically
     // Elite workRate (92) = 50% cost reduction (built for sustained output)
     // Average workRate (70) = 20% cost reduction
@@ -170,16 +188,27 @@ export class StaminaManager {
     const bodyDamageMod = 1 + (fighter.bodyDamage / 120);
     cost *= bodyDamageMod;
 
-    // Fatigue spiral - tired fighters burn even more energy
-    const fatigueLevel = 1 - fighter.getStaminaPercent();
-    const fatigueMod = 1 + (fatigueLevel * 0.4);
-    cost *= fatigueMod;
+    // NOTE: Removed fatigue spiral modifier - it caused death spiral
+    // where tired fighters burned more energy, getting more tired, etc.
+    // Now fatigue effects are handled purely through attribute penalties
 
     // MINIMUM DRAIN FLOOR - always drain at least this much per second
     // Being in a boxing match is exhausting no matter what you're doing
     // This ensures fighters can NEVER pin at 100% stamina
-    const minimumDrain = 0.08 * deltaTime;  // ~0.08/sec minimum drain
+    // But kept low so fighters don't drain unreasonably fast
+    const minimumDrain = 0.02 * deltaTime;  // ~0.02/sec minimum drain
     cost = Math.max(cost, minimumDrain);
+
+    // Apply stamina floor - fighters with good cardio maintain a reserve
+    // Elite cardio (90) = 10% floor, Average (70) = 5% floor, Poor (50) = 2% floor
+    const staminaFloor = (fighter.stamina.cardio - 40) * 0.002; // 0.02-0.10
+    const currentPercent = fighter.getStaminaPercent();
+
+    // If we're near the floor, reduce cost to prevent going below it
+    if (currentPercent - (cost / fighter.maxStamina) < staminaFloor) {
+      const maxAllowedCost = (currentPercent - staminaFloor) * fighter.maxStamina;
+      cost = Math.max(0, maxAllowedCost);
+    }
 
     return Math.max(0, cost);
   }
@@ -206,10 +235,9 @@ export class StaminaManager {
     const paceControlMod = Math.max(0.70, 1 - (fighter.stamina.paceControl - 50) * 0.0075);
     const cardioMod = Math.max(0.80, 1 - (fighter.stamina.cardio - 50) * 0.005);
     const bodyDamageMod = 1 + (fighter.bodyDamage / 120);
-    const fatigueLevel = 1 - fighter.getStaminaPercent();
-    const fatigueMod = 1 + (fatigueLevel * 0.4);
+    // NOTE: Removed fatigue modifier - it caused death spiral
 
-    const finalCost = baseCost * workRateMod * paceControlMod * cardioMod * bodyDamageMod * fatigueMod;
+    const finalCost = baseCost * workRateMod * paceControlMod * cardioMod * bodyDamageMod;
 
     // Fighter must have enough stamina to perform the action
     const canPerform = fighter.currentStamina >= finalCost;
@@ -368,6 +396,65 @@ export class StaminaManager {
   }
 
   /**
+   * Calculate extra stamina cost from missing punches
+   * Missing power punches is exhausting - you wind up, swing, miss, and have to recover
+   * @param {string} punchType - The type of punch that missed
+   * @param {boolean} isWildSwing - True if it was a desperate/wild swing (haymaker)
+   * @returns {number} - Extra stamina cost for the miss
+   */
+  calculateMissStaminaCost(punchType, isWildSwing = false) {
+    // Get base punch cost
+    const baseCost = STAMINA_COSTS.punches[punchType] || 0.3;
+
+    // Determine miss multiplier based on punch type
+    const powerPunches = ['cross', 'rear_hook', 'rear_uppercut', 'body_hook_rear', 'body_cross'];
+    const isPower = powerPunches.includes(punchType);
+
+    let missMultiplier;
+    if (isWildSwing) {
+      // Wild haymakers that miss are devastating to stamina
+      missMultiplier = STAMINA_COSTS.miss.haymakMissMultiplier;
+    } else if (isPower) {
+      // Power punches that miss cost more
+      missMultiplier = STAMINA_COSTS.miss.powerMissMultiplier;
+    } else {
+      // Jabs and light punches - minimal miss penalty
+      missMultiplier = STAMINA_COSTS.miss.baseMissMultiplier;
+    }
+
+    // The extra cost is the difference between miss cost and landing cost
+    // (since landing cost is already applied, we add the extra penalty)
+    return baseCost * (missMultiplier - 1);
+  }
+
+  /**
+   * Calculate extra stamina cost from missing multiple punches in a combination
+   * Throwing a 4-punch combo where 3 punches miss is exhausting
+   * @param {number} punchesThrown - Total punches in combo
+   * @param {number} punchesMissed - Number that missed
+   * @returns {number} - Extra stamina cost for the misses
+   */
+  calculateComboMissStaminaCost(punchesThrown, punchesMissed) {
+    if (punchesThrown === 0 || punchesMissed === 0) return 0;
+
+    // Penalty scales with how many missed
+    // If you throw 4 and miss 3, that's really tiring
+    const missRate = punchesMissed / punchesThrown;
+
+    // High miss rate on combos = extra penalty
+    if (missRate >= 0.75) {
+      // Mostly whiffed - big penalty
+      return punchesMissed * STAMINA_COSTS.miss.comboMissPenalty * 1.5;
+    } else if (missRate >= 0.50) {
+      // Half missed - moderate penalty
+      return punchesMissed * STAMINA_COSTS.miss.comboMissPenalty;
+    } else {
+      // Landed most - small penalty
+      return punchesMissed * STAMINA_COSTS.miss.comboMissPenalty * 0.5;
+    }
+  }
+
+  /**
    * Calculate stamina recovery for this tick
    * Recovery should be meaningful but not instant - fighters need to truly rest to recover
    * Recovery is SLOW - you can't out-recover the cost of fighting
@@ -419,30 +506,35 @@ export class StaminaManager {
 
   /**
    * Get recovery efficiency based on current stamina level
-   * Creates a "ceiling effect" - harder to recover as you approach 100%
-   * This prevents fighters from pinning at max stamina
+   * Creates dynamic recovery that:
+   * - BOOSTS recovery when very low (body wants to recover from exhaustion)
+   * - Normal recovery in mid-range
+   * - Reduces recovery as you approach 100% (ceiling effect)
    */
   getRecoveryCeilingEfficiency(staminaPercent) {
-    // Below 50%: full efficiency
-    if (staminaPercent <= 0.50) return 1.0;
-
-    // 50-70%: gradual decline (100% -> 80%)
-    if (staminaPercent <= 0.70) {
-      return 1.0 - (staminaPercent - 0.50) * 1.0; // 1.0 at 50%, 0.8 at 70%
+    // Very low stamina (0-15%): BOOSTED recovery - body desperately needs energy
+    // This helps fighters climb out of "gassed" tier faster
+    if (staminaPercent <= 0.15) {
+      // 1.5x recovery at 0%, tapering to 1.3x at 15%
+      return 1.5 - (staminaPercent / 0.15) * 0.2;
     }
 
-    // 70-85%: steeper decline (80% -> 40%)
-    if (staminaPercent <= 0.85) {
-      return 0.8 - (staminaPercent - 0.70) * 2.67; // 0.8 at 70%, 0.4 at 85%
+    // Low stamina (15-30%): Moderate boost - still recovering urgently
+    if (staminaPercent <= 0.30) {
+      // 1.3x at 15%, tapering to 1.1x at 30%
+      return 1.3 - ((staminaPercent - 0.15) / 0.15) * 0.2;
     }
 
-    // 85-95%: steep decline (40% -> 10%)
+    // Mid-range (30-90%): Normal recovery
+    if (staminaPercent <= 0.90) return 1.0;
+
+    // 90-95%: gradual decline (100% -> 50%)
     if (staminaPercent <= 0.95) {
-      return 0.4 - (staminaPercent - 0.85) * 3.0; // 0.4 at 85%, 0.1 at 95%
+      return 1.0 - (staminaPercent - 0.90) * 10.0;
     }
 
-    // 95-100%: nearly impossible to recover (10% -> 0%)
-    return Math.max(0, 0.1 - (staminaPercent - 0.95) * 2.0);
+    // 95-100%: steep decline (50% -> 0%) - prevents pinning at max
+    return Math.max(0, 0.5 - (staminaPercent - 0.95) * 10.0);
   }
 
   /**
@@ -608,6 +700,7 @@ export class StaminaManager {
 
   /**
    * Get fatigue penalties for a tier
+   * LOW STAMINA IS A MAJOR DEBUFF - tired fighters perform significantly worse
    * Heart reduces fatigue penalties - elite heart fighters push through exhaustion
    * Holyfield (98 heart) at 'exhausted' tier performs like a normal fighter at 'tired'
    */
@@ -615,29 +708,41 @@ export class StaminaManager {
     const basePenalties = {
       fresh: {},
       good: {
-        power: -3,
-        speed: -2
+        power: -5,
+        speed: -3,
+        reflexes: -2
       },
       tired: {
-        power: -8,
-        speed: -5,
-        accuracy: -5,
-        defense: -5
+        power: -12,
+        speed: -10,
+        accuracy: -8,
+        defense: -10,
+        reflexes: -8,
+        footSpeed: -8
       },
       exhausted: {
-        power: -15,
-        speed: -12,
-        accuracy: -10,
-        defense: -15,
-        movement: -10
+        power: -25,
+        speed: -20,
+        accuracy: -18,
+        defense: -25,
+        movement: -20,
+        reflexes: -18,
+        footSpeed: -18,
+        chin: -10,
+        timing: -15
       },
       gassed: {
-        power: -30,
-        speed: -25,
-        accuracy: -20,
-        defense: -30,
-        movement: -25,
-        chin: -15
+        power: -40,           // Can barely hurt opponent
+        speed: -35,           // Punches are slow and telegraphed
+        accuracy: -30,        // Missing badly
+        defense: -40,         // Can't defend properly
+        movement: -35,        // Legs are gone
+        chin: -25,            // Very vulnerable to KO
+        reflexes: -35,        // Can't react in time
+        footSpeed: -35,       // Can't move out of the way
+        timing: -25,          // No sense of timing left
+        headMovement: -30,    // Can't slip punches
+        blocking: -25         // Guard is dropping
       }
     };
 

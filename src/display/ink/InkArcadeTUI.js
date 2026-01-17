@@ -292,13 +292,14 @@ function CompuBoxPanel({ statsA, statsB, fighterA, fighterB }) {
 }
 
 /**
- * Harold Lederman Scorecard - Round by round scoring
+ * Harold Lederman Scorecard - Compact horizontal layout
+ * Shows round scores in a single row, doesn't grow with rounds
  */
 function LedermanScorecard({ scores, currentRound, fighterA, fighterB }) {
   const theme = useTheme();
 
-  const nameA = fighterA?.getShortName?.() || 'A';
-  const nameB = fighterB?.getShortName?.() || 'B';
+  const nameA = fighterA?.getShortName?.()?.substring(0, 8) || 'A';
+  const nameB = fighterB?.getShortName?.()?.substring(0, 8) || 'B';
 
   // Calculate totals
   let totalA = 0;
@@ -310,45 +311,66 @@ function LedermanScorecard({ scores, currentRound, fighterA, fighterB }) {
     totalB += score.b || 0;
   });
 
+  // Determine leader
+  const leader = totalA > totalB ? 'A' : totalB > totalA ? 'B' : 'EVEN';
+
+  // Build compact round display (show last 6 rounds max)
+  const displayScores = roundScores.slice(-6);
+  const startRound = Math.max(1, roundScores.length - 5);
+
   return e(Box, {
     flexDirection: 'column',
     borderStyle: 'single',
-    borderColor: theme.border,
-    padding: 1,
-    width: 28
+    borderColor: '#FFD700',
+    paddingX: 1,
+    width: 44
   },
-    e(Text, { bold: true, color: '#FFD700' }, "LEDERMAN'S CARD"),
-    e(Box, { height: 1 }),
-
-    // Header
-    e(Box, { flexDirection: 'row' },
-      e(Text, { color: theme.commentary, dimColor: true }, 'RND '),
-      e(Text, { color: theme.fighterA, bold: true }, nameA.substring(0, 6).padEnd(7)),
-      e(Text, { color: theme.fighterB, bold: true }, nameB.substring(0, 6))
-    ),
-
-    // Round scores
-    ...roundScores.slice(0, 12).map((score, i) =>
-      e(Box, { key: i, flexDirection: 'row' },
-        e(Text, { color: theme.commentary }, ` ${(i + 1).toString().padStart(2)}  `),
-        e(Text, { color: score.a > score.b ? theme.fighterA : theme.foreground }, `${score.a}`.padEnd(7)),
-        e(Text, { color: score.b > score.a ? theme.fighterB : theme.foreground }, `${score.b}`)
+    // Header with totals
+    e(Box, { flexDirection: 'row', justifyContent: 'space-between' },
+      e(Text, { bold: true, color: '#FFD700' }, "LEDERMAN'S CARD"),
+      e(Text, { bold: true, color: theme.foreground },
+        `${totalA}-${totalB} ${leader !== 'EVEN' ? (leader === 'A' ? nameA : nameB) : 'EVEN'}`
       )
     ),
 
-    // Show placeholder for current round if in progress
-    currentRound > roundScores.length && e(Box, { flexDirection: 'row' },
-      e(Text, { color: theme.commentary }, ` ${currentRound.toString().padStart(2)}  `),
-      e(Text, { color: theme.commentary, dimColor: true }, '-      -')
+    // Round numbers row
+    e(Box, { flexDirection: 'row', marginTop: 1 },
+      e(Text, { color: theme.commentary, dimColor: true }, '     '),
+      ...displayScores.map((_, i) =>
+        e(Text, { key: `r${i}`, color: theme.commentary, dimColor: true },
+          `R${(startRound + i).toString().padStart(2)} `
+        )
+      ),
+      currentRound > roundScores.length &&
+        e(Text, { color: theme.round, bold: true }, `R${currentRound.toString().padStart(2)}*`)
     ),
 
-    e(Box, { height: 1 }),
-
-    // Totals
+    // Fighter A scores
     e(Box, { flexDirection: 'row' },
-      e(Text, { bold: true, color: theme.commentary }, 'TOT '),
-      e(Text, { bold: true, color: totalA >= totalB ? theme.fighterA : theme.foreground }, `${totalA}`.padEnd(7)),
-      e(Text, { bold: true, color: totalB >= totalA ? theme.fighterB : theme.foreground }, `${totalB}`)
+      e(Text, { color: theme.fighterA, bold: true }, nameA.padEnd(5).substring(0, 5)),
+      ...displayScores.map((score, i) =>
+        e(Text, {
+          key: `a${i}`,
+          color: score.a > score.b ? theme.fighterA : theme.foreground,
+          bold: score.a > score.b
+        }, ` ${score.a}  `)
+      ),
+      currentRound > roundScores.length &&
+        e(Text, { color: theme.commentary, dimColor: true }, '  -  ')
+    ),
+
+    // Fighter B scores
+    e(Box, { flexDirection: 'row' },
+      e(Text, { color: theme.fighterB, bold: true }, nameB.padEnd(5).substring(0, 5)),
+      ...displayScores.map((score, i) =>
+        e(Text, {
+          key: `b${i}`,
+          color: score.b > score.a ? theme.fighterB : theme.foreground,
+          bold: score.b > score.a
+        }, ` ${score.b}  `)
+      ),
+      currentRound > roundScores.length &&
+        e(Text, { color: theme.commentary, dimColor: true }, '  -  ')
     )
   );
 }
@@ -369,7 +391,7 @@ function RoundTimer({ round, time, maxRounds = 12, isPaused }) {
     paddingX: 3,
     paddingY: 1
   },
-    e(Text, { bold: true, color: theme.round }, `ROUND ${round} of ${maxRounds}`),
+    e(Text, { bold: true, color: theme.round }, `ROUND ${round} (${maxRounds - round + 1} left)`),
     e(Text, { bold: true, color: theme.timer }, `${mins}:${secs.toString().padStart(2, '0')}`),
     isPaused && e(Text, { color: theme.hurt, bold: true }, 'PAUSED')
   );
@@ -440,7 +462,7 @@ function ActionPanel({ actions = [], maxActions = 4 }) {
     borderStyle: 'single',
     borderColor: theme.border,
     padding: 1,
-    width: 32
+    width: 44
   },
     e(Text, { bold: true, color: theme.punch }, ' RECENT ACTION'),
     e(Box, { marginTop: 1, flexDirection: 'column' },
@@ -578,14 +600,54 @@ function FightDisplay({ fight, simulation, tui }) {
         setRound(data.round);
         setTime(0);
         setIsBetweenRounds(false);
-        addCommentary(`LAMPLEY: Round ${data.round} is underway!`);
+
+        const nameA = fight.fighterA.getShortName();
+        const nameB = fight.fighterB.getShortName();
+        const staminaA = stateA?.stamina?.percent || 1;
+        const staminaB = stateB?.stamina?.percent || 1;
+        const healthA = stateA?.damage?.headPercent != null ? (1 - stateA.damage.headPercent) : 1;
+        const healthB = stateB?.damage?.headPercent != null ? (1 - stateB.damage.headPercent) : 1;
+
+        if (data.round === 1) {
+          addCommentary(`LAMPLEY: The bell sounds and we are UNDERWAY!`);
+        } else if (data.round >= 10) {
+          addCommentary(`LAMPLEY: Championship rounds! Round ${data.round} begins!`);
+          addCommentary(`MERCHANT: This is where legends are made. Who wants it more?`);
+        } else {
+          const openers = [
+            `LAMPLEY: Round ${data.round} is underway!`,
+            `LAMPLEY: Here we go, round ${data.round}!`,
+            `LAMPLEY: The bell sounds for round ${data.round}.`
+          ];
+          addCommentary(openers[Math.floor(Math.random() * openers.length)]);
+        }
+
+        // Tactical observations based on fighter states
         if (data.round > 1) {
-          addCommentary(`FOREMAN: Both fighters coming out ${Math.random() > 0.5 ? 'aggressively' : 'cautiously'} to start this round.`);
+          if (staminaA < 0.5 && staminaB > 0.7) {
+            addCommentary(`FOREMAN: ${nameA} looks tired coming out. ${nameB} needs to capitalize.`);
+          } else if (staminaB < 0.5 && staminaA > 0.7) {
+            addCommentary(`FOREMAN: ${nameB} is showing fatigue. ${nameA} should push the pace.`);
+          } else if (healthA < 0.5) {
+            addCommentary(`MERCHANT: ${nameA} took a lot of damage last round. Can he recover?`);
+          } else if (healthB < 0.5) {
+            addCommentary(`MERCHANT: ${nameB} is hurt. ${nameA} needs to go for the finish.`);
+          } else if (Math.random() > 0.5) {
+            const insights = [
+              `FOREMAN: Both fighters look fresh coming out of the corner.`,
+              `MERCHANT: The corner work is paying off. Both men look ready.`,
+              `FOREMAN: Watch for adjustments here. Good corners make changes.`
+            ];
+            addCommentary(insights[Math.floor(Math.random() * insights.length)]);
+          }
         }
       },
 
       roundEnd: (data) => {
         setIsBetweenRounds(true);
+
+        const nameA = fight.fighterA.getShortName();
+        const nameB = fight.fighterB.getShortName();
 
         // Score the round
         const statsAround = stateA?.fightStats || statsA;
@@ -607,11 +669,37 @@ function FightDisplay({ fight, simulation, tui }) {
 
         addCommentary(`LAMPLEY: That's the end of Round ${data.round}!`);
 
-        // Lederman commentary
+        // Insightful round analysis
+        const landedDiff = Math.abs(landedA - landedB);
+        if (kdA > 0 || kdB > 0) {
+          const knockedDown = kdA > 0 ? nameA : nameB;
+          const scorer = kdA > 0 ? nameB : nameA;
+          addCommentary(`MERCHANT: That knockdown makes it a clear round for ${scorer}.`);
+        } else if (landedDiff > 10) {
+          const winner = landedA > landedB ? nameA : nameB;
+          addCommentary(`FOREMAN: ${winner} dominated that round. Landed ${Math.max(landedA, landedB)} punches.`);
+        } else if (landedDiff <= 3) {
+          addCommentary(`MERCHANT: Very close round. Could go either way on the cards.`);
+        } else {
+          const roundWinner = scoreA > scoreB ? nameA : nameB;
+          addCommentary(`FOREMAN: I give that round to ${roundWinner}. Good work.`);
+        }
+
+        // Lederman's scoring
         const totalA = roundScores.reduce((sum, s) => sum + s.a, 0) + scoreA;
         const totalB = roundScores.reduce((sum, s) => sum + s.b, 0) + scoreB;
-        const leader = totalA > totalB ? fight.fighterA.getShortName() : fight.fighterB.getShortName();
-        addCommentary(`LEDERMAN: I have it ${totalA}-${totalB}. ${leader} is ahead on my card.`);
+        const leader = totalA > totalB ? nameA : totalB > totalA ? nameB : null;
+        const margin = Math.abs(totalA - totalB);
+
+        if (leader) {
+          if (margin >= 3) {
+            addCommentary(`LEDERMAN: I have it ${totalA}-${totalB}. ${leader} is building a lead.`);
+          } else {
+            addCommentary(`LEDERMAN: My card shows ${totalA}-${totalB}. ${leader} narrowly ahead.`);
+          }
+        } else {
+          addCommentary(`LEDERMAN: I have it ${totalA}-${totalB}. Dead even on my card!`);
+        }
       },
 
       punchLanded: (data) => {
@@ -621,39 +709,84 @@ function FightDisplay({ fight, simulation, tui }) {
         const defender = data.attacker === 'A'
           ? fight.fighterB.getShortName()
           : fight.fighterA.getShortName();
+        const attackerFighter = data.attacker === 'A' ? fight.fighterA : fight.fighterB;
+        const defenderState = data.attacker === 'A' ? stateB : stateA;
+        const attackerState = data.attacker === 'A' ? stateA : stateB;
         const punchName = formatPunch(data.punchType);
         const damage = data.damage || 0;
+        const isBody = data.punchType?.includes('body');
 
         // Always add to action log
         const actionText = `${attacker} lands ${punchName}`;
         const isBig = damage >= 5;
         addAction({ text: actionText, highlight: isBig, isBig });
 
-        // Commentary based on damage
+        // Commentary based on damage and context
         const now = Date.now();
         const timeSinceLastCommentary = now - lastCommentaryTime.current;
+        const defenderStamina = defenderState?.stamina?.percent || 1;
+        const defenderHealth = defenderState?.damage?.headPercent != null ? (1 - defenderState.damage.headPercent) : 1;
+        const attackerStyle = attackerFighter.style?.primary || 'boxer';
 
         if (damage >= 8) {
-          // Devastating shot - always comment
+          // Devastating shot - always comment with tactical insight
           addCommentary(`LAMPLEY: OH! ${attacker.toUpperCase()} LANDS A HUGE ${punchName.toUpperCase()}!`);
-          addCommentary(`FOREMAN: That hurt ${defender}! You can see it in his legs!`);
+          const insights = [
+            `FOREMAN: That hurt ${defender}! You can see it in his legs!`,
+            `FOREMAN: ${defender}'s eyes went glassy for a second there! He felt that one!`,
+            `MERCHANT: That's the punch ${attacker} has been setting up all night!`,
+            `FOREMAN: ${defender} took that right on the chin. His equilibrium is gone!`
+          ];
+          addCommentary(insights[Math.floor(Math.random() * insights.length)]);
           lastCommentaryTime.current = now;
-        } else if (damage >= 5 && timeSinceLastCommentary > 2000) {
-          // Big shot - comment if not too recent
+        } else if (damage >= 5 && timeSinceLastCommentary > 1500) {
+          // Big shot - tactical commentary
           const comments = [
             `LAMPLEY: Beautiful ${punchName} by ${attacker}!`,
-            `FOREMAN: ${attacker} is finding a home for that ${punchName}.`,
-            `MERCHANT: That's the kind of punch that wins rounds.`
+            `FOREMAN: ${attacker} is timing that ${punchName} perfectly.`,
+            `MERCHANT: That's the kind of punch that wins rounds.`,
+            `LAMPLEY: ${attacker} is starting to find his range now!`,
+            `FOREMAN: ${defender} walked right into that one!`
           ];
           addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+
+          // Add tactical follow-up based on context
+          if (defenderHealth < 0.5 && Math.random() > 0.5) {
+            addCommentary(`MERCHANT: ${defender} is absorbing a lot of punishment. How much more can he take?`);
+          } else if (isBody && Math.random() > 0.6) {
+            addCommentary(`FOREMAN: That body work is going to pay dividends in the later rounds.`);
+          }
           lastCommentaryTime.current = now;
-        } else if (damage >= 3 && timeSinceLastCommentary > 4000 && Math.random() > 0.6) {
-          // Solid shot - occasional comment
-          const comments = [
-            `LAMPLEY: Good ${punchName} lands for ${attacker}.`,
-            `FOREMAN: ${attacker} is working well tonight.`
+        } else if (damage >= 3 && timeSinceLastCommentary > 3000) {
+          // Solid shot - style-based commentary
+          if (Math.random() > 0.4) {
+            const styleComments = {
+              'swarmer': [`FOREMAN: ${attacker} keeps the pressure on!`, `LAMPLEY: ${attacker} is smothering ${defender} with punches.`],
+              'out-boxer': [`MERCHANT: ${attacker} is boxing beautifully from the outside.`, `LAMPLEY: That jab is finding a home.`],
+              'slugger': [`FOREMAN: ${attacker} is loading up on every punch!`, `LAMPLEY: ${attacker} looking for the big one.`],
+              'counter-puncher': [`MERCHANT: Beautiful timing from ${attacker}.`, `FOREMAN: ${attacker} is making ${defender} pay for every miss.`],
+              'boxer-puncher': [`LAMPLEY: ${attacker} showing his versatility tonight.`, `FOREMAN: He can box and he can punch!`]
+            };
+            const comments = styleComments[attackerStyle] || [`LAMPLEY: Good ${punchName} lands for ${attacker}.`];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastCommentaryTime.current = now;
+          }
+        } else if (timeSinceLastCommentary > 6000 && Math.random() > 0.7) {
+          // Periodic insight even on lighter action
+          const insights = [
+            `FOREMAN: ${attacker} is staying busy. That's good ring generalship.`,
+            `MERCHANT: The punch stats are starting to favor ${attacker} in this round.`,
+            `LAMPLEY: ${attacker} is controlling the distance well.`,
+            `FOREMAN: I like what ${attacker} is doing here. Smart boxing.`
           ];
-          addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+          if (defenderStamina < 0.4) {
+            insights.push(`MERCHANT: ${defender} is slowing down. You can see the fatigue setting in.`);
+            insights.push(`FOREMAN: ${defender}'s punch output has dropped. He looks tired.`);
+          }
+          if (attackerState?.stamina?.percent < 0.4) {
+            insights.push(`LAMPLEY: ${attacker} is breathing heavy. This pace might be catching up with him.`);
+          }
+          addCommentary(insights[Math.floor(Math.random() * insights.length)]);
           lastCommentaryTime.current = now;
         }
       },
@@ -665,30 +798,79 @@ function FightDisplay({ fight, simulation, tui }) {
         const scorer = data.fighter === 'A'
           ? fight.fighterB.getShortName()
           : fight.fighterA.getShortName();
+        const downedState = data.fighter === 'A' ? stateA : stateB;
+        const knockdownCount = downedState?.knockdowns?.total || 1;
 
         addAction({ text: `KNOCKDOWN! ${downed} IS DOWN!`, highlight: true });
         addCommentary(`LAMPLEY: DOWN GOES ${downed.toUpperCase()}! DOWN GOES ${downed.toUpperCase()}!`);
-        addCommentary(`FOREMAN: ${scorer} caught him clean! The referee is counting!`);
+
+        // Contextual follow-up
+        const followUps = [
+          `FOREMAN: ${scorer} caught him clean! That punch had bad intentions!`,
+          `MERCHANT: ${downed} didn't see that coming! Perfect timing from ${scorer}!`,
+          `FOREMAN: Look at ${downed}'s legs! They're all over the place!`,
+          `MERCHANT: That's the kind of punch that changes fights!`
+        ];
+        addCommentary(followUps[Math.floor(Math.random() * followUps.length)]);
+
+        if (knockdownCount >= 2) {
+          addCommentary(`LAMPLEY: That's the ${knockdownCount === 2 ? 'second' : 'third'} knockdown! ${downed} is in serious trouble!`);
+        }
+
         setKnockdownOverlay({ fighter: downed, count: 1 });
         lastCommentaryTime.current = Date.now();
       },
 
       count: (data) => {
         setKnockdownOverlay(prev => prev ? { ...prev, count: data.count } : null);
+        if (data.count === 8) {
+          addCommentary(`LAMPLEY: The count reaches eight... can he beat it?`);
+        }
       },
 
       recovered: () => {
+        const fighter = knockdownOverlay?.fighter || 'He';
         setKnockdownOverlay(null);
-        addCommentary(`LAMPLEY: He's up! The fight continues!`);
+        const recoveries = [
+          `LAMPLEY: ${fighter} is up! The fight continues!`,
+          `FOREMAN: ${fighter} beats the count! But look at those legs!`,
+          `MERCHANT: ${fighter} is back up, but is he really there?`,
+          `LAMPLEY: ${fighter} survives! Can he hold on?`
+        ];
+        addCommentary(recoveries[Math.floor(Math.random() * recoveries.length)]);
       },
 
       hurt: (data) => {
         const hurt = data.fighter === 'A'
           ? fight.fighterA.getShortName()
           : fight.fighterB.getShortName();
+        const attacker = data.fighter === 'A'
+          ? fight.fighterB.getShortName()
+          : fight.fighterA.getShortName();
+        const hurtState = data.fighter === 'A' ? stateA : stateB;
+        const stamina = hurtState?.stamina?.percent || 1;
+
         addAction({ text: `${hurt} IS HURT!`, highlight: true });
-        addCommentary(`LAMPLEY: ${hurt} is in trouble!`);
-        addCommentary(`FOREMAN: He needs to hold on here!`);
+
+        const hurtCalls = [
+          `LAMPLEY: ${hurt} is in trouble! He's hurt badly!`,
+          `LAMPLEY: ${hurt} is HURT! His legs buckled!`,
+          `LAMPLEY: OH! ${hurt} is in serious trouble here!`
+        ];
+        addCommentary(hurtCalls[Math.floor(Math.random() * hurtCalls.length)]);
+
+        // Tactical follow-up based on stamina
+        if (stamina < 0.3) {
+          addCommentary(`FOREMAN: ${hurt} is exhausted AND hurt! This could be it!`);
+        } else {
+          const insights = [
+            `FOREMAN: ${attacker} smells blood! He needs to finish this!`,
+            `MERCHANT: ${hurt} needs to survive these next few seconds!`,
+            `FOREMAN: This is the moment! ${attacker} has to capitalize NOW!`,
+            `MERCHANT: ${hurt}'s legs are gone! Can he hold on?`
+          ];
+          addCommentary(insights[Math.floor(Math.random() * insights.length)]);
+        }
         lastCommentaryTime.current = Date.now();
       },
 
@@ -806,17 +988,19 @@ function FightDisplay({ fight, simulation, tui }) {
       e(FighterPanel, { fighter: fight.fighterB, state: stateB, corner: 'B', stats: statsB })
     ),
 
-    // Row 2: Ring + Action log
+    // Row 2: Ring + Action log + Lederman Scorecard (horizontal)
     e(Box, { flexDirection: 'row', padding: 1, gap: 1 },
       e(RingDisplay, { positions }),
-      e(ActionPanel, { actions, maxActions: 5 })
+      e(Box, { flexDirection: 'column', gap: 1 },
+        e(ActionPanel, { actions, maxActions: 4 }),
+        e(LedermanScorecard, { scores: roundScores, currentRound: round, fighterA: fight.fighterA, fighterB: fight.fighterB })
+      )
     ),
 
-    // Row 3: CompuBox + Lederman Scorecard + Commentary
+    // Row 3: CompuBox + Commentary (now wider without Lederman)
     e(Box, { flexDirection: 'row', padding: 1, gap: 1 },
       e(CompuBoxPanel, { statsA, statsB, fighterA: fight.fighterA, fighterB: fight.fighterB }),
-      e(LedermanScorecard, { scores: roundScores, currentRound: round, fighterA: fight.fighterA, fighterB: fight.fighterB }),
-      e(CommentaryPanel, { lines: commentary, maxLines: 5 })
+      e(CommentaryPanel, { lines: commentary, maxLines: 6 })
     ),
 
     // Status bar
@@ -898,6 +1082,10 @@ export class InkArcadeTUI {
   }
 
   destroy() {
+    // Stop the simulation first
+    if (this.simulation) {
+      this.simulation.stop();
+    }
     if (this.inkInstance) {
       this.inkInstance.unmount();
     }

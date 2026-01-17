@@ -512,19 +512,21 @@ export class Fight {
     if (knockdownsA > 0) {
       // A was knocked down, B scores the knockdown
       scoreA -= knockdownsA * kdWeight;
-      // Also, whoever scored the knockdown usually wins the round even if close
-      if (diff < 0 && knockdownsB === 0) {
-        // B was winning on points but A scored a knockdown - reverses the round
-        scoreB = Math.max(9, scoreB);
+      // If A was winning on points but got knocked down, B should win the round (reversal)
+      if (diff > 0 && knockdownsB === 0) {
+        // A was winning on points but B knocked A down - B takes the round
+        scoreB = 10;
+        scoreA = Math.min(scoreA, 9);  // A can't win after getting knocked down while "winning"
       }
     }
     if (knockdownsB > 0) {
       // B was knocked down, A scores the knockdown
       scoreB -= knockdownsB * kdWeight;
-      // Knockdown scorer should win the round
-      if (diff > 0 && knockdownsA === 0) {
-        // A was winning on points but B scored a knockdown - reverses the round
-        scoreA = Math.max(9, scoreA);
+      // If B was winning on points but got knocked down, A should win the round (reversal)
+      if (diff < 0 && knockdownsA === 0) {
+        // B was winning on points but A knocked B down - A takes the round
+        scoreA = 10;
+        scoreB = Math.min(scoreB, 9);  // B can't win after getting knocked down while "winning"
       }
     }
 

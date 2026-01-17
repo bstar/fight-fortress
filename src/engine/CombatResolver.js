@@ -555,20 +555,31 @@ export class CombatResolver {
     const reachDiff = attackerReach - defenderReach; // Positive = attacker has longer reach
 
     if (reachDiff !== 0 && distance >= 3.5) {
-      // At long range (3.5+), reach advantage matters
-      // REDUCED: Was too dominant, reach is helpful but not everything
-      // +10cm reach = ~3.5% accuracy bonus at range
-      // +23cm reach (like Lewis vs Holyfield) = ~8% bonus
-      // +33cm reach (like Lewis vs Tyson) = ~11.5% bonus at peak distance
-      const reachBonus = (reachDiff / 100) * 0.35;  // Reduced from 0.5
+      // At long range (3.5+), reach advantage matters SIGNIFICANTLY
+      // This is a major factor in boxing - Lewis's jab was a weapon Tyson couldn't match
+      // +10cm reach = ~6% accuracy bonus at range
+      // +23cm reach (like Lewis vs Holyfield) = ~14% bonus
+      // +33cm reach (like Lewis vs Tyson) = ~20% bonus at peak distance
+      const reachBonus = (reachDiff / 100) * 0.6;  // Increased from 0.35
       const distanceFactor = Math.min(2.0, distance / 3.5);
       accuracy *= 1 + (reachBonus * distanceFactor);
+
+      // ALSO: Longer reach means opponent's punches fall short more often
+      // Apply penalty to the shorter fighter's accuracy when they try to reach
+      // (This is handled via the negative reachDiff for the attacker)
     } else if (reachDiff < 0 && distance < 2.5) {
       // At close range, shorter fighter can get UNDER longer reach
-      // INCREASED: Tyson's style was built to nullify reach advantages inside
-      // Shorter reach is a real advantage in the phone booth
-      const insideBonus = Math.abs(reachDiff / 100) * 0.35;  // Increased from 0.15
+      // Tyson's style was built to nullify reach advantages inside
+      // Shorter reach is an advantage in the phone booth
+      const insideBonus = Math.abs(reachDiff / 100) * 0.30;  // Reduced from 0.35 - inside shouldn't fully compensate
       accuracy *= 1 + insideBonus;
+    } else if (reachDiff < 0 && distance >= 3.5) {
+      // CRITICAL: Shorter reach fighter trying to hit from distance = MAJOR penalty
+      // Tyson at range can't reach Lewis effectively
+      // This is why Tyson HAD to get inside
+      const reachPenalty = Math.abs(reachDiff / 100) * 0.5;  // 33cm disadvantage = 16.5% penalty
+      const distanceFactor = Math.min(2.0, distance / 3.5);
+      accuracy *= 1 - (reachPenalty * distanceFactor * 0.5);
     }
 
     // Defender style bonus - rangy boxers are harder to hit at distance
@@ -592,15 +603,15 @@ export class CombatResolver {
     }
 
     // Inside fighting bonus - sluggers and inside fighters excel at close range
-    // INCREASED: Tyson with 98 insideFighting should dominate in the phone booth
+    // But this shouldn't completely negate reach disadvantage
     const attackerStyle = attacker.style?.primary;
     if (distance < 3.5 && (attackerStyle === 'slugger' || attackerStyle === 'inside-fighter' || attackerStyle === 'swarmer')) {
       // Inside fighting skill bonus for close range
-      // 98 insideFighting = 58% bonus (increased from 39%)
-      accuracy *= 1.0 + (attacker.technical?.insideFighting || 50) / 170;
-      // Power punches are especially effective inside
+      // 98 insideFighting = 39% bonus (reduced from 58%)
+      accuracy *= 1.0 + (attacker.technical?.insideFighting || 50) / 250;
+      // Power punches are effective inside but not overwhelmingly so
       if (!punchType.includes('jab')) {
-        accuracy *= 1.15;  // Increased from 1.1
+        accuracy *= 1.10;  // Reduced from 1.15
       }
     }
 

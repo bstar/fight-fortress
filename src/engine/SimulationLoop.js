@@ -494,6 +494,11 @@ export class SimulationLoop extends EventEmitter {
       await this.applyDamage(combatResult);
     }
 
+    // Apply stamina penalty for misses (swinging and missing is tiring)
+    if (combatResult.misses.length > 0) {
+      this.applyMissStaminaCost(combatResult.misses);
+    }
+
     // Update stamina
     this.updateStamina(decisionA, decisionB);
 
@@ -988,6 +993,62 @@ export class SimulationLoop extends EventEmitter {
         // Trigger effects manager for hurt
         const opponentId = hit.target === 'A' ? 'B' : 'A';
         this.effectsManager.onFighterHurt(hit.target, opponentId, { damage });
+
+        // Record hurt in fighter AI memory for behavioral adaptation
+        if (this.fighterAI) {
+          this.fighterAI.recordHurt(hit.target, round.number, round.currentTime);
+        }
+      }
+    }
+  }
+
+  /**
+   * Apply stamina cost for missed punches
+   * Swinging and missing is exhausting - especially power punches
+   */
+  applyMissStaminaCost(misses) {
+    if (!this.staminaManager || !misses || misses.length === 0) return;
+
+    // Group misses by attacker
+    const missesByFighter = { A: [], B: [] };
+    for (const miss of misses) {
+      if (miss.attacker === 'A' || miss.attacker === 'B') {
+        missesByFighter[miss.attacker].push(miss);
+      }
+    }
+
+    // Apply miss penalty for each fighter
+    for (const [fighterId, fighterMisses] of Object.entries(missesByFighter)) {
+      if (fighterMisses.length === 0) continue;
+
+      const fighter = this.fight.getFighter(fighterId);
+      let totalMissCost = 0;
+
+      // Check if this was a combination (multiple punches from same fighter)
+      const isCombo = fighterMisses.length >= 2;
+
+      for (const miss of fighterMisses) {
+        // Check if this was a wild swing/haymaker (power shot with low stamina or when hurt)
+        const isWildSwing = miss.punchType === 'rear_hook' ||
+                           miss.punchType === 'rear_uppercut' ||
+                           (miss.punchType === 'cross' && fighter.getStaminaPercent() < 0.3);
+
+        const missCost = this.staminaManager.calculateMissStaminaCost(miss.punchType, isWildSwing);
+        totalMissCost += missCost;
+      }
+
+      // Add combo miss penalty if applicable
+      if (isCombo) {
+        const comboMissCost = this.staminaManager.calculateComboMissStaminaCost(
+          fighterMisses.length,
+          fighterMisses.length // All missed in this context
+        );
+        totalMissCost += comboMissCost;
+      }
+
+      // Apply the extra miss cost
+      if (totalMissCost > 0) {
+        fighter.spendStamina(totalMissCost);
       }
     }
   }
@@ -1152,6 +1213,11 @@ export class SimulationLoop extends EventEmitter {
       punchType: knockdown.punchType,
       flash: isFlash
     });
+
+    // Record knockdown in fighter AI memory for behavioral adaptation
+    if (this.fighterAI) {
+      this.fighterAI.recordKnockdown(knockdown.target, round.number);
+    }
 
     // Check for three knockdown rule
     if (this.fight.referee.rules.threeKnockdownRule && fighter.knockdownsThisRound >= 3) {
@@ -1479,6 +1545,9 @@ export class SimulationLoop extends EventEmitter {
     const round = this.fight.getCurrentRound();
     const referee = this.fight.referee;
 
+    // Get the opponent (potential finisher)
+    const opponent = fighterId === 'A' ? this.fight.fighterB : this.fight.fighterA;
+
     let stopProbability = 0;
     let type = StoppageType.TKO_REFEREE;
 
@@ -1541,7 +1610,36 @@ export class SimulationLoop extends EventEmitter {
 
     // Hurt AND recently knocked down = high stop chance
     if (fighter.isHurt && fighter.knockdownsThisRound >= 1) {
-      stopProbability += 0.3;
+      stopProbability += 0.35;
+    }
+
+    // ELITE FINISHER BONUS: When opponent is an elite finisher and target is hurt/knocked down
+    // Fighters like Tyson rarely let hurt opponents survive
+    const koPower = opponent.power?.knockoutPower || 70;
+    const killerInstinct = opponent.mental?.killerInstinct || 70;
+    const finisherRating = (koPower * 0.6 + killerInstinct * 0.4) / 100;  // 0-1 scale
+
+    // Bonus scales STEEPLY above 0.90 - Tyson (0.97) gets much more than Lewis (0.89)
+    // finisher bonus = (rating - 0.85) * 2.5, so 0.97 = 0.30, 0.89 = 0.10
+    const eliteBonus = finisherRating > 0.85 ? (finisherRating - 0.85) * 2.5 : 0;
+
+    if (finisherRating > 0.90) {  // ELITE finishers only (Tyson: 0.97)
+      // Devastating finishing ability when opponent is vulnerable
+      // Tyson rarely let hurt opponents survive - his finishing was legendary
+      if (fighter.isHurt) {
+        stopProbability += 0.40 * (1 + eliteBonus);  // Tyson: +0.40 * 1.3 = +0.52
+      }
+      if (fighter.knockdownsThisRound >= 1) {
+        stopProbability += 0.45 * (1 + eliteBonus);  // Tyson: +0.45 * 1.3 = +0.585
+      }
+      // Extra bonus when both conditions met (hurt AND recently knocked down)
+      if (fighter.isHurt && fighter.knockdownsThisRound >= 1) {
+        stopProbability += 0.25;  // Iron Mike smells blood - devastating finisher
+      }
+    } else if (finisherRating > 0.80) {  // Good finishers (Lewis: 0.89)
+      if (fighter.isHurt && fighter.knockdownsThisRound >= 1) {
+        stopProbability += 0.12 * finisherRating;  // Lewis: +0.12 * 0.89 = +0.11
+      }
     }
 
     // Hurt state for extended period while taking damage
@@ -1567,11 +1665,15 @@ export class SimulationLoop extends EventEmitter {
     }
 
     // Apply referee protectiveness (ranges from 0.3 to 0.7 typically)
-    stopProbability *= referee.protectiveness;
+    // But knockdown situations have higher base probability - ref is already watching closely
+    const hasRecentKnockdown = fighter.knockdownsThisRound >= 1;
+    const protectivenessMod = hasRecentKnockdown ? 0.8 : referee.protectiveness;
+    stopProbability *= protectivenessMod;
 
-    // Very high threshold - TKOs should be rare without knockdowns
-    // Only stop when there's a clear case for fighter safety
-    const shouldStop = stopProbability > 0.5 && Math.random() < stopProbability * 0.15;
+    // Threshold for TKO - when conditions warrant, stoppages should happen
+    // Moderate multiplier for knockdowns, elite finishers get extra from the bonus above
+    const tkoMultiplier = hasRecentKnockdown ? 0.55 : 0.35;
+    const shouldStop = stopProbability > 0.40 && Math.random() < stopProbability * tkoMultiplier;
 
     return { shouldStop, type, probability: stopProbability };
   }

@@ -408,7 +408,9 @@ export class SimpleTUI {
     };
 
     this.addCommentary('');
-    this.addCommentary(`{bold}=== ROUND ${data.round} ==={/bold}`);
+    const totalRounds = this.fight?.config?.rounds || 12;
+    const roundsRemaining = totalRounds - data.round + 1;
+    this.addCommentary(`{bold}=== ROUND ${data.round} of ${totalRounds} (${roundsRemaining} remaining) ==={/bold}`);
 
     // Generate commentary using the broadcast team
     const commentary = this.commentaryGenerator.generate(event, fightState);
@@ -454,7 +456,11 @@ export class SimpleTUI {
     };
 
     this.addCommentary('');
-    this.addCommentary(`{bold}End of Round ${data.round}{/bold}`);
+    const roundsLeft = (this.fight?.config?.rounds || 12) - data.round;
+    const roundEndText = roundsLeft > 0
+      ? `{bold}End of Round ${data.round} - ${roundsLeft} rounds to go{/bold}`
+      : `{bold}End of Round ${data.round} - FINAL ROUND COMPLETE{/bold}`;
+    this.addCommentary(roundEndText);
 
     // Generate commentary using the broadcast team
     const commentary = this.commentaryGenerator.generate(event, fightState);
@@ -1003,10 +1009,12 @@ export class SimpleTUI {
     const remSecs = Math.floor(remaining % 60);
     const remStr = `${remMins}:${remSecs.toString().padStart(2, '0')}`;
 
+    const totalRounds = this.fight?.config?.rounds || 12;
+    const roundsRemaining = totalRounds - this.currentRound + 1;
     const content = [
-      `{center}{bold}ROUND ${this.currentRound}{/bold}{/center}`,
-      '',
-      `{center}{bold}${remStr}{/bold} remaining{/center}`
+      `{center}{bold}ROUND ${this.currentRound} of ${totalRounds}{/bold}{/center}`,
+      `{center}(${roundsRemaining} rounds left){/center}`,
+      `{center}{bold}${remStr}{/bold} in round{/center}`
     ].join('\n');
 
     this.boxes.timer.setContent(content);

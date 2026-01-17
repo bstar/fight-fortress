@@ -157,8 +157,10 @@ export class DamageCalculator {
     threshold += target.mental.experience / 10;
 
     // Reduce threshold based on accumulated damage
+    // Cumulative damage wears down the fighter significantly
+    // A fighter who has taken 50% damage is much more susceptible to knockdowns
     const damagePercent = target.getHeadDamagePercent();
-    threshold *= (1 - damagePercent * 0.4);
+    threshold *= (1 - damagePercent * 0.55);  // Increased from 0.4
 
     // Reduce threshold based on stamina
     const staminaPercent = target.getStaminaPercent();
@@ -223,8 +225,15 @@ export class DamageCalculator {
       }
     }
 
-    // Multiple knockdowns
-    probability += target.knockdownsThisRound * 0.15;
+    // Multiple knockdowns - knockdowns in a round are very significant
+    // First knockdown adds moderate chance, subsequent ones escalate quickly
+    if (target.knockdownsThisRound === 1) {
+      probability += 0.20;  // First knockdown
+    } else if (target.knockdownsThisRound === 2) {
+      probability += 0.45;  // Two knockdowns - very dangerous
+    } else if (target.knockdownsThisRound >= 3) {
+      probability += 0.70;  // Three or more - likely stoppage
+    }
 
     // Severe cuts
     for (const cut of target.cuts) {

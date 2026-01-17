@@ -27,7 +27,7 @@ style:
 power:
   powerLeft: 82
   powerRight: 94              # Devastating right hand - KO'd Tyson, Rahman, Golota
-  knockoutPower: 92           # 32 KOs in 41 wins, elite heavyweight power - stopped Holyfield
+  knockoutPower: 94           # Raised from 92 - 32 KOs in 41 wins, stopped Tyson/Holyfield/Rahman, elite power
   bodyPunching: 78
   punchingStamina: 80
 
@@ -73,7 +73,7 @@ technical:
   fightIQ: 90
 
 mental:
-  chin: 82               # Decent chin but vulnerable when caught clean - KO'd cold by McCall, Rahman with single shots
+  chin: 85               # Raised from 82 - actually fairly durable, McCall/Rahman were mental lapses not weak chin
   heart: 82              # Solid heart - came back from adversity (Rahman rematch, Vitali fight)
   killerInstinct: 82     # Would finish opponents when he had them hurt
   composure: 88          # Very calm, methodical fighter - rarely rattled

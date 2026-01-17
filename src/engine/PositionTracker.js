@@ -34,6 +34,55 @@ const DISTANCE_ZONES = {
   outOfRange: { min: 6.5, max: Infinity }
 };
 
+/**
+ * Calculate distance control modifier based on reach and distanceManagement
+ * Returns modifiers for closing and retreating effectiveness
+ *
+ * Key insight: When Tyson (short reach) tries to close on Lewis (long reach),
+ * Tyson's closing should be PENALIZED because Lewis controls the range.
+ * The OPPONENT's reach/distanceManagement works AGAINST the fighter's closing.
+ */
+function calculateDistanceControlModifiers(fighter, opponent) {
+  const fighterReach = fighter.physical?.reach || 180;
+  const opponentReach = opponent.physical?.reach || 180;
+
+  const fighterDistMgmt = fighter.technical?.distanceManagement || 50;
+  const opponentDistMgmt = opponent.technical?.distanceManagement || 50;
+
+  // CLOSING EFFICIENCY: Penalized by OPPONENT's reach/distance management
+  // Tyson closing on Lewis: Lewis's +33cm reach should hurt Tyson's closing
+  const opponentReachAdvantage = (opponentReach - fighterReach) / 50;  // Lewis has +0.66
+  const opponentDistMgmtAdvantage = (opponentDistMgmt - fighterDistMgmt) / 100;
+
+  // Combined opponent advantage for resisting being closed on
+  // Higher = opponent controls range better
+  const opponentRangeControl = (opponentReachAdvantage * 0.6) + (opponentDistMgmtAdvantage * 0.4);
+
+  // RETREAT EFFICIENCY: Boosted by fighter's OWN reach/distance management
+  const fighterReachAdvantage = (fighterReach - opponentReach) / 50;
+  const fighterDistMgmtAdvantage = (fighterDistMgmt - opponentDistMgmt) / 100;
+  const fighterRangeControl = (fighterReachAdvantage * 0.6) + (fighterDistMgmtAdvantage * 0.4);
+
+  return {
+    // How effective the fighter is at closing distance
+    // REDUCED by opponent's range control (Lewis's reach hurts Tyson's closing)
+    // Tyson vs Lewis: 1.0 - 0.43*1.5 = 0.35 (65% penalty)
+    // Lewis's reach made it difficult but not impossible for Tyson
+    closingEfficiency: Math.max(0.25, 1.0 - (opponentRangeControl * 1.5)),
+
+    // How effective the fighter is at retreating/maintaining distance
+    // BOOSTED by fighter's own range control (Lewis's reach helps Lewis retreat)
+    // Lewis vs Tyson: 1.0 + 0.43*1.5 = 1.65 (65% faster retreat)
+    retreatEfficiency: Math.min(2.0, 1.0 + (fighterRangeControl * 1.5)),
+
+    // Raw values for reference
+    fighterReach,
+    opponentReach,
+    reachDiff: fighterReach - opponentReach,
+    distMgmtDiff: fighterDistMgmt - opponentDistMgmt
+  };
+}
+
 export class PositionTracker {
   constructor() {
     this.fighterA = null;
@@ -112,17 +161,24 @@ export class PositionTracker {
     const isCircler = ['out-boxer', 'counter-puncher', 'boxer-puncher'].includes(style);
     const isStalker = ['swarmer', 'slugger', 'inside-fighter'].includes(style);
 
+    // DISTANCE CONTROL: Calculate reach/distanceManagement modifiers
+    // A fighter with longer reach and high distanceManagement can maintain range better
+    const distControl = calculateDistanceControlModifiers(fighter, opponent);
+
     // Determine movement based on state
     if (decision.state === FighterState.OFFENSIVE) {
       // Offensive fighters press forward, close distance
+      // Apply closing efficiency - harder to close on fighters with reach/distance control advantage
+      const closingMod = distControl.closingEfficiency;
+
       if (distance > optimalRange + 0.5) {
         // Stalking styles cut off the ring rather than chase
         if (isStalker) {
-          this.cutOffRing(fighter, opponent, baseMovement * 2.0);
+          this.cutOffRing(fighter, opponent, baseMovement * 2.0 * closingMod);
           // Still circle to cut angles
           this.applyCirclingMovement(fighter, opponent, baseMovement * 1.2);
         } else {
-          this.moveToward(fighter, opponent.position, baseMovement * 1.8);
+          this.moveToward(fighter, opponent.position, baseMovement * 1.8 * closingMod);
           // Even when closing, circle significantly to find angles
           this.applyCirclingMovement(fighter, opponent, baseMovement * 1.4);
         }
@@ -130,12 +186,15 @@ export class PositionTracker {
         // At range - strong lateral movement to find angles
         this.applyCirclingMovement(fighter, opponent, baseMovement * 2.0);
         // Slight forward pressure
-        this.moveToward(fighter, opponent.position, baseMovement * 0.3);
+        this.moveToward(fighter, opponent.position, baseMovement * 0.3 * closingMod);
       }
     } else if (decision.state === FighterState.DEFENSIVE) {
       // Defensive fighters circle away and create angles
+      // Apply retreat efficiency - reach and distance management help maintain range
+      const retreatMod = distControl.retreatEfficiency;
+
       if (distance < optimalRange - 0.5) {
-        this.moveAway(fighter, opponent.position, baseMovement * 1.4);
+        this.moveAway(fighter, opponent.position, baseMovement * 1.4 * retreatMod);
         // Circle heavily while retreating - key to not getting cornered
         this.applyCirclingMovement(fighter, opponent, baseMovement * 2.0);
       } else {
@@ -144,12 +203,15 @@ export class PositionTracker {
       }
     } else if (decision.state === FighterState.TIMING) {
       // Counter-punchers circle at range, waiting for opportunities
+      // Apply distance control modifiers based on range adjustment direction
       const rangeDiff = distance - optimalRange;
       if (Math.abs(rangeDiff) > 0.3) {
         if (rangeDiff > 0) {
-          this.moveToward(fighter, opponent.position, baseMovement * 0.5);
+          // Moving forward to close gap
+          this.moveToward(fighter, opponent.position, baseMovement * 0.5 * distControl.closingEfficiency);
         } else {
-          this.moveAway(fighter, opponent.position, baseMovement * 0.5);
+          // Moving back to create gap - reach advantage helps
+          this.moveAway(fighter, opponent.position, baseMovement * 0.5 * distControl.retreatEfficiency);
         }
       }
       // Active circling is key for counter-punchers - constant heavy movement
@@ -161,7 +223,8 @@ export class PositionTracker {
       // Already in moving state - heavy circling
       if (isStalker && distance > optimalRange) {
         // Stalkers cut off ring when in MOVING state
-        this.cutOffRing(fighter, opponent, baseMovement * 2.5);
+        // Apply closing efficiency - harder against fighters with reach advantage
+        this.cutOffRing(fighter, opponent, baseMovement * 2.5 * distControl.closingEfficiency);
         this.applyCirclingMovement(fighter, opponent, baseMovement * 1.5);
       } else {
         this.applyCirclingMovement(fighter, opponent, baseMovement * 3.5);
@@ -170,18 +233,19 @@ export class PositionTracker {
       // NEUTRAL or other states - active circling (boxers are always moving)
       this.applyCirclingMovement(fighter, opponent, baseMovement * 2.2);
 
-      // Drift toward optimal range
+      // Drift toward optimal range - apply distance control modifiers
       const rangeDiff = distance - optimalRange;
       if (Math.abs(rangeDiff) > 1) {
         if (rangeDiff > 0) {
-          // Stalkers cut off ring even in neutral
+          // Moving forward - apply closing efficiency
           if (isStalker) {
-            this.cutOffRing(fighter, opponent, baseMovement * 0.8);
+            this.cutOffRing(fighter, opponent, baseMovement * 0.8 * distControl.closingEfficiency);
           } else {
-            this.moveToward(fighter, opponent.position, baseMovement * 0.4);
+            this.moveToward(fighter, opponent.position, baseMovement * 0.4 * distControl.closingEfficiency);
           }
         } else {
-          this.moveAway(fighter, opponent.position, baseMovement * 0.4);
+          // Moving back - apply retreat efficiency (reach advantage helps)
+          this.moveAway(fighter, opponent.position, baseMovement * 0.4 * distControl.retreatEfficiency);
         }
       }
     }

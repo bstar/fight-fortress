@@ -130,11 +130,10 @@ Two TUI modes available via `--display` flag:
 
 ## Testing Balance
 
-```bash
-# Quick balance check (20 fights)
-node src/index.js batch fighter1.yaml fighter2.yaml --count 20
+**Always use 100 fights for balance testing** - this gives clean percentages and statistically meaningful results.
 
-# Full balance test (100 fights)
+```bash
+# Standard balance test (100 fights - recommended)
 node src/index.js batch fighter1.yaml fighter2.yaml --count 100
 
 # Run all historical matchups

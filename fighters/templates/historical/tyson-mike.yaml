@@ -27,7 +27,7 @@ style:
 power:
   powerLeft: 95
   powerRight: 98
-  knockoutPower: 99
+  knockoutPower: 96      # Reduced from 99 - still devastating but not unrealistically high
   bodyPunching: 92
   punchingStamina: 85
 
@@ -46,7 +46,7 @@ stamina:
   paceControl: 75
 
 defense:
-  headMovement: 95
+  headMovement: 85     # Reduced from 95 - peek-a-boo was effective inside but he was hittable at range
   blocking: 85
   parrying: 72
   shoulderRoll: 60

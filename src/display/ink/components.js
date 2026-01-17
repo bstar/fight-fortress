@@ -178,7 +178,7 @@ export function RoundTimer({ round, time, maxRounds = 12 }) {
   },
     e(Text, { bold: true, color: theme.round }, `ROUND ${round}`),
     e(Text, { color: theme.timer }, `${timeStr} / 3:00`),
-    e(Text, { dimColor: true }, `of ${maxRounds}`)
+    e(Text, { dimColor: true }, `${maxRounds - round + 1} rounds left`)
   );
 }
 

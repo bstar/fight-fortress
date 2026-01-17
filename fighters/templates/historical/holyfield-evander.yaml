@@ -39,11 +39,11 @@ speed:
   combinationSpeed: 90
 
 stamina:
-  cardio: 90               # Reduced from 95 - elite but not superhuman
-  recoveryRate: 88         # Reduced from 90
-  workRate: 92
-  secondWind: 88
-  paceControl: 78
+  cardio: 98               # Superhuman conditioning - cruiserweight cardio in heavyweight body
+  recoveryRate: 98         # Legendary between-round recovery - would come back fresh every round
+  workRate: 95             # Non-stop pressure, never took rounds off
+  secondWind: 95           # Would pour it on in championship rounds when others faded
+  paceControl: 82          # Could fight any pace - his pace was relentless
 
 defense:
   headMovement: 80       # Better than typical swarmer - he slipped a lot
