@@ -512,6 +512,7 @@ function RoundTimer({ round, time, maxRounds = 12, isPaused, roundDuration = 180
 function CommentaryPanel({ lines = [], maxLines = 6 }) {
   const theme = useTheme();
   const displayLines = lines.slice(-maxLines);
+  const LINE_WIDTH = 58;  // Fixed width for text clearing
 
   // Pad to ensure consistent height
   const paddedLines = [...displayLines];
@@ -525,10 +526,11 @@ function CommentaryPanel({ lines = [], maxLines = 6 }) {
     borderColor: theme.border,
     padding: 1,
     flexGrow: 1,
+    width: LINE_WIDTH + 4,
     height: maxLines + 4
   },
     e(Text, { bold: true, color: theme.commentary }, ' BROADCAST TEAM'),
-    e(Box, { marginTop: 1, flexDirection: 'column' },
+    e(Box, { marginTop: 1, flexDirection: 'column', width: LINE_WIDTH },
       ...paddedLines.map((line, i) => {
         // Parse speaker prefix if present
         let speaker = '';
@@ -554,13 +556,15 @@ function CommentaryPanel({ lines = [], maxLines = 6 }) {
         }
 
         const isLatest = i === paddedLines.length - 1;
+        const fullText = speaker ? chalk.bold(speaker) + text : text;
+        // Pad text to fixed width to clear old characters
+        const paddedText = fullText.substring(0, LINE_WIDTH).padEnd(LINE_WIDTH);
 
         return e(Text, {
-          key: i,
+          key: `comment-${i}-${lines.length}`,
           color: isLatest ? color : theme.commentary,
-          dimColor: !isLatest,
-          wrap: 'wrap'
-        }, speaker ? chalk.bold(speaker) + text : text);
+          dimColor: !isLatest
+        }, paddedText);
       })
     )
   );
@@ -572,6 +576,7 @@ function CommentaryPanel({ lines = [], maxLines = 6 }) {
 function ActionPanel({ actions = [], maxActions = 4 }) {
   const theme = useTheme();
   const displayActions = actions.slice(-maxActions);
+  const LINE_WIDTH = 40;  // Fixed width for text clearing
 
   // Pad to ensure consistent height
   const paddedActions = [...displayActions];
@@ -584,23 +589,24 @@ function ActionPanel({ actions = [], maxActions = 4 }) {
     borderStyle: 'single',
     borderColor: theme.border,
     padding: 1,
-    width: 44,
+    width: LINE_WIDTH + 4,
     height: maxActions + 4
   },
     e(Text, { bold: true, color: theme.punch }, ' RECENT ACTION'),
-    e(Box, { marginTop: 1, flexDirection: 'column' },
+    e(Box, { marginTop: 1, flexDirection: 'column', width: LINE_WIDTH },
       ...paddedActions.map((action, i) => {
         const isLatest = i === paddedActions.length - 1;
         const text = typeof action === 'string' ? action : action.text;
         const isHighlight = action.highlight || action.isBig;
+        // Pad text to fixed width to clear old characters
+        const paddedText = (text || '').substring(0, LINE_WIDTH).padEnd(LINE_WIDTH);
 
         return e(Text, {
-          key: i,
+          key: `action-${i}-${actions.length}`,
           color: isHighlight ? theme.knockdown : (isLatest ? theme.foreground : theme.commentary),
           bold: isHighlight,
-          dimColor: !isLatest && !isHighlight,
-          wrap: 'truncate'
-        }, text);
+          dimColor: !isLatest && !isHighlight
+        }, paddedText);
       })
     )
   );
@@ -1235,9 +1241,10 @@ function FightDisplay({ fight, simulation, tui }) {
         const damageA = stateA?.roundDamageDealt || (powerA * 1.5 + jabsA * 0.3);
         const damageB = stateB?.roundDamageDealt || (powerB * 1.5 + jabsB * 0.3);
 
-        // Knockdowns this round
-        const kdA = stateA?.roundKnockdowns || 0;
-        const kdB = stateB?.roundKnockdowns || 0;
+        // Knockdowns this round (times each fighter was knocked DOWN)
+        // kdA = times A was knocked down, kdB = times B was knocked down
+        const kdA = stateA?.knockdowns?.round || 0;
+        const kdB = stateB?.knockdowns?.round || 0;
 
         // Get stagger/hurt stats for this round (who hurt who)
         // The fighter who STAGGERS their opponent gets huge scoring bonus
@@ -1355,12 +1362,27 @@ function FightDisplay({ fight, simulation, tui }) {
           }
 
           // Knockdowns override everything (no stealing a KD round)
+          // kdA = times A was knocked DOWN, so B scored those knockdowns
+          // A knockdown = 10-8, two knockdowns = 10-7, etc.
           if (kdA > 0 && kdB === 0) {
+            // A was knocked down, B wins the round
             scoreB = 10;
-            scoreA = 10 - kdA;
+            scoreA = Math.max(7, 9 - kdA);  // 1 KD = 8, 2 KD = 7
           } else if (kdB > 0 && kdA === 0) {
+            // B was knocked down, A wins the round
             scoreA = 10;
-            scoreB = 10 - kdB;
+            scoreB = Math.max(7, 9 - kdB);  // 1 KD = 8, 2 KD = 7
+          } else if (kdA > 0 && kdB > 0) {
+            // Both fighters knocked down - rare but possible
+            // Fighter with fewer knockdowns wins, or even if tied
+            if (kdA > kdB) {
+              scoreB = 10;
+              scoreA = Math.max(8, 10 - (kdA - kdB));
+            } else if (kdB > kdA) {
+              scoreA = 10;
+              scoreB = Math.max(8, 10 - (kdB - kdA));
+            }
+            // If tied knockdowns, let the other scoring factors decide
           }
           // Multiple staggerings without knockdown can also be 10-8
           // This is a lopsided round - one fighter is getting dominated

@@ -1,8 +1,9 @@
 # Larry Holmes - "The Easton Assassin"
-# ERA: 1992 - Late career Holmes, still competitive
-# Legendary jab, former dominant champion
-# 6'3" 236 lbs - Crafty veteran with elite boxing IQ
+# ERA: 1992 - Late career Holmes, physically diminished
+# Legendary jab, former dominant champion but past prime
+# 6'3" 236 lbs - Crafty veteran with elite boxing IQ but slow legs
 # Record at this point: 59-4 (42 KOs)
+# Lost to Tyson (1988), would lose to Holyfield (1992)
 
 identity:
   name: "Larry Holmes"
@@ -25,34 +26,34 @@ style:
   offensive: jab-and-move
 
 power:
-  powerLeft: 70
-  powerRight: 80
-  knockoutPower: 72
-  bodyPunching: 78
-  punchingStamina: 70
+  powerLeft: 65
+  powerRight: 75
+  knockoutPower: 65
+  bodyPunching: 75
+  punchingStamina: 62
 
 speed:
-  handSpeed: 72
-  footSpeed: 65
-  reflexes: 70
-  firstStep: 65
-  combinationSpeed: 72
+  handSpeed: 65
+  footSpeed: 58
+  reflexes: 62
+  firstStep: 55
+  combinationSpeed: 65
 
 stamina:
-  cardio: 72
-  recoveryRate: 70
-  workRate: 68
-  secondWind: 72
+  cardio: 65
+  recoveryRate: 65
+  workRate: 60
+  secondWind: 68
   paceControl: 88
 
 defense:
-  headMovement: 78
-  blocking: 82
-  parrying: 82
-  shoulderRoll: 62
-  clinchDefense: 82
-  clinchOffense: 75
-  ringAwareness: 92
+  headMovement: 70
+  blocking: 78
+  parrying: 78
+  shoulderRoll: 60
+  clinchDefense: 80
+  clinchOffense: 72
+  ringAwareness: 90
 
 offense:
   jabAccuracy: 95
@@ -73,15 +74,15 @@ technical:
   fightIQ: 95
 
 mental:
-  chin: 80
-  heart: 85
-  killerInstinct: 72
+  chin: 70
+  heart: 82
+  killerInstinct: 65
   composure: 90
-  focus: 88
-  intimidation: 72
-  confidence: 85
+  focus: 85
+  intimidation: 65
+  confidence: 78
   experience: 98
-  clutchFactor: 85
+  clutchFactor: 82
 
 corner:
   headTrainer:
