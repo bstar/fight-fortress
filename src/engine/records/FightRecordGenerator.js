@@ -9,6 +9,7 @@ import FighterSnapshot from './FighterSnapshot.js';
 import FightRecord from './FightRecord.js';
 import ModelParameters from '../model/ModelParameters.js';
 import { PatternAnalyzer } from '../patterns/PatternAnalyzer.js';
+import { PredictionEngine } from '../prediction/PredictionEngine.js';
 
 export class FightRecordGenerator {
   /**
@@ -23,6 +24,11 @@ export class FightRecordGenerator {
 
     // Pattern analyzer instance (can be shared across records)
     this.patternAnalyzer = options.patternAnalyzer || new PatternAnalyzer();
+
+    // Prediction engine instance
+    this.predictionEngine = options.predictionEngine || new PredictionEngine({
+      patternAnalyzer: this.patternAnalyzer
+    });
   }
 
   /**
@@ -58,6 +64,17 @@ export class FightRecordGenerator {
         notes: options.notes || null
       }
     });
+
+    // Set pre-fight prediction
+    if (this.includePrediction) {
+      const prediction = this.generatePrediction(
+        fight.fighterA,
+        fight.fighterB,
+        options.conditionsA ? { fighterA: options.conditionsA, fighterB: options.conditionsB } : {},
+        fightContext || {}
+      );
+      record.setPrediction(prediction);
+    }
 
     // Set result if fight is complete
     if (fight.result) {
@@ -533,6 +550,36 @@ export class FightRecordGenerator {
   isBoxerStyle(style) {
     const boxerStyles = ['out-boxer', 'boxer', 'counter-puncher', 'stick-and-move'];
     return boxerStyles.includes(style?.toLowerCase());
+  }
+
+  /**
+   * Generate pre-fight prediction
+   * @param {Fighter} fighterA - Fighter A
+   * @param {Fighter} fighterB - Fighter B
+   * @param {object} conditions - Fight conditions
+   * @param {object} context - Fight context
+   * @returns {object} Prediction data
+   */
+  generatePrediction(fighterA, fighterB, conditions = {}, context = {}) {
+    return this.predictionEngine.predict(fighterA, fighterB, conditions, context);
+  }
+
+  /**
+   * Generate standalone prediction (without creating full record)
+   * @param {Fighter} fighterA - Fighter A
+   * @param {Fighter} fighterB - Fighter B
+   * @param {object} options - Prediction options
+   * @returns {object} Complete prediction
+   */
+  predictMatchup(fighterA, fighterB, options = {}) {
+    const { conditions = {}, context = {}, fightHistory = null } = options;
+
+    // Set fight history if provided
+    if (fightHistory) {
+      this.setFightHistory(fightHistory);
+    }
+
+    return this.predictionEngine.predict(fighterA, fighterB, conditions, context);
   }
 
   /**

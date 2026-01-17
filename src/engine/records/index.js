@@ -18,3 +18,7 @@ export {
   MinSampleSize,
   getPatternDefinition
 } from '../patterns/PatternTypes.js';
+
+// Re-export prediction engine for convenience
+export { PredictionEngine } from '../prediction/PredictionEngine.js';
+export { MethodPredictor } from '../prediction/MethodPredictor.js';
