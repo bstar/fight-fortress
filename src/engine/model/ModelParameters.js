@@ -54,6 +54,15 @@ export class ModelParameters {
   }
 
   /**
+   * Get the current model version string (static convenience method)
+   * @returns {string} Version string
+   */
+  static getVersion() {
+    const inst = ModelParameters.getInstance();
+    return inst.version;
+  }
+
+  /**
    * Get a parameter with an override applied (for testing/tuning)
    * @param {string} path - parameter path
    * @param {*} overrideValue - value to use instead

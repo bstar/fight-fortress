@@ -1972,6 +1972,65 @@ export class SimulationLoop extends EventEmitter {
     await this.start();
     return this.fight.getSummary();
   }
+
+  /**
+   * Run simulation and generate a fight record
+   * @param {object} options - Record generation options
+   * @returns {object} Fight summary with record
+   */
+  async runWithRecord(options = {}) {
+    this.options.realTime = false;
+    await this.start();
+
+    // Lazy import to avoid circular dependencies
+    const { FightRecordGenerator } = await import('./records/FightRecordGenerator.js');
+
+    const generator = new FightRecordGenerator({
+      includeDetailedStats: options.includeDetailedStats !== false,
+      includeRoundByRound: options.includeRoundByRound !== false
+    });
+
+    const record = generator.createRecord(this.fight, {
+      careerDataA: options.careerDataA,
+      careerDataB: options.careerDataB,
+      currentDate: options.currentDate,
+      fightContext: options.fightContext,
+      simulationType: options.simulationType || 'single'
+    });
+
+    // Optionally persist the record
+    if (options.persist) {
+      const { FightRecordStore } = await import('./records/FightRecordStore.js');
+      const store = options.store || new FightRecordStore(options.storeOptions);
+      await store.save(record);
+    }
+
+    return {
+      summary: this.fight.getSummary(),
+      record
+    };
+  }
+
+  /**
+   * Generate a fight record from the completed fight
+   * (Call after fight ends if you didn't use runWithRecord)
+   * @param {object} options - Record options
+   * @returns {FightRecord} Fight record
+   */
+  async generateRecord(options = {}) {
+    if (!this.fight.isOver()) {
+      throw new Error('Cannot generate record: fight is not over');
+    }
+
+    const { FightRecordGenerator } = await import('./records/FightRecordGenerator.js');
+
+    const generator = new FightRecordGenerator({
+      includeDetailedStats: options.includeDetailedStats !== false,
+      includeRoundByRound: options.includeRoundByRound !== false
+    });
+
+    return generator.createRecord(this.fight, options);
+  }
 }
 
 export default SimulationLoop;
