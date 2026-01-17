@@ -694,16 +694,46 @@ function FightDisplay({ fight, simulation, tui }) {
 
       fightEnd: (data) => {
         setIsEnded(true);
-        setResult(data);
 
-        if (data.method === 'KO' || data.method === 'TKO') {
-          addCommentary(`LAMPLEY: IT'S OVER! ${data.winner?.toUpperCase()} WINS BY ${data.method}!`);
-          addCommentary(`FOREMAN: What a performance! ${data.winner} was simply too much tonight!`);
-        } else if (data.method === 'DECISION') {
-          addCommentary(`LAMPLEY: We go to the scorecards! And the winner by ${data.method}...`);
-          addCommentary(`LAMPLEY: ${data.winner?.toUpperCase()}!`);
+        // Convert winner 'A'/'B' to fighter name and format method
+        const winnerName = data.winner === 'A'
+          ? fight.fighterA.getShortName()
+          : data.winner === 'B'
+            ? fight.fighterB.getShortName()
+            : null;
+
+        // Format method for display (TKO_REFEREE -> TKO, DECISION_UNANIMOUS -> UD, etc.)
+        const formatMethod = (method) => {
+          if (!method) return 'Unknown';
+          if (method === 'KO') return 'KO';
+          if (method.startsWith('TKO')) return 'TKO';
+          if (method === 'DECISION_UNANIMOUS') return 'UD';
+          if (method === 'DECISION_MAJORITY') return 'MD';
+          if (method === 'DECISION_SPLIT') return 'SD';
+          if (method.startsWith('DRAW')) return 'DRAW';
+          return method;
+        };
+
+        const displayMethod = formatMethod(data.method);
+
+        // Store formatted result for status bar
+        setResult({
+          ...data,
+          winnerName,
+          displayMethod
+        });
+
+        if (data.method === 'KO' || data.method?.startsWith('TKO')) {
+          addCommentary(`LAMPLEY: IT'S OVER! ${winnerName?.toUpperCase()} WINS BY ${displayMethod}!`);
+          addCommentary(`FOREMAN: What a performance! ${winnerName} was simply too much tonight!`);
+        } else if (data.method?.startsWith('DECISION')) {
+          addCommentary(`LAMPLEY: We go to the scorecards!`);
+          addCommentary(`LAMPLEY: And the winner by ${displayMethod}... ${winnerName?.toUpperCase()}!`);
+        } else if (data.method?.startsWith('DRAW')) {
+          addCommentary(`LAMPLEY: This fight is ruled a ${displayMethod}!`);
+          addCommentary(`FOREMAN: Neither man could pull away. What a battle!`);
         } else {
-          addCommentary(`LAMPLEY: The fight is over! ${data.winner || 'DRAW'}!`);
+          addCommentary(`LAMPLEY: The fight is over! ${winnerName || 'DRAW'}!`);
         }
       }
     };
@@ -792,7 +822,7 @@ function FightDisplay({ fight, simulation, tui }) {
     // Status bar
     e(StatusBar, {
       left: isPaused ? 'PAUSED' : (isEnded ? 'ENDED' : 'LIVE'),
-      center: isEnded ? (result?.winner ? `Winner: ${result.winner} by ${result.method}` : 'DRAW') : '',
+      center: isEnded ? (result?.winnerName ? `Winner: ${result.winnerName} by ${result.displayMethod}` : 'DRAW') : '',
       right: '[Q]uit [P/Space]ause [+/-]Speed'
     }),
 
