@@ -1247,9 +1247,27 @@ export class SimulationLoop extends EventEmitter {
       this.fighterAI.recordKnockdown(knockdown.target, round.number);
     }
 
+    // Helper to get finishing details
+    const getFinishingDetails = () => {
+      const attacker = knockdown.attacker === 'A' ? this.fight.fighterA : this.fight.fighterB;
+      const loser = knockdown.target === 'A' ? this.fight.fighterA : this.fight.fighterB;
+      return {
+        punchType: knockdown.punchType,
+        location: knockdown.location || 'head',
+        damage: knockdown.damage,
+        isCounter: knockdown.isCounter || false,
+        knockdownsInRound: fighter.knockdownsThisRound,
+        totalKnockdowns: fighter.knockdownsTotal || fighter.knockdownsThisRound,
+        finisherName: attacker?.getShortName?.() || attacker?.name,
+        loserName: loser?.getShortName?.() || loser?.name,
+        loserHealth: Math.round((1 - fighter.getHeadDamagePercent()) * 100),
+        loserStamina: Math.round(fighter.getStaminaPercent() * 100)
+      };
+    };
+
     // Check for three knockdown rule
     if (this.fight.referee.rules.threeKnockdownRule && fighter.knockdownsThisRound >= 3) {
-      this.fight.stopFight(StoppageType.TKO_THREE_KNOCKDOWNS, knockdown.attacker);
+      this.fight.stopFight(StoppageType.TKO_THREE_KNOCKDOWNS, knockdown.attacker, null, null, getFinishingDetails());
       return;
     }
 
@@ -1260,7 +1278,7 @@ export class SimulationLoop extends EventEmitter {
 
     if (!recoveryResult.recovered) {
       // KO
-      this.fight.stopFight(StoppageType.KO, knockdown.attacker);
+      this.fight.stopFight(StoppageType.KO, knockdown.attacker, null, null, getFinishingDetails());
     } else {
       // Fighter beats the count
       round.recordKnockdown(knockdown.target, knockdown.punchType, recoveryResult.count);
@@ -1549,17 +1567,36 @@ export class SimulationLoop extends EventEmitter {
    * Check for TKO conditions
    */
   async checkTKOConditions() {
+    // Helper to build TKO finishing details
+    const getTKODetails = (loser, loserId, winner, winnerId, reason) => {
+      return {
+        punchType: reason || 'accumulation',
+        location: 'head',
+        damage: null,
+        isCounter: false,
+        knockdownsInRound: loser.knockdownsThisRound || 0,
+        totalKnockdowns: loser.knockdownsTotal || 0,
+        finisherName: winner?.getShortName?.() || winner?.name,
+        loserName: loser?.getShortName?.() || loser?.name,
+        loserHealth: Math.round((1 - loser.getHeadDamagePercent()) * 100),
+        loserStamina: Math.round(loser.getStaminaPercent() * 100),
+        tkoReason: reason
+      };
+    };
+
     // Check fighter A
     const tkoCheckA = this.evaluateTKO(this.fight.fighterA, 'A');
     if (tkoCheckA.shouldStop) {
-      this.fight.stopFight(tkoCheckA.type, 'B');
+      const details = getTKODetails(this.fight.fighterA, 'A', this.fight.fighterB, 'B', tkoCheckA.reason);
+      this.fight.stopFight(tkoCheckA.type, 'B', null, null, details);
       return;
     }
 
     // Check fighter B
     const tkoCheckB = this.evaluateTKO(this.fight.fighterB, 'B');
     if (tkoCheckB.shouldStop) {
-      this.fight.stopFight(tkoCheckB.type, 'A');
+      const details = getTKODetails(this.fight.fighterB, 'B', this.fight.fighterA, 'A', tkoCheckB.reason);
+      this.fight.stopFight(tkoCheckB.type, 'A', null, null, details);
       return;
     }
   }

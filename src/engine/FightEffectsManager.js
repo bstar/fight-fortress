@@ -136,7 +136,9 @@ export class FightEffectsManager {
         punchesLanded: 0,
         punchesTaken: 0,
         knockdownsScored: 0,
-        knockdownsTaken: 0
+        knockdownsTaken: 0,
+        powerPunchesLanded: 0,
+        damageDealt: 0
       });
     }
   }
@@ -155,12 +157,16 @@ export class FightEffectsManager {
    */
   resetForRound() {
     // Clear temporary event counters for all fighters
+    // Note: MOMENTUM persists across rounds (it's a buff with duration)
+    // but the counters for earning NEW momentum reset each round
     for (const [fighterId] of this.recentEvents) {
       this.recentEvents.set(fighterId, {
         punchesLanded: 0,
         punchesTaken: 0,
         knockdownsScored: 0,
-        knockdownsTaken: 0
+        knockdownsTaken: 0,
+        powerPunchesLanded: 0,  // For momentum tracking
+        damageDealt: 0          // For momentum tracking
       });
     }
 
@@ -519,29 +525,56 @@ export class FightEffectsManager {
     this.ensureFighter(attackerId);
     this.ensureFighter(defenderId);
 
-    const { damage, punchType, isCounter, isCritical } = punchData;
+    const { damage, punchType, isCritical } = punchData;
+    const isPowerPunch = punchType !== 'jab';
 
     const attackerEvents = this.recentEvents.get(attackerId);
     const defenderEvents = this.recentEvents.get(defenderId);
     attackerEvents.punchesLanded++;
     defenderEvents.punchesTaken++;
 
-    // Update momentum
-    this.momentum.set(attackerId, Math.min(100, this.momentum.get(attackerId) + 3));
-    this.momentum.set(defenderId, Math.max(-100, this.momentum.get(defenderId) - 2));
+    // Track power punches and damage separately for momentum calculation
+    if (!attackerEvents.powerPunchesLanded) attackerEvents.powerPunchesLanded = 0;
+    if (!attackerEvents.damageDealt) attackerEvents.damageDealt = 0;
+    if (isPowerPunch) attackerEvents.powerPunchesLanded++;
+    attackerEvents.damageDealt += damage;
+
+    // Update momentum score (power punches worth more)
+    const momentumGain = isPowerPunch ? 4 : 2;
+    const momentumLoss = isPowerPunch ? 3 : 1;
+    this.momentum.set(attackerId, Math.min(100, this.momentum.get(attackerId) + momentumGain));
+    this.momentum.set(defenderId, Math.max(-100, this.momentum.get(defenderId) - momentumLoss));
 
     // --- ATTACKER EFFECTS ---
 
-    // Build momentum after landing multiple punches
-    if (attackerEvents.punchesLanded >= 3) {
+    // MOMENTUM buff - harder to acquire, lasts longer
+    // Requirements: 6+ punches landed with at least 2 power punches AND 25+ damage dealt
+    // OR: 4+ power punches landed (significant power offense)
+    // OR: A critical/devastating punch (immediate momentum)
+    const hasMomentumTrigger =
+      (attackerEvents.punchesLanded >= 6 && attackerEvents.powerPunchesLanded >= 2 && attackerEvents.damageDealt >= 25) ||
+      (attackerEvents.powerPunchesLanded >= 4) ||
+      (isCritical && damage >= 12);
+
+    if (hasMomentumTrigger && !this.hasEffect(attackerId, BuffType.MOMENTUM)) {
+      // Momentum lasts 45-60 seconds (90-120 ticks)
+      // Higher damage dealt = longer duration
+      const baseDuration = 90;
+      const bonusDuration = Math.min(30, Math.floor(attackerEvents.damageDealt / 2));
+
       this.applyEffect(attackerId, BuffType.MOMENTUM, {
-        intensity: 0.4,
-        duration: 30,
-        stackable: true,
-        maxStacks: 3,
-        source: 'consecutive_punches',
-        modifiers: { confidence: 0.1, accuracy: 0.05 }
+        intensity: 0.5,
+        duration: baseDuration + bonusDuration,
+        stackable: false,  // No stacking - one momentum buff at a time
+        source: isCritical ? 'devastating_punch' : 'sustained_offense',
+        modifiers: { confidence: 0.12, accuracy: 0.08, power: 0.05 }
       });
+    } else if (this.hasEffect(attackerId, BuffType.MOMENTUM) && isPowerPunch && damage >= 8) {
+      // Refresh momentum if already have it and land a good power punch
+      const effect = this.getEffect(attackerId, BuffType.MOMENTUM);
+      if (effect) {
+        effect.refresh(null, 20);  // Add 10 seconds
+      }
     }
 
     // Rhythm buff when combinations are landing
@@ -737,6 +770,9 @@ export class FightEffectsManager {
         source: 'low_stamina',
         modifiers: { handSpeed: -0.10, footSpeed: -0.12, power: -0.10 }
       });
+
+      // GASSED cancels MOMENTUM - can't maintain momentum when exhausted
+      this.removeEffect(fighterId, BuffType.MOMENTUM);
     } else {
       // Remove GASSED if stamina recovered above threshold
       this.removeEffect(fighterId, DebuffType.GASSED);
@@ -764,16 +800,17 @@ export class FightEffectsManager {
   onDomination(dominatedId, dominatorId) {
     this.applyEffect(dominatedId, DebuffType.DEMORALIZED, {
       intensity: 0.5,
-      duration: 45,
+      duration: 60,
       source: 'being_dominated',
       modifiers: { confidence: -0.2, composure: -0.1 }
     });
 
+    // Domination grants strong momentum - lasts 60 seconds (120 ticks)
     this.applyEffect(dominatorId, BuffType.MOMENTUM, {
-      intensity: 0.6,
-      duration: 40,
+      intensity: 0.7,
+      duration: 120,
       source: 'dominating',
-      modifiers: { confidence: 0.15, composure: 0.1 }
+      modifiers: { confidence: 0.15, composure: 0.1, accuracy: 0.08, power: 0.05 }
     });
   }
 

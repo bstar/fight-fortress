@@ -539,8 +539,13 @@ export class Fight {
 
   /**
    * Stop the fight (KO, TKO, etc.)
+   * @param {string} type - Stoppage type (KO, TKO_REFEREE, etc.)
+   * @param {string} winner - Winner ID ('A' or 'B')
+   * @param {number} round - Round number (optional)
+   * @param {number} time - Time in round (optional)
+   * @param {object} finishingDetails - Details about the finishing sequence (optional)
    */
-  stopFight(type, winner, round = null, time = null) {
+  stopFight(type, winner, round = null, time = null, finishingDetails = null) {
     this.status = FightStatus.STOPPED;
 
     const currentRound = this.getCurrentRound();
@@ -554,7 +559,18 @@ export class Fight {
       method: type,
       round: round || this.currentRound,
       time: time || (currentRound ? currentRound.currentTime : 0),
-      scorecards: null
+      scorecards: null,
+      // Finishing details for KO/TKO
+      finishingPunch: finishingDetails?.punchType || null,
+      finishingLocation: finishingDetails?.location || 'head',
+      finishingDamage: finishingDetails?.damage || null,
+      wasCounter: finishingDetails?.isCounter || false,
+      knockdownsInRound: finishingDetails?.knockdownsInRound || 0,
+      totalKnockdowns: finishingDetails?.totalKnockdowns || 0,
+      finisherName: finishingDetails?.finisherName || null,
+      loserName: finishingDetails?.loserName || null,
+      loserHealth: finishingDetails?.loserHealth || null,
+      loserStamina: finishingDetails?.loserStamina || null
     };
 
     this.addEvent({
@@ -562,7 +578,8 @@ export class Fight {
       method: type,
       winner: winner === 'A' ? this.fighterA.name : this.fighterB.name,
       round: this.result.round,
-      time: this.result.time
+      time: this.result.time,
+      finishingPunch: this.result.finishingPunch
     });
   }
 

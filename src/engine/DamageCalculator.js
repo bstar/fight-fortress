@@ -9,12 +9,12 @@ export class DamageCalculator {
     // A 12-round fight should accumulate 60-80 head damage on average
     this.thresholds = {
       hurt: {
-        head: 8,        // Single punch threshold to enter hurt state
-        body: 12
+        head: 5,        // Single punch threshold to enter hurt state (reduced from 8)
+        body: 8         // Body shots need more to hurt (reduced from 12)
       },
       knockdown: {
-        base: 12,       // Single punch knockdown threshold (rarely reached)
-        cumulative: 70  // Accumulated damage before knockdowns become likely
+        base: 8,        // Single punch knockdown threshold (reduced from 12)
+        cumulative: 50  // Accumulated damage before knockdowns become likely (reduced from 70)
       },
       ko: {
         head: 100,
@@ -77,33 +77,53 @@ export class DamageCalculator {
 
   /**
    * Check if fighter should enter hurt state
-   * Hurt state should be very rare - maybe 0-3 times per fight max
+   * Hurt state should occur 2-5 times per fight (significant shots that wobble a fighter)
+   * This creates drama and opportunities for finishes
    */
   checkHurt(target, damage) {
     const threshold = this.thresholds.hurt.head;
 
     // Adjust threshold based on current damage (more likely when already damaged)
     const damagePercent = target.getHeadDamagePercent();
-    const adjustedThreshold = threshold * (1 - damagePercent * 0.15);
+    const adjustedThreshold = threshold * (1 - damagePercent * 0.25);
 
     // Only check if damage exceeds threshold
     if (damage < adjustedThreshold) {
       return false;
     }
 
-    // Chin and composure strongly prevent hurt state
-    const chinResistance = target.mental.chin / 100;  // 0-1
-    const composureResistance = target.mental.composure / 100;  // 0-1
-    const resistance = (chinResistance * 0.7 + composureResistance * 0.3);
+    // Base hurt chance - scales with how much damage exceeded threshold
+    // 5 damage at 5 threshold = baseline
+    // 8 damage at 5 threshold = 60% higher chance
+    const damageRatio = damage / adjustedThreshold;
+    let hurtChance = 0.25 + (damageRatio - 1) * 0.3; // 25% base, up to 55% for big shots
 
-    // Strong resistance from good chin
-    if (Math.random() < resistance * 0.8) {
-      return false;
+    // Chin reduces hurt chance (but doesn't eliminate it)
+    // 90 chin = 30% reduction, 70 chin = 10% reduction, 50 chin = 10% bonus
+    const chinMod = (target.mental.chin - 70) / 100;
+    hurtChance *= (1 - chinMod * 0.4);
+
+    // Composure also helps (mental toughness to shake off shots)
+    const composure = target.mental.composure || 70;
+    hurtChance *= (1 - (composure - 70) / 300);
+
+    // Accumulated damage makes it more likely to get hurt
+    if (damagePercent > 0.4) {
+      hurtChance *= 1.2 + (damagePercent - 0.4) * 0.8; // Up to 1.68x at 100% damage
     }
 
-    // Final check - only 15% chance to actually get hurt even if you pass all other checks
-    // This means a fighter with 80 chin would have roughly: 0.2 * 0.15 = 3% chance per big hit
-    return Math.random() < 0.15;
+    // Low stamina increases hurt vulnerability
+    const staminaPercent = target.getStaminaPercent();
+    if (staminaPercent < 0.3) {
+      hurtChance *= 1.3;
+    } else if (staminaPercent < 0.5) {
+      hurtChance *= 1.15;
+    }
+
+    // Cap at reasonable level - even weak chins don't get hurt on every big shot
+    hurtChance = Math.min(0.60, Math.max(0.10, hurtChance));
+
+    return Math.random() < hurtChance;
   }
 
   /**

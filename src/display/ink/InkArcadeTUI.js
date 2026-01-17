@@ -49,6 +49,9 @@ function FighterPanel({ fighter, state, corner = 'A' }) {
   const fighterState = state?.state || 'NEUTRAL';
   const isHurt = fighterState === 'HURT' || fighterState === 'STUNNED';
 
+  // Buzzed state - fighter is vulnerable (health below 40% or very low stamina)
+  const isBuzzed = !isHurt && (health < 40 || (health < 60 && stamina < 25));
+
   // Strategy from AI
   const strategy = state?.strategy;
   const strategyName = strategy?.name || '';
@@ -69,22 +72,37 @@ function FighterPanel({ fighter, state, corner = 'A' }) {
     }
   };
 
-  const name = fighter.getShortName?.() || fighter.name || 'Unknown';
+  const name = fighter.name || fighter.getShortName?.() || 'Unknown';
 
   // Format effects inline
   const effectsText = [...buffs.slice(0, 2).map(b => `+${getEffectName(b.type)}`),
                        ...debuffs.slice(0, 1).map(d => `-${getEffectName(d.type)}`)].join(' ');
 
+  // Status indicator
+  let statusText = '';
+  let statusColor = '';
+  if (isHurt) {
+    statusText = ' ★ HURT! ★';
+    statusColor = '#ff0000';
+  } else if (isBuzzed) {
+    statusText = ' BUZZED ';
+    statusColor = '#ff8800';
+  }
+
   return e(Box, {
     flexDirection: 'column',
-    borderStyle: isHurt ? 'double' : 'round',
-    borderColor: isHurt ? theme.hurt : cornerColor,
+    borderStyle: isHurt ? 'double' : isBuzzed ? 'classic' : 'round',
+    borderColor: isHurt ? theme.hurt : isBuzzed ? '#ff8800' : theme.border,
     paddingX: 1,
     paddingY: 0,
-    width: 32
+    width: 32,
+    height: 8
   },
-    // Name
-    e(Text, { bold: true, color: cornerColor }, name),
+    // Name with status
+    e(Box, { flexDirection: 'row', justifyContent: 'space-between' },
+      e(Text, { bold: true, color: cornerColor }, name),
+      statusText && e(Text, { bold: true, color: statusColor, backgroundColor: isHurt ? '#330000' : undefined }, statusText)
+    ),
 
     // Health bar
     e(StatBar, {
@@ -118,10 +136,10 @@ function FighterPanel({ fighter, state, corner = 'A' }) {
     }, strategyName ? `» ${strategyName}` : ' '),
 
     // Effects inline
-    effectsText && e(Text, {
+    e(Text, {
       color: '#88ff88',
       dimColor: true
-    }, effectsText)
+    }, effectsText || ' ')
   );
 }
 
@@ -293,15 +311,16 @@ function CompuBoxPanel({ statsA, statsB, fighterA, fighterB }) {
     b.powerLanded = b.landed - b.jabsLanded;
   }
 
-  const nameA = fighterA?.getShortName?.() || 'Fighter A';
-  const nameB = fighterB?.getShortName?.() || 'Fighter B';
+  const nameA = fighterA?.name || fighterA?.getShortName?.() || 'Fighter A';
+  const nameB = fighterB?.name || fighterB?.getShortName?.() || 'Fighter B';
 
   return e(Box, {
     flexDirection: 'column',
     borderStyle: 'single',
     borderColor: theme.border,
     padding: 1,
-    width: 36
+    width: 36,
+    height: 11
   },
     e(Text, { bold: true, color: theme.punch }, 'COMPUBOX PUNCH STATS'),
     e(Box, { height: 1 }),
@@ -310,31 +329,31 @@ function CompuBoxPanel({ statsA, statsB, fighterA, fighterB }) {
     e(Box, { flexDirection: 'row' },
       e(Text, { color: theme.fighterA, bold: true }, nameA.substring(0, 10).padEnd(10)),
       e(Text, { color: theme.commentary }, '          '),
-      e(Text, { color: theme.fighterB, bold: true }, nameB.substring(0, 10))
+      e(Text, { color: theme.fighterB, bold: true }, nameB.substring(0, 10).padStart(10))
     ),
 
     e(Box, { height: 1 }),
 
-    // Stats rows
+    // Stats rows - consistent column widths: 10 | 10 | 10
     e(Box, { flexDirection: 'row' },
       e(Text, { color: theme.fighterA }, `${a.landed}/${a.thrown}`.padEnd(10)),
-      e(Text, { color: theme.commentary, dimColor: true }, 'TOTAL     '),
-      e(Text, { color: theme.fighterB }, `${b.landed}/${b.thrown}`)
+      e(Text, { color: theme.commentary, dimColor: true }, '  TOTAL   '),
+      e(Text, { color: theme.fighterB }, `${b.landed}/${b.thrown}`.padStart(10))
     ),
     e(Box, { flexDirection: 'row' },
       e(Text, { color: theme.fighterA }, `${accA}%`.padEnd(10)),
-      e(Text, { color: theme.commentary, dimColor: true }, 'ACCURACY  '),
-      e(Text, { color: theme.fighterB }, `${accB}%`)
+      e(Text, { color: theme.commentary, dimColor: true }, ' ACCURACY '),
+      e(Text, { color: theme.fighterB }, `${accB}%`.padStart(10))
     ),
     e(Box, { flexDirection: 'row' },
       e(Text, { color: theme.fighterA }, `${a.jabsLanded}/${a.jabsThrown}`.padEnd(10)),
-      e(Text, { color: theme.commentary, dimColor: true }, 'JABS      '),
-      e(Text, { color: theme.fighterB }, `${b.jabsLanded}/${b.jabsThrown}`)
+      e(Text, { color: theme.commentary, dimColor: true }, '   JABS   '),
+      e(Text, { color: theme.fighterB }, `${b.jabsLanded}/${b.jabsThrown}`.padStart(10))
     ),
     e(Box, { flexDirection: 'row' },
       e(Text, { color: theme.fighterA }, `${a.powerLanded}/${a.powerThrown}`.padEnd(10)),
-      e(Text, { color: theme.commentary, dimColor: true }, 'POWER     '),
-      e(Text, { color: theme.fighterB }, `${b.powerLanded}/${b.powerThrown}`)
+      e(Text, { color: theme.commentary, dimColor: true }, '  POWER   '),
+      e(Text, { color: theme.fighterB }, `${b.powerLanded}/${b.powerThrown}`.padStart(10))
     )
   );
 }
@@ -346,8 +365,8 @@ function CompuBoxPanel({ statsA, statsB, fighterA, fighterB }) {
 function LedermanScorecard({ scores, currentRound, fighterA, fighterB, maxRounds = 12 }) {
   const theme = useTheme();
 
-  const nameA = fighterA?.getShortName?.()?.substring(0, 6) || 'A';
-  const nameB = fighterB?.getShortName?.()?.substring(0, 6) || 'B';
+  const nameA = fighterA?.name || fighterA?.getShortName?.() || 'A';
+  const nameB = fighterB?.name || fighterB?.getShortName?.() || 'B';
 
   // Calculate totals
   let totalA = 0;
@@ -365,7 +384,7 @@ function LedermanScorecard({ scores, currentRound, fighterA, fighterB, maxRounds
 
   // Column width for each round score (consistent alignment)
   const COL_WIDTH = 4;  // " 10 " = 4 chars
-  const NAME_WIDTH = 7; // Fighter name column
+  const NAME_WIDTH = 14; // Fighter name column - enough for most names
 
   // Calculate total width needed
   // Name column + all round columns + some padding
@@ -380,10 +399,11 @@ function LedermanScorecard({ scores, currentRound, fighterA, fighterB, maxRounds
   return e(Box, {
     flexDirection: 'column',
     borderStyle: 'single',
-    borderColor: '#FFD700',
+    borderColor: theme.border,
     paddingX: 1,
     paddingY: 0,
-    width: totalWidth
+    width: totalWidth,
+    height: 7
   },
     // Header with totals
     e(Box, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 1 },
@@ -460,21 +480,20 @@ function RoundTimer({ round, time, maxRounds = 12, isPaused, roundDuration = 180
   const mins = Math.floor(remaining / 60);
   const secs = Math.floor(remaining % 60);
 
-  const hasKnockdowns = knockdownsA > 0 || knockdownsB > 0;
-
   return e(Box, {
     flexDirection: 'column',
     alignItems: 'center',
     borderStyle: 'double',
-    borderColor: theme.round,
+    borderColor: theme.border,
     paddingX: 2,
-    paddingY: 0
+    paddingY: 0,
+    height: 8
   },
     e(Text, { bold: true, color: theme.round }, `ROUND ${round}/${maxRounds}`),
     e(Text, { bold: true, color: theme.timer }, `${mins}:${secs.toString().padStart(2, '0')}`),
 
-    // Knockdown display - always show if any knockdowns occurred
-    hasKnockdowns && e(Box, { flexDirection: 'row', marginTop: 1 },
+    // Knockdown display - always show for consistent height
+    e(Box, { flexDirection: 'row', marginTop: 1 },
       e(Text, { color: knockdownsA > 0 ? theme.knockdown : theme.commentary, bold: knockdownsA > 0 },
         `KD: ${knockdownsA}`),
       e(Text, { color: theme.commentary }, ' - '),
@@ -482,7 +501,8 @@ function RoundTimer({ round, time, maxRounds = 12, isPaused, roundDuration = 180
         `${knockdownsB}`)
     ),
 
-    isPaused && e(Text, { color: theme.hurt, bold: true }, 'PAUSED')
+    e(Text, { color: isPaused ? theme.hurt : theme.commentary, bold: isPaused },
+      isPaused ? 'PAUSED' : ' ')
   );
 }
 
@@ -493,16 +513,23 @@ function CommentaryPanel({ lines = [], maxLines = 6 }) {
   const theme = useTheme();
   const displayLines = lines.slice(-maxLines);
 
+  // Pad to ensure consistent height
+  const paddedLines = [...displayLines];
+  while (paddedLines.length < maxLines) {
+    paddedLines.unshift(' ');
+  }
+
   return e(Box, {
     flexDirection: 'column',
     borderStyle: 'single',
     borderColor: theme.border,
     padding: 1,
-    flexGrow: 1
+    flexGrow: 1,
+    height: maxLines + 4
   },
     e(Text, { bold: true, color: theme.commentary }, ' BROADCAST TEAM'),
-    e(Box, { marginTop: 1, flexDirection: 'column', height: maxLines },
-      ...displayLines.map((line, i) => {
+    e(Box, { marginTop: 1, flexDirection: 'column' },
+      ...paddedLines.map((line, i) => {
         // Parse speaker prefix if present
         let speaker = '';
         let text = typeof line === 'string' ? line : line.text || '';
@@ -526,7 +553,7 @@ function CommentaryPanel({ lines = [], maxLines = 6 }) {
           color = '#90EE90';
         }
 
-        const isLatest = i === displayLines.length - 1;
+        const isLatest = i === paddedLines.length - 1;
 
         return e(Text, {
           key: i,
@@ -546,17 +573,24 @@ function ActionPanel({ actions = [], maxActions = 4 }) {
   const theme = useTheme();
   const displayActions = actions.slice(-maxActions);
 
+  // Pad to ensure consistent height
+  const paddedActions = [...displayActions];
+  while (paddedActions.length < maxActions) {
+    paddedActions.unshift({ text: ' ', highlight: false });
+  }
+
   return e(Box, {
     flexDirection: 'column',
     borderStyle: 'single',
     borderColor: theme.border,
     padding: 1,
-    width: 44
+    width: 44,
+    height: maxActions + 4
   },
     e(Text, { bold: true, color: theme.punch }, ' RECENT ACTION'),
     e(Box, { marginTop: 1, flexDirection: 'column' },
-      ...displayActions.map((action, i) => {
-        const isLatest = i === displayActions.length - 1;
+      ...paddedActions.map((action, i) => {
+        const isLatest = i === paddedActions.length - 1;
         const text = typeof action === 'string' ? action : action.text;
         const isHighlight = action.highlight || action.isBig;
 
@@ -618,6 +652,166 @@ function KnockdownOverlay({ fighter, count, onDismiss }) {
 }
 
 /**
+ * Tale of the Tape Panel - Pre-fight comparison and betting odds
+ */
+function TaleOfTheTape({ fighterA, fighterB, odds }) {
+  const theme = useTheme();
+
+  const nameA = fighterA?.name || fighterA?.getShortName?.() || 'Fighter A';
+  const nameB = fighterB?.name || fighterB?.getShortName?.() || 'Fighter B';
+  const nickA = fighterA?.identity?.nickname || '';
+  const nickB = fighterB?.identity?.nickname || '';
+
+  // Physical attributes
+  const heightA = fighterA?.physical?.height || 0;
+  const heightB = fighterB?.physical?.height || 0;
+  const weightA = fighterA?.physical?.weight || 0;
+  const weightB = fighterB?.physical?.weight || 0;
+  const reachA = fighterA?.physical?.reach || 0;
+  const reachB = fighterB?.physical?.reach || 0;
+  const stanceA = fighterA?.physical?.stance || 'orthodox';
+  const stanceB = fighterB?.physical?.stance || 'orthodox';
+
+  // Records
+  const winsA = fighterA?.record?.wins || 0;
+  const lossesA = fighterA?.record?.losses || 0;
+  const kosA = fighterA?.record?.kos || 0;
+  const winsB = fighterB?.record?.wins || 0;
+  const lossesB = fighterB?.record?.losses || 0;
+  const kosB = fighterB?.record?.kos || 0;
+
+  // Styles
+  const styleA = fighterA?.style?.primary || 'boxer';
+  const styleB = fighterB?.style?.primary || 'boxer';
+
+  // Format height (cm to feet/inches for display)
+  const formatHeight = (cm) => {
+    if (!cm) return '--';
+    const totalInches = cm / 2.54;
+    const feet = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    return `${feet}'${inches}"`;
+  };
+
+  // Format odds
+  const formatOdds = (o) => {
+    if (o === undefined || o === null) return '--';
+    return o > 0 ? `+${o}` : `${o}`;
+  };
+
+  const oddsA = odds?.oddsA;
+  const oddsB = odds?.oddsB;
+
+  // Determine which attributes favor which fighter
+  const heightWinner = heightA > heightB ? 'A' : heightB > heightA ? 'B' : null;
+  const reachWinner = reachA > reachB ? 'A' : reachB > reachA ? 'B' : null;
+  const weightWinner = weightA > weightB ? 'A' : weightB > weightA ? 'B' : null;
+
+  // Column widths
+  const COL_A = 12;
+  const COL_LABEL = 10;
+  const COL_B = 12;
+
+  const StatRow = ({ valueA, label, valueB, highlightA = false, highlightB = false }) => {
+    return e(Box, { flexDirection: 'row' },
+      e(Text, {
+        color: highlightA ? theme.fighterA : theme.foreground,
+        bold: highlightA
+      }, String(valueA).padStart(COL_A)),
+      e(Text, { color: theme.commentary, dimColor: true }, ` ${label.padStart(Math.floor((COL_LABEL + label.length) / 2)).padEnd(COL_LABEL)} `),
+      e(Text, {
+        color: highlightB ? theme.fighterB : theme.foreground,
+        bold: highlightB
+      }, String(valueB).padEnd(COL_B))
+    );
+  };
+
+  return e(Box, {
+    flexDirection: 'column',
+    borderStyle: 'single',
+    borderColor: theme.border,
+    paddingX: 1,
+    paddingY: 0,
+    width: 40,
+    height: 12
+  },
+    // Header
+    e(Text, { bold: true, color: '#FFD700' }, ' TALE OF THE TAPE'),
+
+    // Fighter names with odds
+    e(Box, { flexDirection: 'row', marginTop: 1 },
+      e(Text, { color: theme.fighterA, bold: true }, nameA.substring(0, COL_A).padStart(COL_A)),
+      e(Text, { color: theme.commentary }, '          '),
+      e(Text, { color: theme.fighterB, bold: true }, nameB.substring(0, COL_B).padEnd(COL_B))
+    ),
+
+    // Nicknames (if any)
+    nickA || nickB ? e(Box, { flexDirection: 'row' },
+      e(Text, { color: theme.fighterA, dimColor: true }, nickA ? `"${nickA}"`.substring(0, COL_A).padStart(COL_A) : ' '.repeat(COL_A)),
+      e(Text, { color: theme.commentary }, '          '),
+      e(Text, { color: theme.fighterB, dimColor: true }, nickB ? `"${nickB}"`.substring(0, COL_B).padEnd(COL_B) : '')
+    ) : null,
+
+    // Odds row
+    e(Box, { flexDirection: 'row' },
+      e(Text, {
+        color: oddsA < 0 ? '#00ff00' : '#ffaa00',
+        bold: true
+      }, formatOdds(oddsA).padStart(COL_A)),
+      e(Text, { color: '#FFD700', bold: true }, '   ODDS   '),
+      e(Text, {
+        color: oddsB < 0 ? '#00ff00' : '#ffaa00',
+        bold: true
+      }, formatOdds(oddsB).padEnd(COL_B))
+    ),
+
+    // Physical stats
+    e(StatRow, {
+      valueA: formatHeight(heightA),
+      label: 'HEIGHT',
+      valueB: formatHeight(heightB),
+      highlightA: heightWinner === 'A',
+      highlightB: heightWinner === 'B'
+    }),
+    e(StatRow, {
+      valueA: `${weightA} kg`,
+      label: 'WEIGHT',
+      valueB: `${weightB} kg`,
+      highlightA: weightWinner === 'A',
+      highlightB: weightWinner === 'B'
+    }),
+    e(StatRow, {
+      valueA: `${reachA}"`,
+      label: 'REACH',
+      valueB: `${reachB}"`,
+      highlightA: reachWinner === 'A',
+      highlightB: reachWinner === 'B'
+    }),
+
+    // Record
+    e(StatRow, {
+      valueA: `${winsA}-${lossesA} (${kosA})`,
+      label: 'RECORD',
+      valueB: `${winsB}-${lossesB} (${kosB})`
+    }),
+
+    // Stance
+    e(StatRow, {
+      valueA: stanceA,
+      label: 'STANCE',
+      valueB: stanceB
+    }),
+
+    // Style
+    e(StatRow, {
+      valueA: styleA.replace(/-/g, ' ').substring(0, COL_A),
+      label: 'STYLE',
+      valueB: styleB.replace(/-/g, ' ').substring(0, COL_B)
+    })
+  );
+}
+
+/**
  * Format punch type for display
  */
 function formatPunch(punchType) {
@@ -661,17 +855,158 @@ function FightDisplay({ fight, simulation, tui }) {
   const [knockdownOverlay, setKnockdownOverlay] = useState(null);
   const [currentSpeed, setCurrentSpeed] = useState(simulation?.options?.speedMultiplier || 1);
   const [roundPointDeductions, setRoundPointDeductions] = useState({ A: 0, B: 0 });
+  const [fightOdds, setFightOdds] = useState(null);
+  const [roundHurtStats, setRoundHurtStats] = useState({ A: 0, B: 0 });
 
   const commentaryGen = useRef(new CommentaryGenerator()).current;
   const lastCommentaryTime = useRef(0);
+  const lastPeriodicCommentaryTime = useRef(0);
+  const lastMomentumCommentaryTime = useRef(0);
 
-  // Initialize commentary generator
+  // Calculate pre-fight odds and generate analysis
+  const calculateOdds = useCallback((fighterA, fighterB) => {
+    // Get fighter attributes for comparison
+    const getOverall = (f) => {
+      const power = ((f.power?.powerLeft || 70) + (f.power?.powerRight || 70) + (f.power?.knockoutPower || 70)) / 3;
+      const speed = ((f.speed?.handSpeed || 70) + (f.speed?.footSpeed || 70) + (f.speed?.reflexes || 70)) / 3;
+      const defense = ((f.defense?.headMovement || 70) + (f.defense?.blocking || 70)) / 2;
+      const stamina = ((f.stamina?.cardio || 70) + (f.stamina?.recoveryRate || 70)) / 2;
+      const mental = ((f.mental?.chin || 70) + (f.mental?.heart || 70) + (f.mental?.killerInstinct || 70)) / 3;
+      const technical = ((f.technical?.accuracy || 70) + (f.technical?.fightIQ || 70) + (f.technical?.ringGeneralship || 70)) / 3;
+      return (power + speed + defense + stamina + mental + technical) / 6;
+    };
+
+    const overallA = getOverall(fighterA);
+    const overallB = getOverall(fighterB);
+
+    // Physical advantages
+    const reachA = fighterA.physical?.reach || 180;
+    const reachB = fighterB.physical?.reach || 180;
+    const reachAdvantage = (reachA - reachB) * 0.15; // Each inch of reach = 0.15 points
+
+    // Record factor (winning percentage matters)
+    const getRecordBonus = (f) => {
+      const wins = f.record?.wins || 0;
+      const losses = f.record?.losses || 0;
+      const total = wins + losses;
+      if (total === 0) return 0;
+      return ((wins / total) - 0.5) * 10; // +5 for 100% win rate, -5 for 0%
+    };
+    const recordA = getRecordBonus(fighterA);
+    const recordB = getRecordBonus(fighterB);
+
+    // Calculate adjusted scores
+    const scoreA = overallA + reachAdvantage + recordA;
+    const scoreB = overallB - reachAdvantage + recordB;
+
+    // Convert to probability (logistic function)
+    const diff = scoreA - scoreB;
+    const probA = 1 / (1 + Math.exp(-diff / 8)); // Sigmoid with scale factor
+
+    // Convert probability to American odds
+    const toAmericanOdds = (prob) => {
+      if (prob >= 0.5) {
+        return Math.round(-100 * prob / (1 - prob));
+      } else {
+        return Math.round(100 * (1 - prob) / prob);
+      }
+    };
+
+    const oddsA = toAmericanOdds(probA);
+    const oddsB = toAmericanOdds(1 - probA);
+
+    // Determine matchup type
+    let matchupType;
+    const probDiff = Math.abs(probA - 0.5);
+    if (probDiff < 0.05) matchupType = 'PICK_EM';
+    else if (probDiff < 0.12) matchupType = 'COMPETITIVE';
+    else if (probDiff < 0.22) matchupType = 'CLEAR_FAVORITE';
+    else if (probDiff < 0.32) matchupType = 'HEAVY_FAVORITE';
+    else matchupType = 'MISMATCH';
+
+    const favorite = probA > 0.5 ? 'A' : 'B';
+    const favoriteProb = Math.max(probA, 1 - probA);
+
+    return {
+      probA,
+      probB: 1 - probA,
+      oddsA,
+      oddsB,
+      matchupType,
+      favorite,
+      favoriteProb,
+      overallA,
+      overallB,
+      reachAdvantage
+    };
+  }, []);
+
+  // Initialize commentary generator with pre-fight analysis
   useEffect(() => {
     if (fight) {
       commentaryGen.initialize(fight.fighterA, fight.fighterB);
-      addCommentary(`LAMPLEY: Welcome to the ring for what promises to be an exciting bout!`);
+
+      const nameA = fight.fighterA.name || fight.fighterA.getShortName();
+      const nameB = fight.fighterB.name || fight.fighterB.getShortName();
+      const shortA = fight.fighterA.getShortName();
+      const shortB = fight.fighterB.getShortName();
+
+      // Calculate odds and store for Tale of the Tape
+      const odds = calculateOdds(fight.fighterA, fight.fighterB);
+      setFightOdds(odds);
+      const favorite = odds.favorite === 'A' ? shortA : shortB;
+      const underdog = odds.favorite === 'A' ? shortB : shortA;
+
+      // Format odds for display
+      const formatOdds = (o) => o > 0 ? `+${o}` : `${o}`;
+
+      addCommentary('═══════════════════════════════════════════');
+      addCommentary(`LAMPLEY: Welcome to tonight's main event!`);
+      addCommentary(`LAMPLEY: ${nameA} vs ${nameB}!`);
+      addCommentary('');
+
+      // Show betting odds
+      addCommentary(`MERCHANT: The betting lines have ${shortA} at ${formatOdds(odds.oddsA)}, ${shortB} at ${formatOdds(odds.oddsB)}.`);
+
+      // Matchup analysis based on type
+      if (odds.matchupType === 'PICK_EM') {
+        addCommentary(`FOREMAN: This is a true pick'em fight. Could go either way!`);
+        addCommentary(`MERCHANT: The oddsmakers can't separate these two. Expect fireworks!`);
+      } else if (odds.matchupType === 'COMPETITIVE') {
+        addCommentary(`FOREMAN: ${favorite} is a slight favorite, but ${underdog} is very live here.`);
+        addCommentary(`MERCHANT: This should be a competitive fight throughout.`);
+      } else if (odds.matchupType === 'CLEAR_FAVORITE') {
+        addCommentary(`FOREMAN: ${favorite} comes in as the clear favorite tonight.`);
+        addCommentary(`MERCHANT: ${underdog} will need to pull off something special to win this one.`);
+      } else if (odds.matchupType === 'HEAVY_FAVORITE') {
+        addCommentary(`FOREMAN: ${favorite} is a heavy favorite. ${underdog} faces an uphill battle.`);
+        addCommentary(`MERCHANT: The question is whether ${underdog} can survive, let alone win.`);
+      } else if (odds.matchupType === 'MISMATCH') {
+        addCommentary(`FOREMAN: I have to be honest - this looks like a mismatch on paper.`);
+        addCommentary(`MERCHANT: ${favorite} should dominate unless something unexpected happens.`);
+        addCommentary(`LAMPLEY: But that's why they fight the fights, anything can happen!`);
+      }
+
+      // Physical comparison
+      const reachA = fight.fighterA.physical?.reach || 0;
+      const reachB = fight.fighterB.physical?.reach || 0;
+      const reachDiff = Math.abs(reachA - reachB);
+      if (reachDiff >= 5) {
+        const longerArms = reachA > reachB ? shortA : shortB;
+        addCommentary(`FOREMAN: ${longerArms} has a ${reachDiff} inch reach advantage. That could be key.`);
+      }
+
+      // Style matchup insight
+      const styleA = fight.fighterA.style?.primary || 'boxer';
+      const styleB = fight.fighterB.style?.primary || 'boxer';
+      if (styleA !== styleB) {
+        addCommentary(`MERCHANT: Interesting style matchup - ${shortA}'s ${styleA} style against ${shortB}'s ${styleB} approach.`);
+      }
+
+      addCommentary('═══════════════════════════════════════════');
+      addCommentary('');
     }
-  }, [fight, commentaryGen]);
+  }, [fight, commentaryGen, calculateOdds]);
 
   // Subscribe to simulation events
   useEffect(() => {
@@ -685,6 +1020,148 @@ function FightDisplay({ fight, simulation, tui }) {
         setPositions(data.positions);
         setStatsA(data.fighterA?.fightStats || data.stats?.fighterA || {});
         setStatsB(data.fighterB?.fightStats || data.stats?.fighterB || {});
+
+        // Periodic commentary - observations about the fight state
+        const now = Date.now();
+        const timeSincePeriodicComment = now - lastPeriodicCommentaryTime.current;
+        const timeSinceMomentumComment = now - lastMomentumCommentaryTime.current;
+        const roundTime = data.roundTime || 0;
+
+        // Only add periodic commentary during active fighting (after first 30s, not in last 30s)
+        if (roundTime > 30 && roundTime < 150 && timeSincePeriodicComment > 8000) {
+          const fighterAState = data.fighterA;
+          const fighterBState = data.fighterB;
+          const nameA = fight?.fighterA?.getShortName?.() || 'Fighter A';
+          const nameB = fight?.fighterB?.getShortName?.() || 'Fighter B';
+          const staminaA = fighterAState?.stamina?.percent || 1;
+          const staminaB = fighterBState?.stamina?.percent || 1;
+          const healthA = fighterAState?.damage?.headPercent != null ? (1 - fighterAState.damage.headPercent) : 1;
+          const healthB = fighterBState?.damage?.headPercent != null ? (1 - fighterBState.damage.headPercent) : 1;
+
+          // Get buffs/debuffs
+          const buffsA = fighterAState?.effects?.buffs || [];
+          const buffsB = fighterBState?.effects?.buffs || [];
+          const debuffsA = fighterAState?.effects?.debuffs || [];
+          const debuffsB = fighterBState?.effects?.debuffs || [];
+
+          // MOMENTUM commentary (special, tracked separately)
+          const hasMomentumA = buffsA.some(b => b.type === 'MOMENTUM');
+          const hasMomentumB = buffsB.some(b => b.type === 'MOMENTUM');
+          if ((hasMomentumA || hasMomentumB) && timeSinceMomentumComment > 15000) {
+            const fighter = hasMomentumA ? nameA : nameB;
+            const comments = [
+              `FOREMAN: ${fighter} has got MOMENTUM now! You can feel it!`,
+              `MERCHANT: ${fighter} is in complete control right now. This is his moment.`,
+              `LAMPLEY: ${fighter} is in a rhythm! He's got the crowd behind him!`,
+              `FOREMAN: ${fighter} is rolling now! When you get hot like this, you gotta keep throwing!`,
+              `MERCHANT: ${fighter} has seized the initiative. His opponent needs to disrupt this flow.`
+            ];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastMomentumCommentaryTime.current = now;
+            lastPeriodicCommentaryTime.current = now;
+            return;
+          }
+
+          // GASSED/STAMINA commentary
+          const isGassedA = debuffsA.some(d => d.type === 'GASSED');
+          const isGassedB = debuffsB.some(d => d.type === 'GASSED');
+          if (isGassedA || isGassedB) {
+            const gassedFighter = isGassedA ? nameA : nameB;
+            const opponent = isGassedA ? nameB : nameA;
+            if (Math.random() < 0.3) {
+              const comments = [
+                `FOREMAN: ${gassedFighter} is EXHAUSTED! He's got nothing left in the tank!`,
+                `MERCHANT: ${gassedFighter} has punched himself out. ${opponent} needs to capitalize NOW.`,
+                `LAMPLEY: ${gassedFighter} is breathing heavy! His punch output has dropped dramatically!`,
+                `FOREMAN: Look at ${gassedFighter}'s body language! He's GASSED!`
+              ];
+              addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+              lastPeriodicCommentaryTime.current = now;
+              return;
+            }
+          }
+
+          // General periodic observations (random selection)
+          const periodicRoll = Math.random();
+
+          if (periodicRoll < 0.15 && staminaA < 0.5 && staminaB > 0.6) {
+            // Stamina disparity
+            const comments = [
+              `FOREMAN: ${nameA} is slowing down. ${nameB} looks fresher.`,
+              `MERCHANT: The conditioning difference is starting to show. ${nameA} is fading.`,
+              `LAMPLEY: ${nameA}'s work rate has dropped. He looks tired.`
+            ];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastPeriodicCommentaryTime.current = now;
+          } else if (periodicRoll < 0.30 && staminaB < 0.5 && staminaA > 0.6) {
+            const comments = [
+              `FOREMAN: ${nameB} is fading! ${nameA} needs to pour it on!`,
+              `MERCHANT: ${nameB}'s punch output has dropped significantly. Fatigue is setting in.`,
+              `LAMPLEY: ${nameB} is slowing down! ${nameA} smells blood!`
+            ];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastPeriodicCommentaryTime.current = now;
+          } else if (periodicRoll < 0.40 && healthA < 0.45) {
+            // Fighter A is hurt
+            const comments = [
+              `MERCHANT: ${nameA} has taken a lot of punishment. How much more can he absorb?`,
+              `FOREMAN: ${nameA}'s face is starting to show the damage. ${nameB} is breaking him down.`,
+              `LAMPLEY: ${nameA} is in survival mode now. He's just trying to stay in the fight.`
+            ];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastPeriodicCommentaryTime.current = now;
+          } else if (periodicRoll < 0.50 && healthB < 0.45) {
+            const comments = [
+              `MERCHANT: ${nameB} is hurt and ${nameA} knows it. He's looking for the finish.`,
+              `FOREMAN: ${nameB} is in trouble! Look at his face - he's taken some shots!`,
+              `LAMPLEY: ${nameB} is hanging on! Can he survive this onslaught?`
+            ];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastPeriodicCommentaryTime.current = now;
+          } else if (periodicRoll < 0.60 && roundTime > 90 && roundTime < 120) {
+            // Mid-round general observations
+            const comments = [
+              `FOREMAN: Good action in this round! Both fighters are throwing leather!`,
+              `MERCHANT: The chess match continues. Neither man wants to give an inch.`,
+              `LAMPLEY: We're halfway through this round and the pace has been relentless!`,
+              `FOREMAN: I love what I'm seeing! This is what boxing is all about!`,
+              `MERCHANT: The tactical adjustments are fascinating. Both corners are working.`
+            ];
+            addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            lastPeriodicCommentaryTime.current = now;
+          } else if (periodicRoll < 0.70) {
+            // Random style observations
+            const styleA = fight?.fighterA?.style?.primary || 'boxer';
+            const styleB = fight?.fighterB?.style?.primary || 'boxer';
+            if (styleA === 'swarmer' || styleA === 'pressure-fighter') {
+              const comments = [
+                `FOREMAN: ${nameA} keeps bringing the pressure! He won't let ${nameB} breathe!`,
+                `MERCHANT: ${nameA}'s aggression is paying off. He's smothering ${nameB}.`
+              ];
+              addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            } else if (styleA === 'out-boxer') {
+              const comments = [
+                `MERCHANT: ${nameA} is boxing beautifully. He's controlling the distance.`,
+                `LAMPLEY: ${nameA}'s jab is finding a home. Beautiful outfighting.`
+              ];
+              addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            } else if (styleA === 'counter-puncher') {
+              const comments = [
+                `MERCHANT: ${nameA} is making ${nameB} pay for every mistake. Beautiful timing.`,
+                `FOREMAN: ${nameA} is sitting in the pocket, waiting to counter. Dangerous!`
+              ];
+              addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            } else {
+              const comments = [
+                `FOREMAN: Both fighters are giving their all! Great action!`,
+                `MERCHANT: The technique on display here is impressive.`,
+                `LAMPLEY: What a round we're witnessing!`
+              ];
+              addCommentary(comments[Math.floor(Math.random() * comments.length)]);
+            }
+            lastPeriodicCommentaryTime.current = now;
+          }
+        }
       },
 
       roundStart: (data) => {
@@ -692,6 +1169,7 @@ function FightDisplay({ fight, simulation, tui }) {
         setTime(0);
         setIsBetweenRounds(false);
         setRoundPointDeductions({ A: 0, B: 0 }); // Reset point deductions for new round
+        setRoundHurtStats({ A: 0, B: 0 }); // Reset stagger/hurt stats for new round
 
         const nameA = fight.fighterA.getShortName();
         const nameB = fight.fighterB.getShortName();
@@ -741,34 +1219,235 @@ function FightDisplay({ fight, simulation, tui }) {
         const nameA = fight.fighterA.getShortName();
         const nameB = fight.fighterB.getShortName();
 
-        // Score the round
+        // Get round stats
         const statsAround = stateA?.fightStats || statsA;
         const statsBround = stateB?.fightStats || statsB;
         const landedA = statsAround?.punchesLanded || statsAround?.punches_landed || 0;
         const landedB = statsBround?.punchesLanded || statsBround?.punches_landed || 0;
 
-        // Simple scoring: more punches = 10, fewer = 9, knockdown = -1
-        let scoreA = landedA >= landedB ? 10 : 9;
-        let scoreB = landedB >= landedA ? 10 : 9;
+        // Get power punches vs jabs
+        const powerA = statsAround?.powerPunchesLanded || statsAround?.power_punches_landed || Math.floor(landedA * 0.4);
+        const powerB = statsBround?.powerPunchesLanded || statsBround?.power_punches_landed || Math.floor(landedB * 0.4);
+        const jabsA = landedA - powerA;
+        const jabsB = landedB - powerB;
 
-        // Adjust for knockdowns this round
+        // Get damage dealt this round (more important than volume)
+        const damageA = stateA?.roundDamageDealt || (powerA * 1.5 + jabsA * 0.3);
+        const damageB = stateB?.roundDamageDealt || (powerB * 1.5 + jabsB * 0.3);
+
+        // Knockdowns this round
         const kdA = stateA?.roundKnockdowns || 0;
         const kdB = stateB?.roundKnockdowns || 0;
-        scoreA -= kdA;
-        scoreB -= kdB;
+
+        // Get stagger/hurt stats for this round (who hurt who)
+        // The fighter who STAGGERS their opponent gets huge scoring bonus
+        const staggersA = roundHurtStats.A || 0;  // Times A staggered B
+        const staggersB = roundHurtStats.B || 0;  // Times B staggered A
+
+        // REALISTIC ROUND SCORING WITH JUDGE PERSONALITIES
+        // Key insight: Even in one-sided fights, the losing fighter will win SOME rounds
+        // - Maybe they caught the winner with a good shot
+        // - Maybe the winner took a "rest round"
+        // - Maybe the loser just out-worked them for 3 minutes
+        //
+        // Real boxing: A fighter being dominated might still win 2-3 rounds in a 12 rounder
+
+        // Define judge scoring styles
+        const getJudgeScore = (judgeType) => {
+          let effectiveA, effectiveB;
+
+          // STAGGER BONUS: Hurting/staggering your opponent is a HUGE scoring factor
+          // This is one of the most impressive things you can do without scoring a knockdown
+          // Base bonus: 30 points per stagger (roughly equivalent to 10-15 power punches)
+          const staggerBonusA = staggersA * 30;
+          const staggerBonusB = staggersB * 30;
+
+          if (judgeType === 'POWER') {
+            // Power judge: heavily weights damage, power punches, AND staggers
+            effectiveA = (damageA * 2.0) + (powerA * 3.0) + (jabsA * 0.2) + (staggerBonusA * 1.5);
+            effectiveB = (damageB * 2.0) + (powerB * 3.0) + (jabsB * 0.2) + (staggerBonusB * 1.5);
+          } else if (judgeType === 'VOLUME') {
+            // Volume judge: values activity but still recognizes staggers
+            effectiveA = (damageA * 0.8) + (powerA * 1.0) + (jabsA * 1.2) + (landedA * 0.5) + staggerBonusA;
+            effectiveB = (damageB * 0.8) + (powerB * 1.0) + (jabsB * 1.2) + (landedB * 0.5) + staggerBonusB;
+          } else {
+            // Balanced judge - staggers are very important
+            effectiveA = (damageA * 1.2) + (powerA * 1.5) + (jabsA * 0.6) + (staggerBonusA * 1.2);
+            effectiveB = (damageB * 1.2) + (powerB * 1.5) + (jabsB * 0.6) + (staggerBonusB * 1.2);
+          }
+
+          // Calculate base advantage
+          const total = effectiveA + effectiveB + 0.1;
+          let advantageA = effectiveA / total;
+
+          // MAJOR VARIANCE FACTORS:
+          // 1. Judge variance - judges see things differently (±10%)
+          const judgeVariance = (Math.random() - 0.5) * 0.20;
+
+          // 2. "Memorable moments" - sometimes a single punch or exchange wins a round
+          //    This represents the loser landing something clean that sticks in the judge's mind
+          const memorableMoment = (Math.random() - 0.5) * 0.15;
+
+          // 3. "Swing round" factor - some rounds are just hard to score
+          //    ~20% of rounds are genuine toss-ups regardless of stats
+          const isSwingRound = Math.random() < 0.20;
+          const swingFactor = isSwingRound ? (Math.random() - 0.5) * 0.25 : 0;
+
+          advantageA += judgeVariance + memorableMoment + swingFactor;
+
+          // 4. "Balancing" factor - judges subtly favor trailing fighter in close rounds
+          //    This represents the subconscious tendency to keep fights competitive
+          //    Only applies to close rounds (±0.12 from even) and when one fighter is behind
+          const currentScores = roundScores || [];
+          let totalA = 0, totalB = 0;
+          currentScores.forEach(s => { totalA += s.a; totalB += s.b; });
+          const scoreDiff = Math.abs(totalA - totalB);
+          const aIsTrailing = totalA < totalB;
+          const bIsTrailing = totalB < totalA;
+
+          // If round is close and one fighter is clearly behind on cards, subtle nudge
+          if (scoreDiff >= 3 && Math.abs(advantageA - 0.5) < 0.12) {
+            const balancingStrength = Math.min(0.08, scoreDiff * 0.015); // Max 8% nudge
+            if (aIsTrailing) {
+              advantageA += balancingStrength; // Nudge toward A winning this round
+            } else if (bIsTrailing) {
+              advantageA -= balancingStrength; // Nudge toward B winning this round
+            }
+          }
+
+          // Clamp to reasonable range (no one wins a round 90-10)
+          advantageA = Math.max(0.25, Math.min(0.75, advantageA));
+
+          // Determine this judge's round score
+          let scoreA = 10, scoreB = 10;
+
+          // Wider bands for "close" rounds - most rounds ARE close
+          if (advantageA >= 0.42 && advantageA <= 0.58) {
+            // Close round - genuinely could go either way
+            // Give slight edge to the statistical leader but it's nearly a coin flip
+            const winChanceA = 0.35 + (advantageA - 0.42) * 1.875; // 35% to 65%
+            if (Math.random() < winChanceA) scoreB = 9;
+            else scoreA = 9;
+          } else if (advantageA > 0.58 && advantageA <= 0.68) {
+            // A has the edge but B can still steal it (~25% chance)
+            if (Math.random() < 0.75) scoreB = 9;
+            else scoreA = 9;
+          } else if (advantageA < 0.42 && advantageA >= 0.32) {
+            // B has the edge but A can still steal it (~25% chance)
+            if (Math.random() < 0.75) scoreA = 9;
+            else scoreB = 9;
+          } else if (advantageA > 0.68) {
+            // Clear A round - but still ~10% upset chance
+            if (Math.random() < 0.90) {
+              scoreB = 9;
+              if (advantageA > 0.72 && Math.random() < 0.20) scoreB = 8;
+            } else {
+              scoreA = 9; // Stolen round!
+            }
+          } else if (advantageA < 0.32) {
+            // Clear B round - but still ~10% upset chance
+            if (Math.random() < 0.90) {
+              scoreA = 9;
+              if (advantageA < 0.28 && Math.random() < 0.20) scoreA = 8;
+            } else {
+              scoreB = 9; // Stolen round!
+            }
+          }
+
+          // Knockdowns override everything (no stealing a KD round)
+          if (kdA > 0 && kdB === 0) {
+            scoreB = 10;
+            scoreA = 10 - kdA;
+          } else if (kdB > 0 && kdA === 0) {
+            scoreA = 10;
+            scoreB = 10 - kdB;
+          }
+          // Multiple staggerings without knockdown can also be 10-8
+          // This is a lopsided round - one fighter is getting dominated
+          // staggersA = times A hurt/staggered B (A gets credit)
+          // staggersB = times B hurt/staggered A (B gets credit)
+          else if (staggersA >= 2 && staggersB === 0) {
+            // A staggered B multiple times - A dominated and wins 10-8
+            scoreA = 10;
+            scoreB = 8;
+          } else if (staggersB >= 2 && staggersA === 0) {
+            // B staggered A multiple times - B dominated and wins 10-8
+            scoreB = 10;
+            scoreA = 8;
+          }
+          // Single stagger is significant but not 10-8 worthy on its own
+          // However it should guarantee winning the round if already ahead
+          else if (staggersA === 1 && staggersB === 0 && advantageA > 0.55) {
+            // A hurt B and has the edge - A wins 10-9
+            scoreA = 10;
+            scoreB = 9;
+          } else if (staggersB === 1 && staggersA === 0 && advantageA < 0.45) {
+            // B hurt A and has the edge - B wins 10-9
+            scoreB = 10;
+            scoreA = 9;
+          }
+
+          return { scoreA, scoreB, advantageA, isSwingRound };
+        };
+
+        // Simulate 3 judges with different philosophies
+        // Lederman (displayed) uses the average/consensus
+        const judgeTypes = ['POWER', 'VOLUME', 'BALANCED'];
+        const judgeScores = judgeTypes.map(type => getJudgeScore(type));
+
+        // Use most common score for Lederman's card (or balanced judge if split)
+        const scoreACounts = {};
+        const scoreBCounts = {};
+        judgeScores.forEach(js => {
+          scoreACounts[js.scoreA] = (scoreACounts[js.scoreA] || 0) + 1;
+          scoreBCounts[js.scoreB] = (scoreBCounts[js.scoreB] || 0) + 1;
+        });
+
+        // Lederman picks the majority view, or balanced if all different
+        let scoreA = judgeScores[2].scoreA; // Default to balanced
+        let scoreB = judgeScores[2].scoreB;
+
+        // If 2+ judges agree, use that score
+        for (const [score, count] of Object.entries(scoreACounts)) {
+          if (count >= 2) scoreA = parseInt(score);
+        }
+        for (const [score, count] of Object.entries(scoreBCounts)) {
+          if (count >= 2) scoreB = parseInt(score);
+        }
+
+        // For tracking split rounds in commentary
+        const isSplitRound = new Set(judgeScores.map(j => j.scoreA > j.scoreB ? 'A' : j.scoreB > j.scoreA ? 'B' : 'E')).size > 1;
+
+        // Check if any judge flagged this as a swing round
+        const anySwingRound = judgeScores.some(j => j.isSwingRound);
+
+        // Calculate final advantage for commentary (use balanced judge)
+        const finalAdvantageA = judgeScores[2].advantageA;
+
+        // Detect "stolen" rounds - where the statistical loser wins the round
+        const damageWinner = damageA > damageB ? nameA : damageB > damageA ? nameB : null;
 
         // Adjust for point deductions this round
         scoreA -= roundPointDeductions.A;
         scoreB -= roundPointDeductions.B;
+
+        // Ensure minimum scores
+        scoreA = Math.max(7, scoreA);
+        scoreB = Math.max(7, scoreB);
 
         setRoundScores(prev => [...prev, { a: scoreA, b: scoreB }]);
 
         addCommentary(`LAMPLEY: That's the end of Round ${data.round}!`);
 
         // Insightful round analysis
-        const landedDiff = Math.abs(landedA - landedB);
         const pointDeductionA = roundPointDeductions.A;
         const pointDeductionB = roundPointDeductions.B;
+        const roundWinner = scoreA > scoreB ? nameA : scoreB > scoreA ? nameB : null;
+        const statsWinner = landedA > landedB ? nameA : landedB > landedA ? nameB : null;
+        const powerWinner = powerA > powerB ? nameA : powerB > powerA ? nameB : null;
+
+        // Detect power puncher vs volume puncher scenario
+        const isPowerVsVolume = powerWinner && statsWinner && powerWinner !== statsWinner;
 
         // Mention point deductions first - they're significant
         if (pointDeductionA > 0 || pointDeductionB > 0) {
@@ -780,14 +1459,64 @@ function FightDisplay({ fight, simulation, tui }) {
 
         if (kdA > 0 || kdB > 0) {
           const scorer = kdA > 0 ? nameB : nameA;
-          addCommentary(`MERCHANT: That knockdown makes it a clear round for ${scorer}.`);
-        } else if (landedDiff > 10) {
-          const winner = landedA > landedB ? nameA : nameB;
-          addCommentary(`FOREMAN: ${winner} dominated that round. Landed ${Math.max(landedA, landedB)} punches.`);
-        } else if (landedDiff <= 3) {
-          addCommentary(`MERCHANT: Very close round. Could go either way on the cards.`);
-        } else {
-          const roundWinner = scoreA > scoreB ? nameA : nameB;
+          addCommentary(`MERCHANT: That knockdown makes it a clear 10-${10 - Math.max(kdA, kdB)} round for ${scorer}.`);
+        } else if (roundWinner && damageWinner && roundWinner !== damageWinner && roundWinner !== statsWinner) {
+          // Stolen round! The statistical loser won the round
+          const stolenComments = [
+            `MERCHANT: ${roundWinner} steals that round! Sometimes the stats don't tell the whole story.`,
+            `FOREMAN: ${roundWinner} did just enough to take that round. Smart boxing.`,
+            `LAMPLEY: An interesting round for ${roundWinner}. The judges saw something we might have missed.`,
+            `MERCHANT: ${roundWinner} banks that round. Not every winner lands the most punches.`,
+            `FOREMAN: ${roundWinner} picked their moments well. Quality work in that round.`
+          ];
+          addCommentary(stolenComments[Math.floor(Math.random() * stolenComments.length)]);
+        } else if (anySwingRound && !isSplitRound && roundWinner) {
+          // Swing round that judges happened to agree on
+          const swingComments = [
+            `MERCHANT: That was a genuine swing round, but the judges gave it to ${roundWinner}.`,
+            `LEDERMAN: Close round. ${roundWinner} gets it, but it could have gone either way.`,
+            `FOREMAN: Tough round to score. ${roundWinner} maybe did a little more.`
+          ];
+          addCommentary(swingComments[Math.floor(Math.random() * swingComments.length)]);
+        } else if (isSplitRound && isPowerVsVolume) {
+          // Classic power vs volume debate - judges might disagree
+          const powerName = powerWinner;
+          const volumeName = statsWinner;
+          const splitComments = [
+            `MERCHANT: This is a round where judges will disagree. ${powerName} landed the heavier shots, ${volumeName} was busier.`,
+            `FOREMAN: ${powerName}'s power punches vs ${volumeName}'s volume - some judges go one way, some the other.`,
+            `LAMPLEY: The eternal boxing debate - do you reward the harder punches or the higher output?`,
+            `MERCHANT: A tale of two fighters - ${powerName} with quality, ${volumeName} with quantity.`
+          ];
+          addCommentary(splitComments[Math.floor(Math.random() * splitComments.length)]);
+          if (roundWinner === powerName) {
+            addCommentary(`LEDERMAN: I'm rewarding ${powerName}'s power. Those shots did more damage.`);
+          } else {
+            addCommentary(`LEDERMAN: I'm giving it to ${volumeName} for ring generalship and activity.`);
+          }
+        } else if (isSplitRound) {
+          addCommentary(`MERCHANT: That's a swing round. Judges at ringside might score it differently.`);
+          if (roundWinner) {
+            addCommentary(`LEDERMAN: I'm giving it to ${roundWinner}, but I wouldn't argue with the other way.`);
+          }
+        } else if (roundWinner && roundWinner !== statsWinner && Math.abs(landedA - landedB) > 3) {
+          // Power puncher won despite being outlanded
+          const upsetComments = [
+            `FOREMAN: ${roundWinner} landed the cleaner, harder shots. That's what I'm scoring.`,
+            `MERCHANT: ${statsWinner} threw more, but ${roundWinner}'s punches were the ones that counted.`,
+            `LEDERMAN: Volume doesn't win rounds, effective punching does. ${roundWinner}'s round.`,
+            `FOREMAN: ${roundWinner} made every punch count. Quality over quantity.`
+          ];
+          addCommentary(upsetComments[Math.floor(Math.random() * upsetComments.length)]);
+        } else if (finalAdvantageA > 0.65 || finalAdvantageA < 0.35) {
+          const winner = finalAdvantageA > 0.5 ? nameA : nameB;
+          addCommentary(`FOREMAN: ${winner} dominated that round. Clear 10-9.`);
+        } else if (finalAdvantageA >= 0.45 && finalAdvantageA <= 0.55) {
+          addCommentary(`MERCHANT: Very close round. Could go either way.`);
+          if (roundWinner) {
+            addCommentary(`LEDERMAN: I'm giving it to ${roundWinner}, but it's razor thin.`);
+          }
+        } else if (roundWinner) {
           addCommentary(`FOREMAN: I give that round to ${roundWinner}. Good work.`);
         }
 
@@ -797,14 +1526,19 @@ function FightDisplay({ fight, simulation, tui }) {
         const leader = totalA > totalB ? nameA : totalB > totalA ? nameB : null;
         const margin = Math.abs(totalA - totalB);
 
+        // Show the round score explicitly
+        addCommentary(`LEDERMAN: I scored that round ${scoreA}-${scoreB}.`);
+
         if (leader) {
-          if (margin >= 3) {
-            addCommentary(`LEDERMAN: I have it ${totalA}-${totalB}. ${leader} is building a lead.`);
+          if (margin >= 4) {
+            addCommentary(`LEDERMAN: Overall I have it ${totalA}-${totalB}. ${leader} is pulling away!`);
+          } else if (margin >= 2) {
+            addCommentary(`LEDERMAN: My card shows ${totalA}-${totalB}. ${leader} ahead.`);
           } else {
-            addCommentary(`LEDERMAN: My card shows ${totalA}-${totalB}. ${leader} narrowly ahead.`);
+            addCommentary(`LEDERMAN: ${totalA}-${totalB} on my card. Still anybody's fight!`);
           }
         } else {
-          addCommentary(`LEDERMAN: I have it ${totalA}-${totalB}. Dead even on my card!`);
+          addCommentary(`LEDERMAN: ${totalA}-${totalB}. Dead even on my card!`);
         }
       },
 
@@ -841,56 +1575,77 @@ function FightDisplay({ fight, simulation, tui }) {
             `FOREMAN: That hurt ${defender}! You can see it in his legs!`,
             `FOREMAN: ${defender}'s eyes went glassy for a second there! He felt that one!`,
             `MERCHANT: That's the punch ${attacker} has been setting up all night!`,
-            `FOREMAN: ${defender} took that right on the chin. His equilibrium is gone!`
+            `FOREMAN: ${defender} took that right on the chin. His equilibrium is gone!`,
+            `MERCHANT: That punch changed the complexion of this entire round!`,
+            `FOREMAN: WHOO! That's the kind of punch that ends careers!`,
+            `LAMPLEY: ${defender} is in serious trouble after that shot!`,
+            `FOREMAN: I've taken punches like that. Trust me, ${defender} doesn't know where he is right now!`
           ];
           addCommentary(insights[Math.floor(Math.random() * insights.length)]);
           lastCommentaryTime.current = now;
-        } else if (damage >= 5 && timeSinceLastCommentary > 1500) {
-          // Big shot - tactical commentary
+        } else if (damage >= 5 && timeSinceLastCommentary > 1200) {
+          // Big shot - tactical commentary (reduced from 1500ms)
           const comments = [
             `LAMPLEY: Beautiful ${punchName} by ${attacker}!`,
             `FOREMAN: ${attacker} is timing that ${punchName} perfectly.`,
             `MERCHANT: That's the kind of punch that wins rounds.`,
             `LAMPLEY: ${attacker} is starting to find his range now!`,
-            `FOREMAN: ${defender} walked right into that one!`
+            `FOREMAN: ${defender} walked right into that one!`,
+            `LAMPLEY: ${attacker} lands flush with the ${punchName}!`,
+            `FOREMAN: That ${punchName} had some MUSTARD on it!`,
+            `MERCHANT: ${attacker} is building momentum with shots like that.`,
+            `LAMPLEY: ${attacker} is zeroing in! That one connected!`,
+            `FOREMAN: ${defender} felt THAT one! Good shot!`
           ];
           addCommentary(comments[Math.floor(Math.random() * comments.length)]);
 
-          // Add tactical follow-up based on context
-          if (defenderHealth < 0.5 && Math.random() > 0.5) {
+          // Add tactical follow-up based on context (increased chance)
+          if (defenderHealth < 0.5 && Math.random() > 0.4) {
             addCommentary(`MERCHANT: ${defender} is absorbing a lot of punishment. How much more can he take?`);
-          } else if (isBody && Math.random() > 0.6) {
+          } else if (isBody && Math.random() > 0.5) {
             addCommentary(`FOREMAN: That body work is going to pay dividends in the later rounds.`);
           }
           lastCommentaryTime.current = now;
-        } else if (damage >= 3 && timeSinceLastCommentary > 3000) {
-          // Solid shot - style-based commentary
-          if (Math.random() > 0.4) {
+        } else if (damage >= 3 && timeSinceLastCommentary > 2000) {
+          // Solid shot - style-based commentary (reduced from 3000ms)
+          if (Math.random() > 0.3) {
             const styleComments = {
-              'swarmer': [`FOREMAN: ${attacker} keeps the pressure on!`, `LAMPLEY: ${attacker} is smothering ${defender} with punches.`],
-              'out-boxer': [`MERCHANT: ${attacker} is boxing beautifully from the outside.`, `LAMPLEY: That jab is finding a home.`],
-              'slugger': [`FOREMAN: ${attacker} is loading up on every punch!`, `LAMPLEY: ${attacker} looking for the big one.`],
-              'counter-puncher': [`MERCHANT: Beautiful timing from ${attacker}.`, `FOREMAN: ${attacker} is making ${defender} pay for every miss.`],
-              'boxer-puncher': [`LAMPLEY: ${attacker} showing his versatility tonight.`, `FOREMAN: He can box and he can punch!`]
+              'swarmer': [`FOREMAN: ${attacker} keeps the pressure on!`, `LAMPLEY: ${attacker} is smothering ${defender} with punches.`, `FOREMAN: ${attacker} won't give ${defender} a moment's rest!`],
+              'out-boxer': [`MERCHANT: ${attacker} is boxing beautifully from the outside.`, `LAMPLEY: That jab is finding a home.`, `MERCHANT: ${attacker} is controlling the range perfectly.`],
+              'slugger': [`FOREMAN: ${attacker} is loading up on every punch!`, `LAMPLEY: ${attacker} looking for the big one.`, `FOREMAN: ${attacker} is dangerous every time he throws!`],
+              'counter-puncher': [`MERCHANT: Beautiful timing from ${attacker}.`, `FOREMAN: ${attacker} is making ${defender} pay for every miss.`, `MERCHANT: ${attacker} is reading ${defender} like a book.`],
+              'boxer-puncher': [`LAMPLEY: ${attacker} showing his versatility tonight.`, `FOREMAN: He can box and he can punch!`, `MERCHANT: ${attacker} is adapting to whatever ${defender} gives him.`]
             };
-            const comments = styleComments[attackerStyle] || [`LAMPLEY: Good ${punchName} lands for ${attacker}.`];
+            const comments = styleComments[attackerStyle] || [`LAMPLEY: Good ${punchName} lands for ${attacker}.`, `FOREMAN: Nice shot from ${attacker}!`];
             addCommentary(comments[Math.floor(Math.random() * comments.length)]);
             lastCommentaryTime.current = now;
           }
-        } else if (timeSinceLastCommentary > 6000 && Math.random() > 0.7) {
-          // Periodic insight even on lighter action
+        } else if (timeSinceLastCommentary > 4000 && Math.random() > 0.4) {
+          // Periodic insight even on lighter action (reduced from 6000ms, increased chance)
           const insights = [
             `FOREMAN: ${attacker} is staying busy. That's good ring generalship.`,
             `MERCHANT: The punch stats are starting to favor ${attacker} in this round.`,
             `LAMPLEY: ${attacker} is controlling the distance well.`,
-            `FOREMAN: I like what ${attacker} is doing here. Smart boxing.`
+            `FOREMAN: I like what ${attacker} is doing here. Smart boxing.`,
+            `LAMPLEY: ${attacker} continuing to work behind the jab.`,
+            `FOREMAN: ${attacker} is finding his rhythm now.`,
+            `MERCHANT: ${attacker} is making ${defender} work for every opening.`,
+            `LAMPLEY: Good activity from ${attacker} here.`,
+            `FOREMAN: ${attacker} is doing the little things right.`,
+            `MERCHANT: Watch how ${attacker} cuts off the ring. That's ring generalship.`
           ];
           if (defenderStamina < 0.4) {
             insights.push(`MERCHANT: ${defender} is slowing down. You can see the fatigue setting in.`);
             insights.push(`FOREMAN: ${defender}'s punch output has dropped. He looks tired.`);
+            insights.push(`LAMPLEY: ${defender} appears to be fading. His punches have lost their snap.`);
           }
           if (attackerState?.stamina?.percent < 0.4) {
             insights.push(`LAMPLEY: ${attacker} is breathing heavy. This pace might be catching up with him.`);
+            insights.push(`FOREMAN: ${attacker} is slowing down too. Both fighters showing fatigue.`);
+          }
+          if (defenderHealth < 0.4) {
+            insights.push(`MERCHANT: ${defender} has absorbed significant damage. The question is, how much fight does he have left?`);
+            insights.push(`FOREMAN: Look at ${defender}'s face. He's taken some serious shots tonight.`);
           }
           addCommentary(insights[Math.floor(Math.random() * insights.length)]);
           lastCommentaryTime.current = now;
@@ -908,19 +1663,38 @@ function FightDisplay({ fight, simulation, tui }) {
         const knockdownCount = downedState?.knockdowns?.total || 1;
 
         addAction({ text: `KNOCKDOWN! ${downed} IS DOWN!`, highlight: true });
-        addCommentary(`LAMPLEY: DOWN GOES ${downed.toUpperCase()}! DOWN GOES ${downed.toUpperCase()}!`);
+
+        // Varied knockdown calls
+        const kdCalls = [
+          `LAMPLEY: DOWN GOES ${downed.toUpperCase()}! DOWN GOES ${downed.toUpperCase()}!`,
+          `LAMPLEY: ${downed.toUpperCase()} IS DOWN! HE'S BEEN DROPPED!`,
+          `LAMPLEY: OH! ${downed.toUpperCase()} HIT THE CANVAS! KNOCKDOWN!`,
+          `LAMPLEY: ${downed.toUpperCase()} CRUMBLES! HE'S DOWN!`,
+          `LAMPLEY: TIMBER! ${downed.toUpperCase()} GOES DOWN FROM THAT SHOT!`
+        ];
+        addCommentary(kdCalls[Math.floor(Math.random() * kdCalls.length)]);
 
         // Contextual follow-up
         const followUps = [
           `FOREMAN: ${scorer} caught him clean! That punch had bad intentions!`,
           `MERCHANT: ${downed} didn't see that coming! Perfect timing from ${scorer}!`,
           `FOREMAN: Look at ${downed}'s legs! They're all over the place!`,
-          `MERCHANT: That's the kind of punch that changes fights!`
+          `MERCHANT: That's the kind of punch that changes fights!`,
+          `FOREMAN: I've been hit like that! Trust me, ${downed} doesn't know where he is!`,
+          `MERCHANT: ${scorer} has been setting that punch up all fight. It finally landed flush!`,
+          `FOREMAN: WHOO! That's POWER! ${scorer} put everything into that shot!`,
+          `MERCHANT: The accumulation of damage finally took its toll. ${downed} was set up for that.`,
+          `FOREMAN: ${scorer} TIMED that PERFECTLY! What a shot!`
         ];
         addCommentary(followUps[Math.floor(Math.random() * followUps.length)]);
 
         if (knockdownCount >= 2) {
-          addCommentary(`LAMPLEY: That's the ${knockdownCount === 2 ? 'second' : 'third'} knockdown! ${downed} is in serious trouble!`);
+          const multiKdComments = [
+            `LAMPLEY: That's the ${knockdownCount === 2 ? 'second' : 'third'} knockdown! ${downed} is in serious trouble!`,
+            `FOREMAN: ${knockdownCount === 2 ? 'SECOND' : 'THIRD'} knockdown! How much more can ${downed} take?!`,
+            `MERCHANT: Multiple knockdowns now. ${downed}'s corner needs to consider stopping this.`
+          ];
+          addCommentary(multiKdComments[Math.floor(Math.random() * multiKdComments.length)]);
         }
 
         setKnockdownOverlay({ fighter: downed, count: 1 });
@@ -929,8 +1703,20 @@ function FightDisplay({ fight, simulation, tui }) {
 
       count: (data) => {
         setKnockdownOverlay(prev => prev ? { ...prev, count: data.count } : null);
+        if (data.count === 4) {
+          const midCountComments = [
+            `FOREMAN: Get up! Come on! You can do it!`,
+            `LAMPLEY: Four... five... ${knockdownOverlay?.fighter || 'He'} is stirring.`
+          ];
+          addCommentary(midCountComments[Math.floor(Math.random() * midCountComments.length)]);
+        }
         if (data.count === 8) {
-          addCommentary(`LAMPLEY: The count reaches eight... can he beat it?`);
+          const lateCountComments = [
+            `LAMPLEY: The count reaches eight... can he beat it?`,
+            `FOREMAN: GET UP! Come on, you're running out of time!`,
+            `LAMPLEY: Eight... nine is coming... will he make it?`
+          ];
+          addCommentary(lateCountComments[Math.floor(Math.random() * lateCountComments.length)]);
         }
       },
 
@@ -941,7 +1727,11 @@ function FightDisplay({ fight, simulation, tui }) {
           `LAMPLEY: ${fighter} is up! The fight continues!`,
           `FOREMAN: ${fighter} beats the count! But look at those legs!`,
           `MERCHANT: ${fighter} is back up, but is he really there?`,
-          `LAMPLEY: ${fighter} survives! Can he hold on?`
+          `LAMPLEY: ${fighter} survives! Can he hold on?`,
+          `FOREMAN: ${fighter} shows the heart of a champion! He's up!`,
+          `MERCHANT: ${fighter} made it back to his feet, but the damage may be done.`,
+          `LAMPLEY: ${fighter} beats the count! The question is, how much does he have left?`,
+          `FOREMAN: That's HEART right there! ${fighter} is a WARRIOR!`
         ];
         addCommentary(recoveries[Math.floor(Math.random() * recoveries.length)]);
       },
@@ -956,24 +1746,44 @@ function FightDisplay({ fight, simulation, tui }) {
         const hurtState = data.fighter === 'A' ? stateA : stateB;
         const stamina = hurtState?.stamina?.percent || 1;
 
+        // Track who staggered their opponent for round scoring
+        // The ATTACKER (who hurt their opponent) gets the credit
+        const attackerSide = data.fighter === 'A' ? 'B' : 'A';
+        setRoundHurtStats(prev => ({
+          ...prev,
+          [attackerSide]: prev[attackerSide] + 1
+        }));
+
         addAction({ text: `${hurt} IS HURT!`, highlight: true });
 
         const hurtCalls = [
           `LAMPLEY: ${hurt} is in trouble! He's hurt badly!`,
           `LAMPLEY: ${hurt} is HURT! His legs buckled!`,
-          `LAMPLEY: OH! ${hurt} is in serious trouble here!`
+          `LAMPLEY: OH! ${hurt} is in serious trouble here!`,
+          `LAMPLEY: ${hurt} IS WOBBLED! He's trying to hold on!`,
+          `LAMPLEY: ${hurt} is STAGGERED! Can he survive?`,
+          `LAMPLEY: ${hurt}'s legs are GONE! He's badly hurt!`
         ];
         addCommentary(hurtCalls[Math.floor(Math.random() * hurtCalls.length)]);
 
         // Tactical follow-up based on stamina
         if (stamina < 0.3) {
-          addCommentary(`FOREMAN: ${hurt} is exhausted AND hurt! This could be it!`);
+          const exhaustedHurtComments = [
+            `FOREMAN: ${hurt} is exhausted AND hurt! This could be it!`,
+            `MERCHANT: ${hurt} has nothing left in the tank AND he's hurt. This is a crisis.`,
+            `FOREMAN: ${hurt} can't even run! He's too tired AND he's hurt!`
+          ];
+          addCommentary(exhaustedHurtComments[Math.floor(Math.random() * exhaustedHurtComments.length)]);
         } else {
           const insights = [
             `FOREMAN: ${attacker} smells blood! He needs to finish this!`,
             `MERCHANT: ${hurt} needs to survive these next few seconds!`,
             `FOREMAN: This is the moment! ${attacker} has to capitalize NOW!`,
-            `MERCHANT: ${hurt}'s legs are gone! Can he hold on?`
+            `MERCHANT: ${hurt}'s legs are gone! Can he hold on?`,
+            `FOREMAN: ${attacker} is teeing off! ${hurt} has to clinch or get out of there!`,
+            `MERCHANT: ${hurt} is in survival mode. He just needs to make it to the bell.`,
+            `FOREMAN: GO FOR IT! ${attacker} has him where he wants him!`,
+            `MERCHANT: The instinct now is to finish. ${attacker} has to be smart but aggressive.`
           ];
           addCommentary(insights[Math.floor(Math.random() * insights.length)]);
         }
@@ -1042,7 +1852,7 @@ function FightDisplay({ fight, simulation, tui }) {
       },
 
       momentumShift: (data) => {
-        const { leaderName, previousName, magnitude, type, round } = data;
+        const { leaderName, previousName, type } = data;
 
         // Add to action log
         addAction({ text: `${leaderName} seizing control!`, highlight: true });
@@ -1085,12 +1895,12 @@ function FightDisplay({ fight, simulation, tui }) {
       fightEnd: (data) => {
         setIsEnded(true);
 
-        // Convert winner 'A'/'B' to fighter name and format method
-        const winnerName = data.winner === 'A'
-          ? fight.fighterA.getShortName()
-          : data.winner === 'B'
-            ? fight.fighterB.getShortName()
-            : null;
+        // Get full fighter names for Buffer announcement
+        const winner = data.winner === 'A' ? fight.fighterA : data.winner === 'B' ? fight.fighterB : null;
+        const loser = data.winner === 'A' ? fight.fighterB : data.winner === 'B' ? fight.fighterA : null;
+        const winnerName = winner?.getShortName() || null;
+        const winnerFullName = winner?.name || winnerName;
+        const loserName = loser?.getShortName() || null;
 
         // Format method for display (TKO_REFEREE -> TKO, DECISION_UNANIMOUS -> UD, etc.)
         const formatMethod = (method) => {
@@ -1108,6 +1918,13 @@ function FightDisplay({ fight, simulation, tui }) {
 
         const displayMethod = formatMethod(data.method);
 
+        // Format time for announcement
+        const formatTime = (seconds) => {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins}:${secs.toString().padStart(2, '0')}`;
+        };
+
         // Store formatted result for status bar
         setResult({
           ...data,
@@ -1115,24 +1932,134 @@ function FightDisplay({ fight, simulation, tui }) {
           displayMethod
         });
 
+        // Commentary team reaction first - with detailed KO breakdown
         if (data.method === 'KO' || data.method?.startsWith('TKO')) {
           addCommentary(`LAMPLEY: IT'S OVER! ${winnerName?.toUpperCase()} WINS BY ${displayMethod}!`);
+
+          // Show finishing sequence details
+          if (data.finishingPunch) {
+            addCommentary('');
+            addCommentary('═══════════ FINISHING SEQUENCE ═══════════');
+
+            // Format punch type for display
+            const punchName = formatPunch(data.finishingPunch);
+            const location = data.finishingLocation || 'head';
+
+            addCommentary(`LAMPLEY: The finishing blow - a ${punchName.toUpperCase()} to the ${location.toUpperCase()}!`);
+
+            if (data.finishingDamage) {
+              const dmgDesc = data.finishingDamage >= 8 ? 'DEVASTATING' :
+                             data.finishingDamage >= 5 ? 'powerful' : 'precise';
+              addCommentary(`FOREMAN: What a ${dmgDesc} shot! That punch did ${data.finishingDamage} damage!`);
+            }
+
+            if (data.wasCounter) {
+              addCommentary(`MERCHANT: It was a counter punch! ${loserName} walked right into it!`);
+            }
+
+            // Fighter condition at stoppage
+            if (data.loserHealth !== undefined || data.loserStamina !== undefined) {
+              const healthPct = data.loserHealth || 0;
+              const staminaPct = data.loserStamina || 0;
+              addCommentary(`FOREMAN: ${loserName} was at ${healthPct}% health, ${staminaPct}% stamina when it ended.`);
+            }
+
+            // Knockdown count
+            if (data.totalKnockdowns && data.totalKnockdowns > 0) {
+              if (data.knockdownsInRound && data.knockdownsInRound > 1) {
+                addCommentary(`LAMPLEY: That was knockdown #${data.knockdownsInRound} of the round, #${data.totalKnockdowns} of the fight!`);
+              } else if (data.totalKnockdowns > 1) {
+                addCommentary(`LAMPLEY: ${loserName} had been down ${data.totalKnockdowns} times total in this fight.`);
+              }
+            }
+
+            // TKO specific reason
+            if (data.method?.startsWith('TKO') && data.tkoReason) {
+              const reasonText = {
+                'exhaustion_and_damage': `${loserName} was exhausted and taking too much punishment.`,
+                'damage': `${loserName} had absorbed too much damage to continue.`,
+                'body_damage': `${loserName} couldn't recover from that body work.`,
+                'three_knockdowns': `Three knockdowns in one round - the referee had to stop it.`,
+                'accumulation': `The accumulation of punishment was too much.`
+              };
+              if (reasonText[data.tkoReason]) {
+                addCommentary(`MERCHANT: ${reasonText[data.tkoReason]}`);
+              }
+            }
+
+            addCommentary('═══════════════════════════════════════════');
+            addCommentary('');
+          }
+
           addCommentary(`FOREMAN: What a performance! ${winnerName} was simply too much tonight!`);
         } else if (data.method?.startsWith('DECISION')) {
           addCommentary(`LAMPLEY: We go to the scorecards!`);
-          addCommentary(`LAMPLEY: And the winner by ${displayMethod}... ${winnerName?.toUpperCase()}!`);
         } else if (data.method?.startsWith('DRAW')) {
           addCommentary(`LAMPLEY: This fight is ruled a ${displayMethod}!`);
           addCommentary(`FOREMAN: Neither man could pull away. What a battle!`);
         } else if (data.method === 'DISQUALIFICATION') {
-          addCommentary(`LAMPLEY: IT'S A DISQUALIFICATION! ${winnerName?.toUpperCase()} WINS!`);
+          addCommentary(`LAMPLEY: IT'S A DISQUALIFICATION!`);
           addCommentary(`FOREMAN: You can't do that in the ring. That's against the rules!`);
         } else if (data.method === 'NO_CONTEST') {
           addCommentary(`LAMPLEY: This fight has been ruled a NO CONTEST!`);
-          addCommentary(`FOREMAN: An unfortunate end to what was shaping up to be a good fight.`);
-        } else {
-          addCommentary(`LAMPLEY: The fight is over! ${winnerName || 'DRAW'}!`);
         }
+
+        // Michael Buffer's official announcement
+        addCommentary('');
+        addCommentary('═══════════════════════════════════════════');
+        addCommentary('BUFFER: Ladies and gentlemen...');
+
+        if (data.method === 'KO') {
+          addCommentary(`BUFFER: At ${formatTime(data.time)} of round ${data.round}...`);
+          addCommentary(`BUFFER: The referee stops the contest for KNOCKOUT!`);
+          addCommentary(`BUFFER: Your winner... ${winnerFullName?.toUpperCase()}!`);
+        } else if (data.method?.startsWith('TKO')) {
+          const tkoReason = data.method === 'TKO_CORNER' ? 'corner stoppage' :
+                           data.method === 'TKO_REFEREE' ? 'referee stoppage' :
+                           data.method === 'TKO_DOCTOR' ? 'doctor stoppage' : 'technical knockout';
+          addCommentary(`BUFFER: At ${formatTime(data.time)} of round ${data.round}...`);
+          addCommentary(`BUFFER: The referee stops the contest for ${tkoReason.toUpperCase()}!`);
+          addCommentary(`BUFFER: Your winner by TKO... ${winnerFullName?.toUpperCase()}!`);
+        } else if (data.method === 'DECISION_UNANIMOUS') {
+          addCommentary(`BUFFER: After ${data.round} rounds, we go to the scorecards...`);
+          if (data.scores) {
+            data.scores.forEach((score, i) => {
+              addCommentary(`BUFFER: Judge ${i + 1} scores the bout ${score.A}-${score.B}...`);
+            });
+          }
+          addCommentary(`BUFFER: For the winner by UNANIMOUS DECISION...`);
+          addCommentary(`BUFFER: ${winnerFullName?.toUpperCase()}!`);
+        } else if (data.method === 'DECISION_SPLIT') {
+          addCommentary(`BUFFER: After ${data.round} rounds, we have a SPLIT DECISION...`);
+          if (data.scores) {
+            data.scores.forEach((score, i) => {
+              addCommentary(`BUFFER: Judge ${i + 1} scores the bout ${score.A}-${score.B}...`);
+            });
+          }
+          addCommentary(`BUFFER: Your winner... ${winnerFullName?.toUpperCase()}!`);
+        } else if (data.method === 'DECISION_MAJORITY') {
+          addCommentary(`BUFFER: After ${data.round} rounds, we have a MAJORITY DECISION...`);
+          if (data.scores) {
+            data.scores.forEach((score, i) => {
+              addCommentary(`BUFFER: Judge ${i + 1} scores the bout ${score.A}-${score.B}...`);
+            });
+          }
+          addCommentary(`BUFFER: Your winner... ${winnerFullName?.toUpperCase()}!`);
+        } else if (data.method?.startsWith('DRAW')) {
+          addCommentary(`BUFFER: After ${data.round} rounds, we go to the scorecards...`);
+          if (data.scores) {
+            data.scores.forEach((score, i) => {
+              addCommentary(`BUFFER: Judge ${i + 1} scores the bout ${score.A}-${score.B}...`);
+            });
+          }
+          addCommentary(`BUFFER: This bout is declared a DRAW!`);
+        } else if (data.method === 'DISQUALIFICATION') {
+          addCommentary(`BUFFER: At ${formatTime(data.time)} of round ${data.round}...`);
+          addCommentary(`BUFFER: ${loserName?.toUpperCase()} has been DISQUALIFIED!`);
+          addCommentary(`BUFFER: Your winner... ${winnerFullName?.toUpperCase()}!`);
+        }
+
+        addCommentary('═══════════════════════════════════════════');
       },
 
       speedChange: (speed) => {
@@ -1221,14 +2148,19 @@ function FightDisplay({ fight, simulation, tui }) {
       e(FighterPanel, { fighter: fight.fighterB, state: stateB, corner: 'B' })
     ),
 
-    // Row 2: Ring | CompuBox | Lederman (centered stats row)
+    // Row 2: Tale of the Tape | Ring | CompuBox (centered stats row)
     e(Box, { flexDirection: 'row', justifyContent: 'center', paddingX: 1, gap: 1 },
+      e(TaleOfTheTape, { fighterA: fight.fighterA, fighterB: fight.fighterB, odds: fightOdds }),
       e(RingDisplay, { positions }),
-      e(CompuBoxPanel, { statsA, statsB, fighterA: fight.fighterA, fighterB: fight.fighterB }),
+      e(CompuBoxPanel, { statsA, statsB, fighterA: fight.fighterA, fighterB: fight.fighterB })
+    ),
+
+    // Row 3: Lederman Scorecard (full width)
+    e(Box, { flexDirection: 'row', justifyContent: 'center', paddingX: 1, gap: 1 },
       e(LedermanScorecard, { scores: roundScores, currentRound: round, fighterA: fight.fighterA, fighterB: fight.fighterB, maxRounds: fight.config?.rounds || 12 })
     ),
 
-    // Row 3: Action Log + Commentary (full width)
+    // Row 4: Action Log + Commentary (full width)
     e(Box, { flexDirection: 'row', justifyContent: 'center', paddingX: 1, gap: 1 },
       e(ActionPanel, { actions, maxActions: 5 }),
       e(CommentaryPanel, { lines: commentary, maxLines: 5 })

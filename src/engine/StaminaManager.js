@@ -192,17 +192,38 @@ export class StaminaManager {
     // where tired fighters burned more energy, getting more tired, etc.
     // Now fatigue effects are handled purely through attribute penalties
 
+    // Get current stamina for conservation calculations
+    const currentPercent = fighter.getStaminaPercent();
+
+    // CONSERVATION MODE - When actively resting, reduce costs significantly
+    // This makes "CONSERVING" strategy actually work to recover stamina
+    const isRecoveryState = fighter.state === FighterState.DEFENSIVE ||
+                           fighter.state === FighterState.NEUTRAL ||
+                           fighter.state === FighterState.CLINCH ||
+                           fighter.state === FighterState.TIMING;
+
+    if (isRecoveryState && currentPercent < 0.50) {
+      // Reduce all costs by 50-80% when actively conserving at low stamina
+      const conservationReduction = 0.5 + (0.50 - currentPercent) * 0.6; // 50% to 80% reduction
+      cost *= (1 - conservationReduction);
+    }
+
     // MINIMUM DRAIN FLOOR - always drain at least this much per second
-    // Being in a boxing match is exhausting no matter what you're doing
-    // This ensures fighters can NEVER pin at 100% stamina
-    // But kept low so fighters don't drain unreasonably fast
-    const minimumDrain = 0.02 * deltaTime;  // ~0.02/sec minimum drain
+    // BUT: Reduced or eliminated when actively conserving
+    // This allows stamina to actually GO UP when resting
+    let minimumDrain = 0.02 * deltaTime;  // ~0.02/sec minimum drain
+
+    if (isRecoveryState && currentPercent < 0.40) {
+      // No minimum drain when actively resting at low stamina
+      // This allows visible recovery
+      minimumDrain = 0;
+    }
+
     cost = Math.max(cost, minimumDrain);
 
     // Apply stamina floor - fighters with good cardio maintain a reserve
     // Elite cardio (90) = 10% floor, Average (70) = 5% floor, Poor (50) = 2% floor
     const staminaFloor = (fighter.stamina.cardio - 40) * 0.002; // 0.02-0.10
-    const currentPercent = fighter.getStaminaPercent();
 
     // If we're near the floor, reduce cost to prevent going below it
     if (currentPercent - (cost / fighter.maxStamina) < staminaFloor) {
@@ -493,8 +514,13 @@ export class StaminaManager {
     const staminaPercent = fighter.getStaminaPercent();
     const ceilingEfficiency = this.getRecoveryCeilingEfficiency(staminaPercent);
 
+    // CONSERVATION BONUS - When actively conserving (low stamina + recovery-friendly state)
+    // Fighters who recognize they need to rest and actively do so get rewarded
+    // This makes the "CONSERVING" strategy much more effective
+    const conservationBonus = this.getConservationBonus(fighter, staminaPercent);
+
     // Calculate total recovery
-    let recovery = baseRate * stateMod * attributeBonus * bodyDamageMod * headDamageMod * ageMod * ceilingEfficiency * deltaTime;
+    let recovery = baseRate * stateMod * attributeBonus * bodyDamageMod * headDamageMod * ageMod * ceilingEfficiency * conservationBonus * deltaTime;
 
     // Zero recovery when hurt (survival mode)
     if (fighter.state === FighterState.HURT) {
@@ -502,6 +528,60 @@ export class StaminaManager {
     }
 
     return Math.max(0, recovery);
+  }
+
+  /**
+   * Calculate conservation bonus for recovery
+   * When fighters are low on stamina and actively resting (defensive/neutral/clinch),
+   * they get a SIGNIFICANT recovery bonus - rewarding smart energy management
+   * This should make stamina visibly go UP when conserving
+   */
+  getConservationBonus(fighter, staminaPercent) {
+    const state = fighter.state;
+
+    // Only applies when in recovery-friendly states
+    const isConservingState = state === FighterState.DEFENSIVE ||
+                              state === FighterState.NEUTRAL ||
+                              state === FighterState.CLINCH ||
+                              state === FighterState.TIMING;
+
+    if (!isConservingState) {
+      return 1.0; // No bonus when attacking/moving/hurt
+    }
+
+    // Conservation bonus scales with how depleted stamina is
+    // At 50% stamina: 1.5x (mild bonus - reward early conservation)
+    // At 40% stamina: 2.5x bonus
+    // At 30% stamina: 3.5x bonus
+    // At 20% stamina: 4.5x bonus
+    // At 10% stamina: 5.5x bonus (desperate recovery)
+    if (staminaPercent >= 0.50) {
+      return 1.5; // Mild bonus even above 50% to encourage conservation
+    }
+
+    // Calculate bonus - STRONG scaling as stamina drops
+    // Formula: 1.5 + (0.5 - staminaPercent) * 8
+    // This gives us 1.5 at 50%, 3.5 at 40%, 4.5 at 30%, 5.5 at ~20%
+    const depletionLevel = 0.50 - staminaPercent;
+    let bonus = 1.5 + (depletionLevel * 8.0);
+
+    // Fight IQ bonus - smarter fighters conserve more efficiently
+    const fightIQ = fighter.mental?.fightIQ || fighter.technical?.fightIQ || 70;
+    const iqBonus = 1 + ((fightIQ - 50) / 100) * 0.4; // Up to +20% at 100 IQ
+    bonus *= iqBonus;
+
+    // Clinching gets extra bonus - it's the ultimate conservation move
+    if (state === FighterState.CLINCH) {
+      bonus *= 1.5;
+    }
+
+    // Recovery rate bonus - fighters with better recovery capitalize more
+    const recoveryRate = fighter.stamina?.recoveryRate || 70;
+    const recoveryBonus = 1 + ((recoveryRate - 50) / 100) * 0.3;
+    bonus *= recoveryBonus;
+
+    // Cap at 6x to prevent extreme recovery
+    return Math.min(6.0, bonus);
   }
 
   /**

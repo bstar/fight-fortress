@@ -951,6 +951,53 @@ export class FighterAI {
       }
     }
 
+    // =========================================================================
+    // POWER PUNCHER KO HUNTING - Big punchers losing late go for the knockout
+    // This is the "Deontay Wilder" mode - down on points, loading up bombs
+    // =========================================================================
+    const knockoutPower = fighter.power?.knockoutPower || 70;
+    const isPowerPuncher = knockoutPower >= 80 ||
+                           fighter.style?.primary === 'slugger' ||
+                           fighter.style?.primary === 'boxer-puncher';
+    const isLateRounds = roundsLeft <= 4;
+    const isChampionshipRounds = situation.round >= 9;
+
+    if (isPowerPuncher && scoreDiff < -2 && isLateRounds) {
+      // Power puncher down 3+ points with 4 or fewer rounds left
+      // They NEED a knockout to win - go hunting
+
+      const desperationIntensity = Math.min(1.5, (Math.abs(scoreDiff) / 6) * (1 + (4 - roundsLeft) / 4));
+
+      // Massive boost to offense - they're swinging for the fences
+      weights[FighterState.OFFENSIVE] *= 1.5 + desperationIntensity * 0.5; // Up to 2.5x
+
+      // Timing becomes important - waiting to land the big one
+      weights[FighterState.TIMING] *= 1.4 + desperationIntensity * 0.3;
+
+      // Reduced defense - willing to get hit to land
+      weights[FighterState.DEFENSIVE] *= 0.6 - desperationIntensity * 0.1;
+
+      // Clinch useless now - no points in clinching
+      weights[FighterState.CLINCH] *= 0.3;
+
+      // Mark that we're in KO hunting mode for punch selection
+      situation.koHuntingMode = true;
+      situation.koHuntingIntensity = desperationIntensity;
+
+      // Heart determines how reckless they get
+      if (fighterHeart >= 85) {
+        // Warrior - throw caution completely to the wind
+        weights[FighterState.OFFENSIVE] *= 1.3;
+        weights[FighterState.DEFENSIVE] *= 0.6;
+      }
+
+      // Killer instinct amplifies - this is their chance
+      if (fighterKillerInstinct >= 85) {
+        weights[FighterState.OFFENSIVE] *= 1.2;
+        weights[FighterState.TIMING] *= 1.2;
+      }
+    }
+
     // Apply risk tolerance to weights
     const effectiveRisk = baseRiskTolerance * riskMultiplier;
 
@@ -1663,6 +1710,29 @@ export class FighterAI {
       punchWeights[PunchType.JAB] *= 1.5;
       punchWeights[PunchType.LEAD_HOOK] *= 0.5;
       punchWeights[PunchType.REAR_HOOK] *= 0.5;
+    }
+
+    // =========================================================================
+    // KO HUNTING MODE - Power punchers behind late go for bombs
+    // This OVERRIDES fatigue adjustments - they're swinging regardless of tiredness
+    // =========================================================================
+    if (situation.koHuntingMode) {
+      const intensity = situation.koHuntingIntensity || 1.0;
+
+      // Massively favor power punches - looking for the one-punch KO
+      punchWeights[PunchType.CROSS] *= 2.0 + intensity;        // Big right hand
+      punchWeights[PunchType.REAR_HOOK] *= 2.5 + intensity;    // The kill shot
+      punchWeights[PunchType.REAR_UPPERCUT] *= 2.0 + intensity; // Chin checker
+      punchWeights[PunchType.LEAD_HOOK] *= 1.8 + intensity;    // Left hook KO
+
+      // Jabs are just to set up the bomb - reduce but don't eliminate
+      punchWeights[PunchType.JAB] *= 0.4;
+      punchWeights[PunchType.BODY_JAB] *= 0.3;
+
+      // Body shots less useful for quick KO
+      punchWeights[PunchType.BODY_CROSS] *= 0.5;
+      punchWeights[PunchType.BODY_HOOK_LEAD] *= 0.5;
+      punchWeights[PunchType.BODY_HOOK_REAR] *= 0.6; // Liver shot still viable
     }
 
     // Select punch type

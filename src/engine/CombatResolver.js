@@ -1118,9 +1118,9 @@ export class CombatResolver {
 
     // Base knockdown threshold - scales with chin
     // Higher chin = needs more single-punch damage to go down
-    // With new lower punch damage values (max ~5-6 per punch), threshold should be lower
-    // Range: ~8 (chin 30) to ~18 (chin 100)
-    let knockdownThreshold = 5 + (chin / 8);
+    // With new lower punch damage values (max ~5-8 per punch), threshold should be achievable
+    // Range: ~4 (chin 30) to ~9 (chin 100) - damage of 5+ has a chance to KD
+    let knockdownThreshold = 3 + (chin / 15);
 
     // Reduce threshold if significantly damaged (> 50%)
     // Accumulated damage wears down resistance
@@ -1267,9 +1267,14 @@ export class CombatResolver {
         flashChance *= (1 + (headDamagePercent - 0.4) * 1.5); // Max ~1.9x at 100% damage
       }
 
-      // Fresh fighters get strong protection - early KOs should be rare
+      // Fresh fighters get some protection - but big punchers can still score early KOs
       if (isFresh) {
-        flashChance *= 0.25; // Reduced from 0.4
+        // Elite KO power can still get knockdowns on fresh fighters
+        if (knockoutPower >= 90) {
+          flashChance *= 0.5; // 50% reduction for elite KO power
+        } else {
+          flashChance *= 0.35; // 65% reduction for normal power
+        }
       }
 
       // Low stamina increases vulnerability but less dramatically
@@ -1288,26 +1293,30 @@ export class CombatResolver {
         flashChance *= 1.2; // Reduced from 1.3
       }
 
-      // Cap maximum flash knockdown chance - VERY LOW for elite vs elite
-      // Knockdowns between elite heavyweights should be rare events
-      // Target: ~0.3-0.5 knockdowns per fight, not 0.7-0.9
-      let flashCap = 0.025; // Default 2.5% (reduced from 6%)
+      // Cap maximum flash knockdown chance - balanced for exciting fights
+      // Target: ~0.5-1.5 knockdowns per fight for heavyweight matchups
+      // Elite vs elite should still be lower, but knockdowns should HAPPEN
+      let flashCap = 0.06; // Default 6% (increased from 2.5%)
       if (chin >= 90) {
-        flashCap = 0.008; // Only 0.8% max for 90+ chin (iron jaw)
+        flashCap = 0.025; // 2.5% max for 90+ chin (iron jaw)
       } else if (chin >= 85) {
-        flashCap = 0.012; // 1.2% max for 85+ chin (elite chin)
+        flashCap = 0.035; // 3.5% max for 85+ chin (elite chin)
       } else if (chin >= 80) {
-        flashCap = 0.018; // 1.8% max for 80+ chin (good chin)
+        flashCap = 0.045; // 4.5% max for 80+ chin (good chin)
+      } else if (chin < 70) {
+        flashCap = 0.10; // 10% max for weak chin (glass jaw)
       }
 
-      // Elite KO power raises the cap slightly - but not dramatically
-      // Even Tyson couldn't drop Holyfield at will
+      // Elite KO power raises the cap significantly
+      // Tyson, Foreman, Wilder should drop people
       if (knockoutPower >= 95) {
-        flashCap *= 1.8; // 99 KO vs 93 chin: cap becomes ~1.4% instead of 0.8%
+        flashCap *= 2.5; // 99 KO vs 93 chin: cap becomes ~6% instead of 2.5%
       } else if (knockoutPower >= 90) {
-        flashCap *= 1.5;
+        flashCap *= 2.0;
       } else if (knockoutPower >= 85) {
-        flashCap *= 1.25;
+        flashCap *= 1.6;
+      } else if (knockoutPower >= 80) {
+        flashCap *= 1.3;
       }
 
       flashChance = Math.min(flashCap, flashChance);
