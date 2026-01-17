@@ -109,11 +109,22 @@ function FighterPanel({ fighter, state, corner = 'A' }) {
 
 /**
  * Ring Visualization - ASCII ring with fighter positions
+ *
+ * Boxing rings are square (typically 16-20 feet per side).
+ * Terminal characters are ~2:1 aspect ratio (taller than wide),
+ * so we use width ≈ height * 2 to make it appear square.
  */
 function RingDisplay({ positions }) {
   const theme = useTheme();
-  const width = 44;
-  const height = 11;
+
+  // Use 2:1 width:height ratio to appear square in terminal
+  // (terminal chars are roughly twice as tall as wide)
+  const height = 13;
+  const width = 26;  // 13 * 2 = 26 for square appearance
+
+  // Inner dimensions (excluding borders)
+  const innerWidth = width - 2;
+  const innerHeight = height - 2;
 
   // Get positions with defaults
   const posA = positions?.A || { x: -4, y: 0 };
@@ -121,17 +132,17 @@ function RingDisplay({ positions }) {
   const distance = positions?.distance || 8;
 
   // Map from simulation coords [-10, 10] to grid coords
-  // Leave 2 char margin on each side for borders and padding
+  // Account for character aspect ratio so movement looks proportional
   const mapX = (x) => {
     const normalized = (x + 10) / 20; // 0 to 1
-    const gridX = Math.round(normalized * (width - 6)) + 2;
-    return Math.max(2, Math.min(width - 4, gridX)); // Clamp to safe bounds
+    const gridX = Math.round(normalized * (innerWidth - 4)) + 2;
+    return Math.max(2, Math.min(width - 4, gridX));
   };
 
   const mapY = (y) => {
     const normalized = (y + 10) / 20; // 0 to 1
-    const gridY = Math.round(normalized * (height - 4)) + 1;
-    return Math.max(1, Math.min(height - 3, gridY)); // Clamp to safe bounds
+    const gridY = Math.round(normalized * (innerHeight - 2)) + 1;
+    return Math.max(1, Math.min(height - 2, gridY));
   };
 
   const gridAx = mapX(posA.x);
@@ -145,15 +156,23 @@ function RingDisplay({ positions }) {
   for (let y = 0; y < height; y++) {
     let line = '';
     for (let x = 0; x < width; x++) {
-      // Corners
-      if (y === 0 && x === 0) { line += '\u2554'; continue; }
-      if (y === 0 && x === width - 1) { line += '\u2557'; continue; }
-      if (y === height - 1 && x === 0) { line += '\u255A'; continue; }
-      if (y === height - 1 && x === width - 1) { line += '\u255D'; continue; }
+      // Corners (ring posts)
+      if ((y === 0 || y === height - 1) && (x === 0 || x === width - 1)) {
+        line += '\u25CB'; // Ring post
+        continue;
+      }
 
-      // Borders
-      if (y === 0 || y === height - 1) { line += '\u2550'; continue; }
-      if (x === 0 || x === width - 1) { line += '\u2551'; continue; }
+      // Top and bottom ropes
+      if (y === 0 || y === height - 1) {
+        line += '\u2550';
+        continue;
+      }
+
+      // Left and right ropes
+      if (x === 0 || x === width - 1) {
+        line += '\u2551';
+        continue;
+      }
 
       // Fighter A marker [A]
       if (y === gridAy) {
@@ -169,12 +188,7 @@ function RingDisplay({ positions }) {
         if (x === gridBx + 1) { line += '}'; continue; }
       }
 
-      // Ring ropes (inner decoration)
-      if (y === 2 || y === height - 3) {
-        if (x > 1 && x < width - 2) { line += '\u2500'; continue; }
-      }
-
-      // Empty space
+      // Canvas (empty space)
       line += ' ';
     }
     lines.push(line);
