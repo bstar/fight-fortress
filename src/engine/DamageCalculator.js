@@ -3,76 +3,92 @@
  * Calculates and applies damage, manages damage effects and thresholds
  */
 
+import { ModelParameters } from './model/ModelParameters.js';
+
 export class DamageCalculator {
   constructor() {
-    // Damage thresholds - tuned for realistic fight lengths
-    // A 12-round fight should accumulate 60-80 head damage on average
-    this.thresholds = {
+    // Thresholds now loaded from ModelParameters
+    // Parameters defined in: src/engine/model/versions/v1.0.0/combat.yaml
+  }
+
+  /**
+   * Get thresholds from model parameters (computed on access)
+   */
+  get thresholds() {
+    return {
       hurt: {
-        head: 5,        // Single punch threshold to enter hurt state (reduced from 8)
-        body: 8         // Body shots need more to hurt (reduced from 12)
+        head: ModelParameters.get('combat.damage.thresholds.hurt.head', 5),
+        body: ModelParameters.get('combat.damage.thresholds.hurt.body', 8)
       },
       knockdown: {
-        base: 8,        // Single punch knockdown threshold (reduced from 12)
-        cumulative: 50  // Accumulated damage before knockdowns become likely (reduced from 70)
+        base: ModelParameters.get('combat.damage.thresholds.knockdown.base', 8),
+        cumulative: ModelParameters.get('combat.damage.thresholds.knockdown.cumulative', 50)
       },
       ko: {
-        head: 100,
-        body: 120
+        head: ModelParameters.get('combat.damage.thresholds.ko.head', 100),
+        body: ModelParameters.get('combat.damage.thresholds.ko.body', 120)
       }
     };
   }
 
   /**
    * Calculate damage for a hit
+   * Uses functional composition for modifier application
    */
   calculateDamage(hit, attacker, target) {
-    let damage = hit.damage || 0;
+    const baseDamage = hit.damage || 0;
+    const chinFactor = ModelParameters.get('combat.damage.modifiers.chin_factor', 0.005);
+    const staminaThreshold = ModelParameters.get('combat.damage.modifiers.stamina_threshold', 0.5);
 
-    // Apply target's resistance
+    // Calculate resistance modifier
     const resistance = this.calculateResistance(target, hit.location);
-    damage *= (1 - resistance);
+    const resistanceMod = 1 - resistance;
 
-    // Apply chin modifier for head shots
-    if (hit.location === 'head') {
-      const chinMod = 1 - (target.mental.chin / 200);
-      damage *= (1 + chinMod);
-    }
+    // Calculate chin modifier for head shots
+    const chinMod = hit.location === 'head'
+      ? 1 + (1 - target.mental.chin * chinFactor * 2)  // chin/200 = chin * 0.005 * 2
+      : 1;
 
-    // Apply attacker's punching stamina modifier
+    // Calculate stamina modifier
     const staminaRetention = attacker.power.punchingStamina / 100;
     const staminaPercent = attacker.getStaminaPercent();
-    if (staminaPercent < 0.5) {
-      const fatigueEffect = (0.5 - staminaPercent) * (1 - staminaRetention);
-      damage *= (1 - fatigueEffect);
-    }
+    const staminaMod = staminaPercent < staminaThreshold
+      ? 1 - ((staminaThreshold - staminaPercent) * (1 - staminaRetention))
+      : 1;
 
-    return Math.max(1, Math.round(damage));
+    // Apply all modifiers functionally
+    const finalDamage = baseDamage * resistanceMod * chinMod * staminaMod;
+
+    return Math.max(1, Math.round(finalDamage));
   }
 
   /**
    * Calculate target's resistance to damage
+   * Functional implementation - computes resistance from components
    */
-  calculateResistance(target, location) {
-    let resistance = 0;
+  calculateResistance(target, _location) {
+    const blockingFactor = ModelParameters.get('combat.damage.resistance.blocking_factor', 500);
+    const experienceFactor = ModelParameters.get('combat.damage.resistance.experience_factor', 1000);
+    const maxResistance = ModelParameters.get('combat.damage.resistance.max_resistance', 0.3);
 
-    // Base from blocking skill
-    resistance += target.defense.blocking / 500;
-
-    // Experience provides some resistance
-    resistance += target.mental.experience / 1000;
-
-    // Body type modifiers
-    const bodyMods = {
+    // Body type modifiers from parameters
+    const bodyMods = ModelParameters.get('combat.damage.resistance.body_types', {
       stocky: 0.05,
       muscular: 0.03,
       average: 0,
       lean: -0.02,
-      lanky: -0.03
-    };
-    resistance += bodyMods[target.physical.bodyType] || 0;
+      lanky: -0.03,
+      'tall-rangy': -0.02
+    });
 
-    return Math.min(0.3, Math.max(0, resistance));
+    // Compute resistance as sum of components
+    const blockingResistance = target.defense.blocking / blockingFactor;
+    const experienceResistance = target.mental.experience / experienceFactor;
+    const bodyTypeResistance = bodyMods[target.physical.bodyType] || 0;
+
+    const totalResistance = blockingResistance + experienceResistance + bodyTypeResistance;
+
+    return Math.min(maxResistance, Math.max(0, totalResistance));
   }
 
   /**
@@ -81,10 +97,26 @@ export class DamageCalculator {
    * This creates drama and opportunities for finishes
    */
   checkHurt(target, damage) {
+    // Load parameters
+    const params = {
+      baseChance: ModelParameters.get('combat.hurt.base_chance', 0.25),
+      damageRatioScaling: ModelParameters.get('combat.hurt.damage_ratio_scaling', 0.3),
+      chinModifierFactor: ModelParameters.get('combat.hurt.chin_modifier_factor', 0.4),
+      composureFactor: ModelParameters.get('combat.hurt.composure_factor', 300),
+      damagePercentThreshold: ModelParameters.get('combat.hurt.damage_percent_threshold', 0.4),
+      damagePercentMultiplier: ModelParameters.get('combat.hurt.damage_percent_multiplier', 0.8),
+      lowStaminaThreshold: ModelParameters.get('combat.hurt.low_stamina_threshold', 0.3),
+      lowStaminaMultiplier: ModelParameters.get('combat.hurt.low_stamina_multiplier', 1.3),
+      medStaminaThreshold: ModelParameters.get('combat.hurt.medium_stamina_threshold', 0.5),
+      medStaminaMultiplier: ModelParameters.get('combat.hurt.medium_stamina_multiplier', 1.15),
+      minChance: ModelParameters.get('combat.hurt.min_chance', 0.10),
+      maxChance: ModelParameters.get('combat.hurt.max_chance', 0.60)
+    };
+
     const threshold = this.thresholds.hurt.head;
+    const damagePercent = target.getHeadDamagePercent();
 
     // Adjust threshold based on current damage (more likely when already damaged)
-    const damagePercent = target.getHeadDamagePercent();
     const adjustedThreshold = threshold * (1 - damagePercent * 0.25);
 
     // Only check if damage exceeds threshold
@@ -92,76 +124,93 @@ export class DamageCalculator {
       return false;
     }
 
-    // Base hurt chance - scales with how much damage exceeded threshold
-    // 5 damage at 5 threshold = baseline
-    // 8 damage at 5 threshold = 60% higher chance
+    // Compute hurt chance through modifiers
     const damageRatio = damage / adjustedThreshold;
-    let hurtChance = 0.25 + (damageRatio - 1) * 0.3; // 25% base, up to 55% for big shots
+    const baseHurtChance = params.baseChance + (damageRatio - 1) * params.damageRatioScaling;
 
-    // Chin reduces hurt chance (but doesn't eliminate it)
-    // 90 chin = 30% reduction, 70 chin = 10% reduction, 50 chin = 10% bonus
+    // Chin modifier
     const chinMod = (target.mental.chin - 70) / 100;
-    hurtChance *= (1 - chinMod * 0.4);
+    const chinMultiplier = 1 - chinMod * params.chinModifierFactor;
 
-    // Composure also helps (mental toughness to shake off shots)
+    // Composure modifier
     const composure = target.mental.composure || 70;
-    hurtChance *= (1 - (composure - 70) / 300);
+    const composureMultiplier = 1 - (composure - 70) / params.composureFactor;
 
-    // Accumulated damage makes it more likely to get hurt
-    if (damagePercent > 0.4) {
-      hurtChance *= 1.2 + (damagePercent - 0.4) * 0.8; // Up to 1.68x at 100% damage
-    }
+    // Accumulated damage modifier
+    const damageMultiplier = damagePercent > params.damagePercentThreshold
+      ? 1.2 + (damagePercent - params.damagePercentThreshold) * params.damagePercentMultiplier
+      : 1;
 
-    // Low stamina increases hurt vulnerability
+    // Stamina modifier
     const staminaPercent = target.getStaminaPercent();
-    if (staminaPercent < 0.3) {
-      hurtChance *= 1.3;
-    } else if (staminaPercent < 0.5) {
-      hurtChance *= 1.15;
-    }
+    const staminaMultiplier = staminaPercent < params.lowStaminaThreshold
+      ? params.lowStaminaMultiplier
+      : staminaPercent < params.medStaminaThreshold
+        ? params.medStaminaMultiplier
+        : 1;
 
-    // Cap at reasonable level - even weak chins don't get hurt on every big shot
-    hurtChance = Math.min(0.60, Math.max(0.10, hurtChance));
+    // Combine all modifiers
+    const finalChance = Math.min(
+      params.maxChance,
+      Math.max(params.minChance, baseHurtChance * chinMultiplier * composureMultiplier * damageMultiplier * staminaMultiplier)
+    );
 
-    return Math.random() < hurtChance;
+    return Math.random() < finalChance;
   }
 
   /**
    * Calculate knockdown chance
+   * Functional implementation with parameter-driven modifiers
    */
   calculateKnockdownChance(target, damage, punchType, isCounter) {
-    let chance = 0;
+    // Load parameters
+    const params = {
+      baseChanceAtThreshold: ModelParameters.get('combat.knockdown.base_chance_at_threshold', 0.50),
+      overThresholdScaling: ModelParameters.get('combat.knockdown.over_threshold_scaling', 0.3),
+      powerPunchMultiplier: ModelParameters.get('combat.knockdown.power_punch_multiplier', 1.3),
+      counterMultiplier: ModelParameters.get('combat.knockdown.counter_multiplier', 1.2),
+      cumulativeDamageFactor: ModelParameters.get('combat.knockdown.cumulative_damage_factor', 0.5),
+      staminaLowThreshold: ModelParameters.get('combat.knockdown.stamina_low_threshold', 0.3),
+      staminaLowMultiplier: ModelParameters.get('combat.knockdown.stamina_low_multiplier', 1.3),
+      chinFactor: ModelParameters.get('combat.knockdown.chin_factor', 200),
+      maxChance: ModelParameters.get('combat.knockdown.max_chance', 0.9)
+    };
 
     // Base chance from damage relative to threshold
     const threshold = this.calculateKnockdownThreshold(target);
-    if (damage >= threshold) {
-      chance = 0.5 + ((damage - threshold) / threshold) * 0.3;
+    const baseChance = damage >= threshold
+      ? params.baseChanceAtThreshold + ((damage - threshold) / threshold) * params.overThresholdScaling
+      : 0;
+
+    // If no base chance, no knockdown possible
+    if (baseChance === 0) {
+      return 0;
     }
 
-    // Power punches more likely
-    if (punchType.includes('hook') || punchType.includes('uppercut')) {
-      chance *= 1.3;
-    }
+    // Power punch modifier
+    const isPowerPunch = punchType.includes('hook') || punchType.includes('uppercut');
+    const powerMultiplier = isPowerPunch ? params.powerPunchMultiplier : 1;
 
-    // Counter punches more likely
-    if (isCounter) {
-      chance *= 1.2;
-    }
+    // Counter modifier
+    const counterMultiplier = isCounter ? params.counterMultiplier : 1;
 
-    // Cumulative damage increases chance
+    // Cumulative damage modifier
     const damagePercent = target.getHeadDamagePercent();
-    chance *= (1 + damagePercent * 0.5);
+    const damageMultiplier = 1 + damagePercent * params.cumulativeDamageFactor;
 
-    // Low stamina increases chance
+    // Stamina modifier
     const staminaPercent = target.getStaminaPercent();
-    if (staminaPercent < 0.3) {
-      chance *= 1.3;
-    }
+    const staminaMultiplier = staminaPercent < params.staminaLowThreshold
+      ? params.staminaLowMultiplier
+      : 1;
 
-    // Chin reduces chance
-    chance *= (1 - target.mental.chin / 200);
+    // Chin modifier
+    const chinMultiplier = 1 - target.mental.chin / params.chinFactor;
 
-    return Math.min(0.9, chance);
+    // Combine all modifiers
+    const finalChance = baseChance * powerMultiplier * counterMultiplier * damageMultiplier * staminaMultiplier * chinMultiplier;
+
+    return Math.min(params.maxChance, finalChance);
   }
 
   /**
@@ -191,139 +240,200 @@ export class DamageCalculator {
 
   /**
    * Calculate recovery chance from knockdown
+   * Functional implementation with parameter-driven modifiers
    */
-  calculateRecoveryChance(target, knockdownDamage, count) {
+  calculateRecoveryChance(target, _knockdownDamage, count) {
+    // Load parameters
+    const params = {
+      baseChanceMultiplier: ModelParameters.get('combat.recovery.knockdown.base_chance_multiplier', 0.5),
+      experienceBonus: ModelParameters.get('combat.recovery.knockdown.experience_bonus', 300),
+      damagePenalty: ModelParameters.get('combat.recovery.knockdown.damage_penalty', 0.4),
+      staminaFactor: ModelParameters.get('combat.recovery.knockdown.stamina_factor', 0.5),
+      earlyCountBonus: ModelParameters.get('combat.recovery.knockdown.early_count_bonus', 1.3),
+      midCountBonus: ModelParameters.get('combat.recovery.knockdown.mid_count_bonus', 1.1),
+      lateCountPenalty: ModelParameters.get('combat.recovery.knockdown.late_count_penalty', 0.7),
+      previousKdFactor: ModelParameters.get('combat.recovery.knockdown.previous_kd_factor', 0.85),
+      maxChance: ModelParameters.get('combat.recovery.knockdown.max_chance', 0.95),
+      minChance: ModelParameters.get('combat.recovery.knockdown.min_chance', 0.1)
+    };
+
     // Base recovery from chin and heart
-    let chance = (target.mental.chin + target.mental.heart) / 200;
+    const baseChance = (target.mental.chin + target.mental.heart) / 200 * params.baseChanceMultiplier * 2;
 
-    // Experience helps
-    chance += target.mental.experience / 300;
+    // Experience bonus
+    const experienceBonus = target.mental.experience / params.experienceBonus;
 
-    // Modify by damage level
+    // Damage penalty
     const damagePercent = target.getHeadDamagePercent();
-    chance *= (1 - damagePercent * 0.4);
+    const damageMultiplier = 1 - damagePercent * params.damagePenalty;
 
-    // Modify by stamina
-    chance *= (0.5 + target.getStaminaPercent() * 0.5);
+    // Stamina factor
+    const staminaMultiplier = params.staminaFactor + target.getStaminaPercent() * params.staminaFactor;
 
     // Count modifier (easier at lower counts)
-    if (count <= 4) {
-      chance *= 1.3;
-    } else if (count <= 6) {
-      chance *= 1.1;
-    } else if (count >= 9) {
-      chance *= 0.7;
-    }
+    const countMultiplier = count <= 4
+      ? params.earlyCountBonus
+      : count <= 6
+        ? params.midCountBonus
+        : count >= 9
+          ? params.lateCountPenalty
+          : 1;
 
     // Previous knockdowns reduce chance
-    chance *= Math.pow(0.85, target.knockdownsThisRound);
+    const previousKdMultiplier = Math.pow(params.previousKdFactor, target.knockdownsThisRound);
 
-    return Math.min(0.95, Math.max(0.1, chance));
+    // Combine all factors
+    const finalChance = (baseChance + experienceBonus) * damageMultiplier * staminaMultiplier * countMultiplier * previousKdMultiplier;
+
+    return Math.min(params.maxChance, Math.max(params.minChance, finalChance));
   }
 
   /**
    * Calculate TKO probability
+   * Uses parameter-driven thresholds and chances
    */
   calculateTKOProbability(target, referee) {
-    let probability = 0;
+    // Load parameters
+    const params = {
+      damageSevere: ModelParameters.get('combat.tko.damage_thresholds.severe', 0.9),
+      damageModerate: ModelParameters.get('combat.tko.damage_thresholds.moderate', 0.8),
+      damageElevated: ModelParameters.get('combat.tko.damage_thresholds.elevated', 0.7),
+      chanceSevere: ModelParameters.get('combat.tko.damage_chances.severe', 0.4),
+      chanceModerate: ModelParameters.get('combat.tko.damage_chances.moderate', 0.2),
+      chanceElevated: ModelParameters.get('combat.tko.damage_chances.elevated', 0.1),
+      hurtBonus: ModelParameters.get('combat.tko.hurt_bonus', 0.15),
+      prolongedHurtBonus: ModelParameters.get('combat.tko.prolonged_hurt_bonus', 0.15),
+      kd1Chance: ModelParameters.get('combat.tko.knockdowns_this_round.one', 0.20),
+      kd2Chance: ModelParameters.get('combat.tko.knockdowns_this_round.two', 0.45),
+      kd3Chance: ModelParameters.get('combat.tko.knockdowns_this_round.three_plus', 0.70),
+      severeCutChance: ModelParameters.get('combat.tko.cut_severity.severe', 0.2),
+      moderateCutChance: ModelParameters.get('combat.tko.cut_severity.moderate', 0.1),
+      refereeBase: ModelParameters.get('combat.tko.referee_protectiveness_base', 0.5)
+    };
 
-    // Damage level
+    // Damage level contribution
     const damagePercent = target.getHeadDamagePercent();
-    if (damagePercent > 0.9) {
-      probability += 0.4;
-    } else if (damagePercent > 0.8) {
-      probability += 0.2;
-    } else if (damagePercent > 0.7) {
-      probability += 0.1;
-    }
+    const damageChance = damagePercent > params.damageSevere
+      ? params.chanceSevere
+      : damagePercent > params.damageModerate
+        ? params.chanceModerate
+        : damagePercent > params.damageElevated
+          ? params.chanceElevated
+          : 0;
 
-    // Hurt state
-    if (target.isHurt) {
-      probability += 0.15;
-      if (target.hurtDuration > 5) {
-        probability += 0.15;
-      }
-    }
+    // Hurt state contribution
+    const hurtChance = target.isHurt
+      ? params.hurtBonus + (target.hurtDuration > 5 ? params.prolongedHurtBonus : 0)
+      : 0;
 
-    // Multiple knockdowns - knockdowns in a round are very significant
-    // First knockdown adds moderate chance, subsequent ones escalate quickly
-    if (target.knockdownsThisRound === 1) {
-      probability += 0.20;  // First knockdown
-    } else if (target.knockdownsThisRound === 2) {
-      probability += 0.45;  // Two knockdowns - very dangerous
-    } else if (target.knockdownsThisRound >= 3) {
-      probability += 0.70;  // Three or more - likely stoppage
-    }
+    // Knockdown contribution
+    const kdChance = target.knockdownsThisRound >= 3
+      ? params.kd3Chance
+      : target.knockdownsThisRound === 2
+        ? params.kd2Chance
+        : target.knockdownsThisRound === 1
+          ? params.kd1Chance
+          : 0;
 
-    // Severe cuts
-    for (const cut of target.cuts) {
-      if (cut.severity >= 3) {
-        probability += 0.2;
-      } else if (cut.severity >= 2) {
-        probability += 0.1;
-      }
-    }
+    // Cut contribution (functional reduce)
+    const cutChance = target.cuts.reduce((acc, cut) => {
+      if (cut.severity >= 3) return acc + params.severeCutChance;
+      if (cut.severity >= 2) return acc + params.moderateCutChance;
+      return acc;
+    }, 0);
 
-    // Referee protectiveness
-    probability *= (0.5 + referee.protectiveness);
+    // Combine all factors
+    const baseProbability = damageChance + hurtChance + kdChance + cutChance;
 
-    return probability;
+    // Apply referee protectiveness
+    return baseProbability * (params.refereeBase + referee.protectiveness);
   }
 
   /**
    * Calculate damage recovery between rounds
+   * Uses parameterized recovery rates
    */
   calculateBetweenRoundRecovery(target) {
+    const headRecoveryRate = ModelParameters.get('combat.recovery.between_rounds.head_damage_recovery', 0.1);
+    const bodyRecoveryRate = ModelParameters.get('combat.recovery.between_rounds.body_damage_recovery', 0.05);
+
     return {
-      head: target.headDamage * 0.1,  // 10% recovery
-      body: target.bodyDamage * 0.05   // 5% recovery
+      head: target.headDamage * headRecoveryRate,
+      body: target.bodyDamage * bodyRecoveryRate
     };
   }
 
   /**
    * Calculate cut severity from damage
+   * Uses parameterized damage thresholds
    */
   calculateCutSeverity(damage, location) {
-    let severity = 0;
+    const params = {
+      damage20: ModelParameters.get('combat.cuts.severity_thresholds.damage_20', 3),
+      damage15: ModelParameters.get('combat.cuts.severity_thresholds.damage_15', 2),
+      damage10: ModelParameters.get('combat.cuts.severity_thresholds.damage_10', 1),
+      eyebrowBonus: ModelParameters.get('combat.cuts.eyebrow_bonus', 1),
+      maxSeverity: ModelParameters.get('combat.cuts.max_severity', 4)
+    };
 
-    // Base from damage
-    if (damage >= 20) severity = 3;
-    else if (damage >= 15) severity = 2;
-    else if (damage >= 10) severity = 1;
+    // Base severity from damage
+    const baseSeverity = damage >= 20
+      ? params.damage20
+      : damage >= 15
+        ? params.damage15
+        : damage >= 10
+          ? params.damage10
+          : 0;
 
-    // Location modifiers
-    if (location.includes('eyebrow')) {
-      severity += 1;
-    }
+    // Location modifier
+    const locationBonus = location.includes('eyebrow') ? params.eyebrowBonus : 0;
 
-    return Math.min(4, severity);
+    return Math.min(params.maxSeverity, baseSeverity + locationBonus);
   }
 
   /**
    * Calculate swelling severity from damage
+   * Uses parameterized hit thresholds
    */
-  calculateSwellingSeverity(target, location) {
-    const accumulatedHits = target.roundStats.cleanPunchesLanded || 0;
+  calculateSwellingSeverity(target, _location) {
+    const params = {
+      hitsSevere: ModelParameters.get('combat.swelling.hits_threshold_severe', 15),
+      hitsModerate: ModelParameters.get('combat.swelling.hits_threshold_moderate', 10),
+      hitsMild: ModelParameters.get('combat.swelling.hits_threshold_mild', 5)
+    };
 
-    let severity = 0;
+    const accumulatedHits = target.roundStats?.cleanPunchesLanded || 0;
 
-    if (accumulatedHits >= 15) severity = 3;
-    else if (accumulatedHits >= 10) severity = 2;
-    else if (accumulatedHits >= 5) severity = 1;
-
-    return severity;
+    // Determine severity based on accumulated hits
+    return accumulatedHits >= params.hitsSevere
+      ? 3
+      : accumulatedHits >= params.hitsModerate
+        ? 2
+        : accumulatedHits >= params.hitsMild
+          ? 1
+          : 0;
   }
 
   /**
    * Apply damage effects (cuts, swelling, etc.)
+   * Uses parameterized thresholds and chances
    */
   applyDamageEffects(target, damage, location, punchType) {
+    const params = {
+      cutDamageThreshold: ModelParameters.get('combat.cuts.damage_threshold', 12),
+      hookCutBonus: ModelParameters.get('combat.cuts.hook_chance_bonus', 0.03),
+      uppercutCutBonus: ModelParameters.get('combat.cuts.uppercut_chance_bonus', 0.02),
+      swellingChance: ModelParameters.get('combat.swelling.chance_per_check', 0.05)
+    };
+
     const effects = [];
 
     // Check for cut (only on head, from hooks/uppercuts)
-    if (location === 'head' && damage > 12) {
-      if (punchType.includes('hook') || punchType.includes('uppercut')) {
-        const cutChance = (damage - 12) / 100 + (punchType.includes('hook') ? 0.03 : 0.02);
+    if (location === 'head' && damage > params.cutDamageThreshold) {
+      const isPowerPunch = punchType.includes('hook') || punchType.includes('uppercut');
+      if (isPowerPunch) {
+        const cutBonus = punchType.includes('hook') ? params.hookCutBonus : params.uppercutCutBonus;
+        const cutChance = (damage - params.cutDamageThreshold) / 100 + cutBonus;
         if (Math.random() < cutChance) {
           const cutLocation = this.determineCutLocation();
           const severity = this.calculateCutSeverity(damage, cutLocation);
@@ -337,11 +447,13 @@ export class DamageCalculator {
     }
 
     // Check for swelling (accumulative)
-    if (location === 'head' && target.roundStats.cleanPunchesLanded > 10) {
-      if (Math.random() < 0.05) {
+    const cleanHitsLanded = target.roundStats?.cleanPunchesLanded || 0;
+    if (location === 'head' && cleanHitsLanded > 10) {
+      if (Math.random() < params.swellingChance) {
         const swellLocation = Math.random() > 0.5 ? 'left_eye' : 'right_eye';
         const severity = this.calculateSwellingSeverity(target, swellLocation);
-        if (severity > 0 && !target.swelling.find(s => s.location === swellLocation)) {
+        const hasSwellingAtLocation = target.swelling?.some(s => s.location === swellLocation) || false;
+        if (severity > 0 && !hasSwellingAtLocation) {
           effects.push({
             type: 'swelling',
             location: swellLocation,
@@ -356,49 +468,65 @@ export class DamageCalculator {
 
   /**
    * Determine cut location
+   * Uses weighted random selection from parameterized locations
    */
   determineCutLocation() {
-    const locations = [
-      { name: 'left_eyebrow', weight: 0.3 },
-      { name: 'right_eyebrow', weight: 0.3 },
-      { name: 'left_eye', weight: 0.1 },
-      { name: 'right_eye', weight: 0.1 },
-      { name: 'nose', weight: 0.1 },
-      { name: 'lip', weight: 0.1 }
-    ];
+    const locationWeights = ModelParameters.get('combat.cuts.locations', {
+      left_eyebrow: 0.3,
+      right_eyebrow: 0.3,
+      left_eye: 0.1,
+      right_eye: 0.1,
+      nose: 0.1,
+      lip: 0.1
+    });
+
+    // Convert to array format for weighted selection
+    const locations = Object.entries(locationWeights).map(([name, weight]) => ({ name, weight }));
 
     const total = locations.reduce((sum, l) => sum + l.weight, 0);
-    let random = Math.random() * total;
+    const random = Math.random() * total;
 
-    for (const loc of locations) {
-      random -= loc.weight;
-      if (random <= 0) return loc.name;
-    }
+    // Functional weighted selection using reduce
+    const selected = locations.reduce(
+      (acc, loc) => {
+        if (acc.found) return acc;
+        const newSum = acc.sum + loc.weight;
+        return newSum >= random ? { found: true, location: loc.name, sum: newSum } : { ...acc, sum: newSum };
+      },
+      { found: false, location: 'left_eyebrow', sum: 0 }
+    );
 
-    return 'left_eyebrow';
+    return selected.location;
   }
 
   /**
    * Calculate vision impairment from cuts/swelling
+   * Uses parameterized impairment values
    */
   calculateVisionImpairment(target) {
-    let impairment = 0;
+    const params = {
+      cutImpairmentPerSeverity: ModelParameters.get('combat.vision.cut_impairment_per_severity', 0.1),
+      swellingImpairmentPerSeverity: ModelParameters.get('combat.vision.swelling_impairment_per_severity', 0.15),
+      maxImpairment: ModelParameters.get('combat.vision.max_impairment', 0.5)
+    };
 
-    // From cuts
-    for (const cut of target.cuts) {
-      if (cut.location.includes('eye') && cut.bleeding) {
-        impairment += cut.severity * 0.1;
-      }
-    }
+    // Calculate cut impairment (functional reduce)
+    const cutImpairment = (target.cuts || []).reduce((acc, cut) => {
+      const isEyeArea = cut.location.includes('eye');
+      return isEyeArea && cut.bleeding
+        ? acc + cut.severity * params.cutImpairmentPerSeverity
+        : acc;
+    }, 0);
 
-    // From swelling
-    for (const swell of target.swelling) {
-      if (swell.location.includes('eye')) {
-        impairment += swell.severity * 0.15;
-      }
-    }
+    // Calculate swelling impairment (functional reduce)
+    const swellingImpairment = (target.swelling || []).reduce((acc, swell) => {
+      const isEyeArea = swell.location.includes('eye');
+      return isEyeArea
+        ? acc + swell.severity * params.swellingImpairmentPerSeverity
+        : acc;
+    }, 0);
 
-    return Math.min(0.5, impairment);
+    return Math.min(params.maxImpairment, cutImpairment + swellingImpairment);
   }
 }
 

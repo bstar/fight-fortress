@@ -1,0 +1,191 @@
+# Stamina Parameters v1.0.0
+# Extracted from StaminaManager.js
+# Controls energy expenditure, recovery, and fatigue effects
+
+version: "1.0.0"
+description: "Stamina parameters - baseline extraction from current code"
+source_files:
+  - "src/engine/StaminaManager.js"
+
+# Stamina costs by action type
+costs:
+  # Punch costs
+  punches:
+    jab: 0.20               # Light, efficient punch
+    cross: 0.50             # Power punch but common
+    lead_hook: 0.45         # Solid power punch
+    rear_hook: 0.60         # Heavy power punch
+    lead_uppercut: 0.40
+    rear_uppercut: 0.65
+    body_jab: 0.25
+    body_cross: 0.55
+    body_hook_lead: 0.50
+    body_hook_rear: 0.65
+
+  # Combination bonus costs (by combo length)
+  combination:
+    "2": 0.10
+    "3": 0.20
+    "4": 0.35
+    "5": 0.55
+
+  # Defensive actions (per second)
+  defense:
+    high_guard: 0.03        # Holding guard up - minimal cost
+    philly_shell: 0.02      # Efficient shoulder roll
+    head_movement: 0.08     # Active bobbing/weaving
+    distance: 0.04          # Footwork-based
+    parrying: 0.06          # Active hand defense
+
+  # Movement (per second)
+  movement:
+    forward: 0.04           # Pressing forward
+    backward: 0.03          # Backing up
+    lateral: 0.05           # Side to side
+    circling: 0.06          # Circling opponent
+    cutting: 0.10           # Ring cutting (most intensive)
+    retreating: 0.05        # Quick retreat
+    burst: 0.15             # Explosive movement
+
+  # Baseline constant cost
+  baseline: 0.04            # Per second - light drain for being active
+
+  # Clinch costs
+  clinch:
+    initiation: 0.5
+    holding: 0.1            # Clinching is for rest
+    breaking: 0.8
+
+  # Damage-related stamina costs
+  damage:
+    getting_hit_base: 0.5        # Base drain per hit
+    getting_hit_per_power: 0.05  # Additional drain per power point
+    body_hit_multiplier: 1.8     # Body shots drain 80% more
+    being_hurt: 2.0              # Per second while hurt
+    knockdown_recovery: 15.0     # Knockdowns are devastating
+    buzzed_drain_per_sec: 1.0    # Drain while buzzed/stunned
+
+  # Miss penalties
+  miss:
+    base_multiplier: 1.3         # Missed punches cost 30% more
+    power_multiplier: 1.8        # Missed power punches cost 80% more
+    haymaker_multiplier: 2.5     # Wild haymakers that miss
+    combo_penalty: 0.3           # Per missed punch in combo
+
+# Recovery rates and modifiers
+recovery:
+  # Base recovery calculation
+  base_rate_per_cardio: 0.008    # cardio * this = base rate per sec
+
+  # State-based recovery multipliers
+  states:
+    neutral: 1.0                  # Standard recovery
+    defensive: 0.9                # Good recovery while defending
+    timing: 0.6                   # Counter-punchers - moderate
+    moving: 0.4                   # Moving takes energy
+    offensive: 0.2                # Minimal recovery when attacking
+    clinch: 1.5                   # Clinching is for recovery
+    hurt: 0.0                     # No recovery when hurt
+
+  # Defensive sub-state recovery (replaces state modifier)
+  defensive_substates:
+    high_guard: 0.9               # Holding guard - decent recovery
+    philly_shell: 1.0             # Efficient style - best defensive
+    head_movement: 0.4            # Active bobbing - minimal
+    distance: 0.7                 # Using legs - some recovery
+    parrying: 0.5                 # Active hands - less recovery
+
+  # Attribute bonuses
+  pace_control_factor: 0.005      # (paceControl - 50) * this
+  recovery_rate_factor: 0.005     # (recoveryRate - 50) * this
+  max_attribute_bonus: 0.35       # Cap on combined attribute bonus
+
+  # Damage impact on recovery
+  body_damage_factor: 150         # 1 - (bodyDamage / this)
+  head_damage_factor: 300         # 1 - (headDamage / this)
+
+  # Stamina ceiling efficiency (prevents pinning at 100%)
+  ceiling:
+    threshold_50: 1.0             # 100% efficiency at 50% stamina
+    threshold_75: 0.6             # 60% efficiency at 75%
+    threshold_90: 0.25            # 25% efficiency at 90%
+    threshold_95: 0.10            # 10% efficiency at 95%
+    threshold_100: 0.0            # 0% efficiency at 100%
+
+  # Very low stamina boost
+  desperate_recovery:
+    threshold: 0.15               # Below this gets boosted
+    max_boost: 1.5                # 1.5x at 0%
+    min_boost: 1.3                # 1.3x at threshold
+
+  # Between rounds
+  between_rounds:
+    base_recovery: 8              # Stamina points recovered
+    second_wind_threshold: 0.5    # Below this, secondWind kicks in
+
+# Conservation mode parameters
+conservation:
+  # When actively resting at low stamina, reduce all costs
+  cost_reduction:
+    enabled_threshold: 0.50       # Kicks in below this stamina
+    min_reduction: 0.50           # 50% at threshold
+    max_reduction: 0.80           # 80% at very low stamina
+    scaling: 0.6                  # (threshold - stamina) * scaling
+
+  # Recovery bonus when conserving
+  recovery_bonus:
+    mild_threshold: 0.50          # Above this gets mild bonus
+    mild_bonus: 1.5               # 1.5x when above threshold
+    scaling: 8.0                  # (0.5 - stamina) * scaling + mild_bonus
+    fight_iq_factor: 0.4          # (fightIQ - 50) / 100 * this
+    clinch_multiplier: 1.5        # Extra bonus for clinching
+    recovery_rate_factor: 0.3     # (recoveryRate - 50) / 100 * this
+    max_bonus: 6.0                # Cap at 6x
+
+  # Minimum drain floor
+  minimum_drain:
+    normal: 0.02                  # Minimum per second
+    conserving_threshold: 0.40   # Below this, no minimum drain
+
+# Work rate and pace control modifiers
+efficiency:
+  # Work rate reduces costs
+  work_rate:
+    base_threshold: 50
+    factor: 0.012                 # (workRate - 50) * this reduction
+    min_multiplier: 0.50          # Max 50% cost reduction
+
+  # Pace control reduces costs
+  pace_control:
+    base_threshold: 50
+    factor: 0.0075
+    min_multiplier: 0.70          # Max 30% cost reduction
+
+  # Cardio efficiency
+  cardio:
+    base_threshold: 50
+    factor: 0.005
+    min_multiplier: 0.80          # Max 20% cost reduction
+
+  # Body damage increases costs
+  body_damage_cost_factor: 120    # 1 + (bodyDamage / this)
+
+# Stamina floor (fighters maintain reserve)
+floor:
+  cardio_threshold: 40
+  factor: 0.002                   # (cardio - 40) * this = floor percent
+
+# Age modifiers for recovery
+age:
+  young_threshold: 28
+  young_bonus: 1.1                # 10% better recovery
+  prime_range: [28, 32]
+  prime_modifier: 1.0             # Normal recovery
+  decline_threshold: 32
+  decline_factor: 0.02            # (age - 32) * this penalty per year
+  min_modifier: 0.7               # Cap at 30% penalty
+
+# Stamina gating thresholds
+gating:
+  clinch_attempt: 0.05            # Below this, attempt clinch
+  cover_up: 0.10                  # Below this, go to high guard

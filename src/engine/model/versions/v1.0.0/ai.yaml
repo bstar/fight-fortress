@@ -1,0 +1,470 @@
+# AI Decision Parameters v1.0.0
+# Extracted from FighterAI.js
+# Controls fighter decision-making and style behaviors
+
+version: "1.0.0"
+description: "AI parameters - baseline extraction from current code"
+source_files:
+  - "src/engine/FighterAI.js"
+
+# Style weight distributions (state weights for each fighting style)
+style_weights:
+  out_boxer:
+    states:
+      offensive: 0.30
+      defensive: 0.20
+      timing: 0.15
+      moving: 0.30          # Out-boxers move a LOT
+      clinch: 0.05
+    punches:
+      jab: 0.40
+      cross: 0.20
+      lead_hook: 0.10
+      rear_hook: 0.05
+      lead_uppercut: 0.05
+      rear_uppercut: 0.05
+      body_jab: 0.10
+      body_cross: 0.05
+
+  swarmer:
+    states:
+      offensive: 0.54       # Swarmers are relentlessly offensive
+      defensive: 0.05
+      timing: 0.03
+      moving: 0.32          # Constantly closing distance
+      clinch: 0.06
+    punches:
+      jab: 0.20
+      cross: 0.15
+      lead_hook: 0.20
+      rear_hook: 0.10
+      lead_uppercut: 0.05
+      rear_uppercut: 0.05
+      body_jab: 0.05
+      body_hook_lead: 0.15
+      body_hook_rear: 0.05
+
+  slugger:
+    states:
+      offensive: 0.47       # Aggressive but pick shots
+      defensive: 0.10
+      timing: 0.08
+      moving: 0.29          # Stalk and cut off ring
+      clinch: 0.06
+    punches:
+      jab: 0.30             # Set up shots
+      cross: 0.28           # Money punch
+      lead_hook: 0.18
+      rear_hook: 0.10
+      lead_uppercut: 0.03
+      rear_uppercut: 0.06
+      body_cross: 0.05
+
+  boxer_puncher:
+    states:
+      offensive: 0.40       # Box AND punch
+      defensive: 0.12
+      timing: 0.13
+      moving: 0.28          # Use angles
+      clinch: 0.07
+    punches:
+      jab: 0.25
+      cross: 0.25
+      lead_hook: 0.15
+      rear_hook: 0.10
+      lead_uppercut: 0.05
+      rear_uppercut: 0.05
+      body_jab: 0.05
+      body_hook_lead: 0.10
+
+  counter_puncher:
+    states:
+      offensive: 0.15
+      defensive: 0.22
+      timing: 0.28
+      moving: 0.30          # Circle constantly
+      clinch: 0.05
+    punches:
+      jab: 0.20
+      cross: 0.30
+      lead_hook: 0.15
+      rear_hook: 0.10
+      lead_uppercut: 0.05
+      rear_uppercut: 0.10
+      body_jab: 0.10
+
+  inside_fighter:
+    states:
+      offensive: 0.50
+      defensive: 0.12
+      timing: 0.05
+      moving: 0.25
+      clinch: 0.08
+    punches:
+      jab: 0.10
+      cross: 0.15
+      lead_hook: 0.25
+      rear_hook: 0.15
+      lead_uppercut: 0.10
+      rear_uppercut: 0.10
+      body_hook_lead: 0.10
+      body_hook_rear: 0.05
+
+  volume_puncher:
+    states:
+      offensive: 0.55
+      defensive: 0.08
+      timing: 0.05
+      moving: 0.28
+      clinch: 0.04
+    punches:
+      jab: 0.35
+      cross: 0.20
+      lead_hook: 0.15
+      rear_hook: 0.08
+      lead_uppercut: 0.05
+      rear_uppercut: 0.05
+      body_jab: 0.07
+      body_hook_lead: 0.05
+
+# Pressure/aggression modifiers
+pressure:
+  hurt_opponent_bonus: 0.30          # Increase aggression when opponent is hurt
+  winning_rounds_bonus: 0.10         # Slight increase when ahead
+  behind_on_cards_increase: 0.15     # Increase when losing
+  stamina_low_reduction: 0.30        # Reduce when tired
+  hurt_self_reduction: 0.50          # Major reduction when hurt
+
+# Defense priority modifiers
+defense:
+  hurt_priority: 0.80                # High priority when hurt
+  low_stamina_priority: 0.60         # Moderate when tired
+  losing_badly_priority: 0.50        # Some caution when losing
+
+# Distance preferences by style
+distance_preferences:
+  out_boxer: 5                       # Prefers long range
+  swarmer: 2                         # Close distance
+  slugger: 3                         # Mid range for power
+  boxer_puncher: 4                   # Versatile
+  counter_puncher: 5                 # Long range, draw in
+  inside_fighter: 1                  # Very close
+  volume_puncher: 3                  # Mid range
+
+# Combination preferences
+combinations:
+  min_length: 2
+  max_length: 5
+  swarmer_bonus: 1.5                 # Swarmers throw longer combos
+  volume_puncher_bonus: 1.3
+  slugger_penalty: 0.7               # Sluggers pick single shots
+
+# Counter-punching thresholds
+counter:
+  timing_window_ms: 400              # Time window for counter
+  reflex_factor: 5                   # Window extension per reflex point
+  counter_puncher_bonus: 1.3         # Style bonus
+  stamina_threshold: 0.3             # Need stamina to counter
+
+# Clinch decision factors
+clinch:
+  hurt_threshold: 0.70               # Likely to clinch when hurt
+  stamina_low_threshold: 0.25        # Clinch when exhausted
+  losing_exchanges_threshold: 3      # Clinch after losing exchanges
+  inside_fighter_penalty: 0.5        # Inside fighters avoid clinching
+
+# State transition probabilities
+state_transitions:
+  momentum_factor: 0.15              # How much momentum affects transitions
+  stamina_factor: 0.20               # How much stamina affects transitions
+  opponent_state_factor: 0.10        # React to opponent state
+
+# Work rate modifiers
+work_rate:
+  # Work rate affects punch output frequency
+  high_work_rate_threshold: 80
+  high_work_rate_bonus: 1.3          # 30% more punches
+  low_work_rate_threshold: 50
+  low_work_rate_penalty: 0.7         # 30% fewer punches
+
+# Kill switch / finishing instinct
+finishing:
+  hurt_opponent_activation: true
+  knockdown_activation: true
+  aggression_increase: 1.5           # 50% more aggressive when opponent hurt
+  killer_instinct_factor: 0.01       # killerInstinct * this adds to aggression
+  caution_override_threshold: 85     # High killerInstinct overrides caution
+
+# Conservation behavior
+conservation:
+  trigger_stamina: 0.35              # Start conserving below this
+  pace_control_factor: 0.01          # paceControl affects conservation timing
+  defensive_increase: 0.30           # More defensive when conserving
+  punch_output_reduction: 0.40       # Fewer punches when conserving
+
+# Momentum system
+momentum:
+  max_value: 100
+  min_value: -100
+  landing_punch_gain: 3
+  power_punch_multiplier: 1.5
+  counter_punch_multiplier: 2.0
+  getting_hit_loss: 2
+  knockdown_dealt_gain: 25
+  knockdown_received_loss: 30
+  stagger_dealt_gain: 15
+  stagger_received_loss: 20
+  decay_rate: 0.5                    # Per second decay toward 0
+  threshold_for_bonus: 30            # Momentum above this gives bonuses
+
+# Stamina thresholds for state modification
+stamina_thresholds:
+  critical: 0.20                     # Below this = survival/conservation mode
+  high: 0.80                         # Above this = aggressive mode
+  moderate: 0.50                     # Conservation starts
+  low: 0.40                          # Tired - shorter combos, more jabs
+  very_low: 0.25                     # Gassed - minimal combos
+  exhausted: 0.15                    # Critical stamina forces conservation
+  empty: 0.05                        # Survival mode
+
+# Critical stamina behavior (< 20%)
+critical_stamina:
+  offensive_floor: 0.15              # Min offensive multiplier
+  offensive_reduction: 0.30          # Base reduction per conservation intensity
+  defensive_boost: 1.8               # Base defensive boost
+  defensive_intensity_factor: 0.6    # Added per conservation intensity
+  timing_boost: 1.5                  # Waiting for counters
+  timing_intensity_factor: 0.3       # Added per conservation intensity
+  movement_reduction: 0.7            # Reduce wasteful movement
+  clinch_boost: 1.3                  # Slight clinch increase
+  clinch_intensity_factor: 0.4       # Added per conservation intensity
+
+# Risky power shot at critical stamina
+critical_stamina_power:
+  knockout_power_threshold: 75       # Need this much KO power for hail mary
+  killer_instinct_threshold: 70      # OR this much killer instinct
+  heart_threshold: 85                # OR this much heart
+  critical_level_min: 0.25           # Min stamina % to attempt
+  timing_boost: 1.4                  # Timing state boost for power shot
+  slugger_timing_boost: 1.2          # Extra timing for sluggers
+  slugger_offensive_boost: 1.3       # Some willingness to load up
+  behind_offensive_boost: 1.3        # When behind on cards
+  behind_timing_boost: 1.2           # Timing boost when behind
+  high_heart_threshold: 90           # Heart level for extra push
+  high_heart_offensive_boost: 1.4    # Push despite exhaustion
+  high_heart_defensive_reduction: 0.85
+  opponent_hurt_killer_threshold: 75 # KI needed to attack hurt opponent
+  opponent_hurt_killer_level_min: 0.3 # Min stamina to attack hurt opponent
+  opponent_hurt_offensive_boost: 1.6
+  opponent_hurt_timing_reduction: 0.7
+
+# High stamina aggression (80%+)
+high_stamina:
+  offensive_base_boost: 1.3          # Base offensive multiplier
+  offensive_fresh_bonus: 0.4         # Added when fully fresh
+  timing_reduction: 0.8              # Less waiting around
+  defensive_base_reduction: 0.7      # Reduce defense
+  defensive_fresh_reduction: 0.2     # Extra reduction when fresh
+  work_rate_offensive_factor: 0.3    # Work rate amplifies offense
+  aggressive_style_offensive_boost: 1.2  # Swarmer/slugger extra
+  aggressive_style_movement_boost: 1.1   # Press forward
+
+# Punch weights modifications for stamina
+punch_stamina_modifiers:
+  # High stamina (fresh) power punch boosts
+  fresh:
+    cross_boost: 1.3
+    cross_fresh_bonus: 0.5
+    rear_hook_boost: 1.3
+    rear_hook_fresh_bonus: 0.5
+    rear_uppercut_boost: 1.2
+    rear_uppercut_fresh_bonus: 0.4
+    lead_hook_boost: 1.2
+    lead_hook_fresh_bonus: 0.3
+    body_hook_rear_boost: 1.2
+    body_hook_rear_fresh_bonus: 0.4
+    jab_reduction: 0.7
+    jab_fresh_reduction: 0.2
+    body_jab_reduction: 0.8
+    power_puncher_extra_boost: 1.2   # KO power >= 80
+  # Low stamina (tired) adjustments
+  tired:
+    cross_reduction_factor: 0.4
+    rear_hook_reduction_factor: 0.5
+    rear_uppercut_reduction_factor: 0.5
+    jab_boost_factor: 0.5
+
+# KO hunting mode (power punchers down late)
+ko_hunting:
+  score_deficit_threshold: -2        # Points behind to activate
+  rounds_left_threshold: 4           # Within this many rounds of end
+  desperation_score_divisor: 6       # Divide score by this for intensity
+  desperation_rounds_factor: 0.25    # Multiply by (rounds_left) for urgency
+  offensive_base_boost: 1.5          # Base offensive multiplier
+  offensive_intensity_factor: 0.5    # Added per intensity
+  timing_base_boost: 1.4             # Base timing boost
+  timing_intensity_factor: 0.3       # Added per intensity
+  defensive_base_reduction: 0.6      # Base defense reduction
+  defensive_intensity_factor: 0.1    # Reduced per intensity
+  clinch_reduction: 0.3              # Clinch useless for catching up
+  # Punch selection in KO hunting
+  cross_boost: 2.0                   # Big right hand base
+  cross_intensity_bonus: 1.0         # Added per intensity
+  rear_hook_boost: 2.5               # The kill shot
+  rear_hook_intensity_bonus: 1.0
+  rear_uppercut_boost: 2.0           # Chin checker
+  rear_uppercut_intensity_bonus: 1.0
+  lead_hook_boost: 1.8               # Left hook KO
+  lead_hook_intensity_bonus: 1.0
+  jab_reduction: 0.4                 # Just to set up
+  body_jab_reduction: 0.3
+  body_cross_reduction: 0.5
+  body_hook_lead_reduction: 0.5
+  body_hook_rear_reduction: 0.6      # Liver shot still viable
+  high_heart_offensive_boost: 1.3    # Heart >= 85
+  high_heart_defensive_reduction: 0.6
+  high_killer_offensive_boost: 1.2   # KI >= 85
+  high_killer_timing_boost: 1.2
+
+# Risk/reward system
+risk_reward:
+  base_tolerance_factor: 0.4         # Heart weight
+  killer_tolerance_factor: 0.3       # Killer instinct weight
+  composure_tolerance_factor: 0.15   # Composure weight
+  confidence_tolerance_factor: 0.15  # Confidence weight
+  tolerance_divisor: 50              # Normalize to 0-1 range
+  # Losing risk modifiers
+  losing_urgency_late: 1.5           # Urgency when <= 3 rounds left
+  losing_urgency_mid: 1.2            # Urgency when <= 6 rounds left
+  high_heart_risk_boost: 1.2         # Heart >= 80 extra risk
+  low_heart_risk_reduction: 0.7      # Heart < 60 plays not to lose
+  # Winning modifiers
+  killer_finish_threshold: 85        # KI level to keep pushing when ahead
+  killer_finish_risk_boost: 1.1
+  protect_lead_reduction: 0.7        # When ahead late
+  # Damage modifiers
+  damage_threshold: 0.4              # Total damage % for caution
+  low_composure_threshold: 65
+  low_composure_risk_reduction: 0.6
+  high_composure_threshold: 85
+  high_composure_risk_boost: 1.1
+  # Exhausted and losing
+  exhausted_losing_heart_threshold: 75
+  exhausted_losing_risk_boost: 1.3
+
+# Recent hurt/knockdown behavior
+hurt_memory:
+  recent_hurt_time: 45               # Seconds to count as "recent"
+  knockdown_offensive_reduction: 0.5
+  knockdown_defensive_boost: 1.6
+  knockdown_movement_boost: 1.3
+  knockdown_timing_boost: 1.4
+  knockdown_high_composure_recovery: 1.2  # Composure >= 85
+  knockdown_low_heart_offensive_reduction: 0.8  # Heart < 60
+  knockdown_low_heart_clinch_boost: 1.3
+  hurt_low_composure_offensive_reduction: 0.65
+  hurt_low_composure_defensive_boost: 1.4
+  hurt_low_composure_movement_boost: 1.2
+  hurt_elite_composure_threshold: 85
+  hurt_elite_heart_threshold: 80
+  hurt_elite_offensive_boost: 1.1     # Fight back harder
+
+# Accumulated damage (multiple hurts/knockdowns)
+accumulated_damage:
+  hurt_count_threshold: 3
+  hurt_low_heart_threshold: 80
+  hurt_offensive_reduction: 0.85
+  hurt_defensive_boost: 1.15
+  knockdown_count_threshold: 2
+  knockdown_offensive_reduction: 0.8
+  knockdown_defensive_boost: 1.2
+  knockdown_clinch_boost: 1.2
+
+# Rest round behavior
+rest_round:
+  stamina_threshold: 0.60            # Consider rest below this
+  fight_iq_threshold: 70             # Need IQ to pace
+  early_rounds_exclude: 2            # Don't rest in first N rounds
+  late_rounds_exclude: 1             # Don't rest in last N rounds
+  low_stamina_rest_chance: 0.3       # Chance when < 40%
+  very_low_stamina_rest_chance: 0.2  # Extra chance when < 30%
+  fight_iq_factor: 0.01              # Per point above threshold
+  pace_control_factor: 0.008         # Per point above 60
+  consecutive_rest_penalty: 0.3      # Reduce chance if rested last round
+  offensive_reduction: 0.5           # Reduce offense during rest
+  timing_boost: 1.5                  # More counter-punching
+  defensive_boost: 1.4
+  movement_boost: 1.3
+
+# Round strategy variation
+round_strategy:
+  base_variation: 0.4                # Random variation range (-0.2 to +0.2)
+  composure_consistency_factor: 1.5  # Less composure = more variation
+  late_round_aggression_boost: 0.1   # After round 9
+  high_heart_post_hurt_boost: 0.1    # Heart >= 85 responds with aggression
+  low_composure_post_hurt_reduction: -0.15  # Composure < 60 becomes gun-shy
+
+# Combination generation
+combination_length:
+  # Stamina-based length
+  fresh:
+    min: 3
+    max: 6
+    stamina_threshold: 0.80
+  good:
+    min: 2
+    max: 4
+    stamina_threshold: 0.50
+  tired:
+    min: 2
+    max: 3
+    stamina_threshold: 0.25
+  gassed:
+    min: 2
+    max: 2
+  high_work_rate_threshold: 85
+  high_work_rate_bonus: 1
+  power_inclusion_stamina_threshold: 0.70  # Include power in combos above this
+
+# Distance-based offense
+distance:
+  inside_threshold: 3                # Inside fighting distance
+  outside_threshold: 4.5             # Long range
+  out_of_range_threshold: 2          # Beyond optimal + this = move forward
+  inside_hook_boost: 1.5
+  inside_uppercut_boost: 1.5
+  inside_jab_reduction: 0.5
+  inside_cross_reduction: 0.7
+  outside_jab_boost: 1.5
+  outside_hook_reduction: 0.5
+
+# Reach advantage behavior
+reach_advantage:
+  significant_advantage: 15          # cm to count as significant
+  at_range_offensive_boost: 1.3
+  at_range_bonus_factor: 50          # Divide by this for reach bonus
+  at_range_defensive_reduction: 0.7
+  at_range_timing_boost: 1.2         # Counter rushers
+  inside_movement_boost: 2.0         # Escape inside
+  inside_clinch_boost: 1.1
+  inside_offensive_reduction: 0.7
+  short_reach_inside_offensive_boost: 1.2
+
+# Corner/ropes escape
+position:
+  corner_boundary: 8                 # Distance from center for corner
+  ropes_boundary: 9                  # Distance from center for ropes
+  corner_movement_boost: 1.8
+  corner_offensive_boost: 1.2        # Punch your way out
+  ropes_movement_boost: 1.8
+  ropes_offensive_boost: 1.2
+
+# Swarmer vs boxer matchup
+style_matchups:
+  swarmer_vs_boxer:
+    at_range_movement_boost: 1.8
+    at_range_offensive_boost: 1.3
+    at_range_defensive_reduction: 0.6
+    heart_cardio_pressure_factor: 0.3
+    inside_offensive_boost: 1.4
+    inside_movement_reduction: 0.6

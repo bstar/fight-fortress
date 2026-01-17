@@ -1,114 +1,136 @@
 /**
  * Stamina Manager
  * Manages stamina expenditure, recovery, and fatigue effects
+ * Parameters loaded from ModelParameters for versioned tuning
  */
 
 import { FighterState, OffensiveSubState, DefensiveSubState, MovementSubState } from '../models/Fighter.js';
 import { ActionType, PunchType } from './FighterAI.js';
+import ModelParameters from './model/ModelParameters.js';
 
-// Stamina costs by action type
-// DYNAMIC: Stamina should fluctuate dramatically - high costs, high recovery
-// Throwing punches drains you fast, but rest recovers quickly
-// This makes energy management a visible, tactical element
-const STAMINA_COSTS = {
-  // Punches - Reduced costs so fighters can sustain activity across 12 rounds
-  // A fighter throwing 50 punches/round shouldn't gas out by round 6
-  punches: {
-    [PunchType.JAB]: 0.20,          // Light, efficient punch
-    [PunchType.CROSS]: 0.50,        // Power punch but common
-    [PunchType.LEAD_HOOK]: 0.45,    // Solid power punch
-    [PunchType.REAR_HOOK]: 0.60,    // Heavy power punch
-    [PunchType.LEAD_UPPERCUT]: 0.40,
-    [PunchType.REAR_UPPERCUT]: 0.65,
-    [PunchType.BODY_JAB]: 0.25,
-    [PunchType.BODY_CROSS]: 0.55,
-    [PunchType.BODY_HOOK_LEAD]: 0.50,
-    [PunchType.BODY_HOOK_REAR]: 0.65
-  },
-
-  // Combination bonus costs - reduced to allow sustained combinations
-  combination: {
-    2: 0.10,
-    3: 0.20,
-    4: 0.35,
-    5: 0.55
-  },
-
-  // Defensive actions (per second) - very light ongoing cost
-  // Holding guard shouldn't drain you fast - it's a resting position
-  defense: {
-    [DefensiveSubState.HIGH_GUARD]: 0.03,      // Holding guard up - minimal cost
-    [DefensiveSubState.PHILLY_SHELL]: 0.02,    // Efficient shoulder roll
-    [DefensiveSubState.HEAD_MOVEMENT]: 0.08,   // Active bobbing/weaving
-    [DefensiveSubState.DISTANCE]: 0.04,        // Footwork-based
-    [DefensiveSubState.PARRYING]: 0.06         // Active hand defense
-  },
-
-  // Movement (per second) - reduced movement costs
-  // Footwork is tiring but shouldn't drain fighters rapidly
-  movement: {
-    forward: 0.04,        // Pressing forward
-    backward: 0.03,       // Backing up
-    lateral: 0.05,        // Side to side
-    circling: 0.06,       // Circling opponent
-    cutting: 0.10,        // Ring cutting (most intensive)
-    retreating: 0.05,     // Quick retreat
-    burst: 0.15           // Explosive movement
-  },
-
-  // Baseline fight cost - constant energy expenditure
-  // Being in a boxing match is exhausting even when not throwing punches
-  // But this should be LOW - most stamina drain comes from ACTIONS not just existing
-  baseline: 0.04,  // Per second - light drain just for being active (~7/round)
-
-  // Other
-  clinch: {
-    initiation: 0.5,
-    holding: 0.1,         // Clinching is for rest
-    breaking: 0.8
-  },
-
-  // Damage effects - getting hit saps energy, hard shots drain more
-  damage: {
-    gettingHitBase: 0.5,       // Base drain per hit (increased)
-    gettingHitPerPower: 0.05,  // Additional drain per power point (30 power = +1.5)
-    bodyHitMultiplier: 1.8,    // Body shots drain 80% more stamina
-    beingHurt: 2.0,            // Per second while hurt (increased)
-    knockdownRecovery: 15.0,   // Knockdowns are devastating
-    buzzedDrainPerSec: 1.0     // Drain while buzzed/stunned
-  },
-
-  // Miss penalties - swinging and missing is exhausting
-  miss: {
-    baseMissMultiplier: 1.3,   // Missed punches cost 30% more than landing
-    powerMissMultiplier: 1.8,  // Missed power punches cost 80% more
-    haymakMissMultiplier: 2.5, // Wild haymakers that miss drain hard
-    comboMissPenalty: 0.3      // Per missed punch in a combination
-  }
+// Punch type to parameter key mapping
+const PUNCH_TYPE_TO_KEY = {
+  [PunchType.JAB]: 'jab',
+  [PunchType.CROSS]: 'cross',
+  [PunchType.LEAD_HOOK]: 'lead_hook',
+  [PunchType.REAR_HOOK]: 'rear_hook',
+  [PunchType.LEAD_UPPERCUT]: 'lead_uppercut',
+  [PunchType.REAR_UPPERCUT]: 'rear_uppercut',
+  [PunchType.BODY_JAB]: 'body_jab',
+  [PunchType.BODY_CROSS]: 'body_cross',
+  [PunchType.BODY_HOOK_LEAD]: 'body_hook_lead',
+  [PunchType.BODY_HOOK_REAR]: 'body_hook_rear'
 };
 
-// Recovery rates - Recovery requires truly resting, not just defending
-const RECOVERY_RATES = {
-  // State-based recovery multipliers
-  // Only meaningful recovery when truly passive - can't recover while engaged
-  states: {
-    [FighterState.NEUTRAL]: 1.0,      // Standard recovery when neutral
-    [FighterState.DEFENSIVE]: 0.9,    // Good recovery while defending
-    [FighterState.TIMING]: 0.6,       // Counter-punchers stay ready - moderate
-    [FighterState.MOVING]: 0.4,       // Moving takes energy but allows some recovery
-    [FighterState.OFFENSIVE]: 0.2,    // Minimal recovery when attacking
-    [FighterState.CLINCH]: 1.5,       // Clinching is for recovery (holding on)
-    [FighterState.HURT]: 0.0          // No recovery when hurt
-  },
+// Defense sub-state to parameter key mapping
+const DEFENSE_STATE_TO_KEY = {
+  [DefensiveSubState.HIGH_GUARD]: 'high_guard',
+  [DefensiveSubState.PHILLY_SHELL]: 'philly_shell',
+  [DefensiveSubState.HEAD_MOVEMENT]: 'head_movement',
+  [DefensiveSubState.DISTANCE]: 'distance',
+  [DefensiveSubState.PARRYING]: 'parrying'
+};
 
-  // Defensive sub-state recovery - REPLACES state modifier, doesn't multiply
-  defensiveSubStates: {
-    [DefensiveSubState.HIGH_GUARD]: 0.9,    // Holding guard - decent recovery
-    [DefensiveSubState.PHILLY_SHELL]: 1.0,  // Efficient style - best defensive recovery
-    [DefensiveSubState.HEAD_MOVEMENT]: 0.4, // Active bobbing - minimal recovery
-    [DefensiveSubState.DISTANCE]: 0.7,      // Using legs - some recovery
-    [DefensiveSubState.PARRYING]: 0.5       // Active hands - less recovery
-  }
+// Fighter state to parameter key mapping
+const FIGHTER_STATE_TO_KEY = {
+  [FighterState.NEUTRAL]: 'neutral',
+  [FighterState.DEFENSIVE]: 'defensive',
+  [FighterState.TIMING]: 'timing',
+  [FighterState.MOVING]: 'moving',
+  [FighterState.OFFENSIVE]: 'offensive',
+  [FighterState.CLINCH]: 'clinch',
+  [FighterState.HURT]: 'hurt'
+};
+
+/**
+ * Get stamina cost for a punch type from parameters
+ */
+const getPunchCost = (punchType) => {
+  const key = PUNCH_TYPE_TO_KEY[punchType] || 'jab';
+  return ModelParameters.get(`stamina.costs.punches.${key}`, 0.30);
+};
+
+/**
+ * Get combination bonus cost from parameters
+ */
+const getCombinationCost = (comboLength) => {
+  const clampedLength = Math.min(5, Math.max(2, comboLength));
+  return ModelParameters.get(`stamina.costs.combination.${clampedLength}`, 0.20);
+};
+
+/**
+ * Get defensive action cost from parameters
+ */
+const getDefenseCost = (defenseState) => {
+  const key = DEFENSE_STATE_TO_KEY[defenseState] || 'high_guard';
+  return ModelParameters.get(`stamina.costs.defense.${key}`, 0.03);
+};
+
+/**
+ * Get movement cost from parameters
+ */
+const getMovementCost = (direction) => {
+  return ModelParameters.get(`stamina.costs.movement.${direction}`, 0.05);
+};
+
+/**
+ * Get damage-related stamina cost from parameters
+ */
+const getDamageCost = (costType) => {
+  const keyMap = {
+    gettingHitBase: 'getting_hit_base',
+    gettingHitPerPower: 'getting_hit_per_power',
+    bodyHitMultiplier: 'body_hit_multiplier',
+    beingHurt: 'being_hurt',
+    knockdownRecovery: 'knockdown_recovery',
+    buzzedDrainPerSec: 'buzzed_drain_per_sec'
+  };
+  const key = keyMap[costType] || costType;
+  const defaults = {
+    getting_hit_base: 0.5,
+    getting_hit_per_power: 0.05,
+    body_hit_multiplier: 1.8,
+    being_hurt: 2.0,
+    knockdown_recovery: 15.0,
+    buzzed_drain_per_sec: 1.0
+  };
+  return ModelParameters.get(`stamina.costs.damage.${key}`, defaults[key] || 0.5);
+};
+
+/**
+ * Get miss penalty from parameters
+ */
+const getMissCost = (missType) => {
+  const keyMap = {
+    baseMissMultiplier: 'base_multiplier',
+    powerMissMultiplier: 'power_multiplier',
+    haymakMissMultiplier: 'haymaker_multiplier',
+    comboMissPenalty: 'combo_penalty'
+  };
+  const key = keyMap[missType] || missType;
+  const defaults = {
+    base_multiplier: 1.3,
+    power_multiplier: 1.8,
+    haymaker_multiplier: 2.5,
+    combo_penalty: 0.3
+  };
+  return ModelParameters.get(`stamina.costs.miss.${key}`, defaults[key] || 1.3);
+};
+
+/**
+ * Get recovery rate for a fighter state from parameters
+ */
+const getStateRecoveryRate = (state) => {
+  const key = FIGHTER_STATE_TO_KEY[state] || 'neutral';
+  return ModelParameters.get(`stamina.recovery.states.${key}`, 0.5);
+};
+
+/**
+ * Get defensive sub-state recovery rate from parameters
+ */
+const getDefensiveSubStateRecovery = (subState) => {
+  const key = DEFENSE_STATE_TO_KEY[subState] || 'high_guard';
+  return ModelParameters.get(`stamina.recovery.defensive_substates.${key}`, 0.5);
 };
 
 export class StaminaManager {
@@ -142,96 +164,84 @@ export class StaminaManager {
   /**
    * Calculate stamina cost for current action
    * DYNAMIC: High costs create visible drain during exchanges
+   * Parameters loaded from ModelParameters
    */
   calculateCost(fighter, decision, deltaTime) {
-    let cost = 0;
+    // Load efficiency parameters
+    const efficiencyParams = {
+      workRateThreshold: ModelParameters.get('stamina.efficiency.work_rate.base_threshold', 50),
+      workRateFactor: ModelParameters.get('stamina.efficiency.work_rate.factor', 0.012),
+      workRateMin: ModelParameters.get('stamina.efficiency.work_rate.min_multiplier', 0.50),
+      paceControlThreshold: ModelParameters.get('stamina.efficiency.pace_control.base_threshold', 50),
+      paceControlFactor: ModelParameters.get('stamina.efficiency.pace_control.factor', 0.0075),
+      paceControlMin: ModelParameters.get('stamina.efficiency.pace_control.min_multiplier', 0.70),
+      cardioThreshold: ModelParameters.get('stamina.efficiency.cardio.base_threshold', 50),
+      cardioFactor: ModelParameters.get('stamina.efficiency.cardio.factor', 0.005),
+      cardioMin: ModelParameters.get('stamina.efficiency.cardio.min_multiplier', 0.80),
+      bodyDamageFactor: ModelParameters.get('stamina.efficiency.body_damage_cost_factor', 120)
+    };
 
-    // BASELINE COST - just being in the fight drains energy
-    cost += STAMINA_COSTS.baseline * deltaTime;
+    const conservationParams = {
+      enabledThreshold: ModelParameters.get('stamina.conservation.cost_reduction.enabled_threshold', 0.50),
+      minReduction: ModelParameters.get('stamina.conservation.cost_reduction.min_reduction', 0.50),
+      scaling: ModelParameters.get('stamina.conservation.cost_reduction.scaling', 0.6),
+      minDrainNormal: ModelParameters.get('stamina.conservation.minimum_drain.normal', 0.02),
+      minDrainThreshold: ModelParameters.get('stamina.conservation.minimum_drain.conserving_threshold', 0.40)
+    };
 
-    // Action cost - punches are expensive!
-    if (decision.action) {
-      cost += this.calculateActionCost(decision.action, fighter);
-    }
+    const floorParams = {
+      cardioThreshold: ModelParameters.get('stamina.floor.cardio_threshold', 40),
+      factor: ModelParameters.get('stamina.floor.factor', 0.002)
+    };
 
-    // State cost (ongoing)
-    cost += this.calculateStateCost(fighter, deltaTime);
+    // Calculate base costs (functional approach)
+    const baseline = ModelParameters.get('stamina.costs.baseline', 0.04);
+    const baselineCost = baseline * deltaTime;
+    const actionCost = decision.action ? this.calculateActionCost(decision.action, fighter) : 0;
+    const stateCost = this.calculateStateCost(fighter, deltaTime);
+    const hurtCost = fighter.isHurt ? getDamageCost('beingHurt') * deltaTime : 0;
+    const buzzedCost = fighter.isBuzzed ? getDamageCost('buzzedDrainPerSec') * deltaTime : 0;
 
-    // Damage cost (if hurt) - being hurt is exhausting
-    if (fighter.isHurt) {
-      cost += STAMINA_COSTS.damage.beingHurt * deltaTime;
-    }
+    const rawCost = baselineCost + actionCost + stateCost + hurtCost + buzzedCost;
 
-    // Buzzed state also drains stamina - trying to stay upright while wobbled
-    if (fighter.isBuzzed) {
-      cost += STAMINA_COSTS.damage.buzzedDrainPerSec * deltaTime;
-    }
+    // Calculate efficiency modifiers
+    const workRateMod = Math.max(efficiencyParams.workRateMin,
+      1 - (fighter.stamina.workRate - efficiencyParams.workRateThreshold) * efficiencyParams.workRateFactor);
+    const paceControlMod = Math.max(efficiencyParams.paceControlMin,
+      1 - (fighter.stamina.paceControl - efficiencyParams.paceControlThreshold) * efficiencyParams.paceControlFactor);
+    const cardioMod = Math.max(efficiencyParams.cardioMin,
+      1 - (fighter.stamina.cardio - efficiencyParams.cardioThreshold) * efficiencyParams.cardioFactor);
+    const bodyDamageMod = 1 + (fighter.bodyDamage / efficiencyParams.bodyDamageFactor);
 
-    // Work rate reduces costs dramatically
-    // Elite workRate (92) = 50% cost reduction (built for sustained output)
-    // Average workRate (70) = 20% cost reduction
-    // Poor workRate (50) = no reduction
-    const workRateMod = Math.max(0.50, 1 - (fighter.stamina.workRate - 50) * 0.012);
-    cost *= workRateMod;
-
-    // Pace control helps manage energy expenditure
-    // High paceControl (90) = 30% additional reduction
-    // This represents knowing when to breathe, when to take off
-    const paceControlMod = Math.max(0.70, 1 - (fighter.stamina.paceControl - 50) * 0.0075);
-    cost *= paceControlMod;
-
-    // Cardio affects efficiency too - better conditioned = more efficient
-    const cardioMod = Math.max(0.80, 1 - (fighter.stamina.cardio - 50) * 0.005);
-    cost *= cardioMod;
-
-    // Body damage increases costs significantly - body work pays off
-    const bodyDamageMod = 1 + (fighter.bodyDamage / 120);
-    cost *= bodyDamageMod;
-
-    // NOTE: Removed fatigue spiral modifier - it caused death spiral
-    // where tired fighters burned more energy, getting more tired, etc.
-    // Now fatigue effects are handled purely through attribute penalties
-
-    // Get current stamina for conservation calculations
     const currentPercent = fighter.getStaminaPercent();
 
-    // CONSERVATION MODE - When actively resting, reduce costs significantly
-    // This makes "CONSERVING" strategy actually work to recover stamina
+    // Conservation mode check
     const isRecoveryState = fighter.state === FighterState.DEFENSIVE ||
                            fighter.state === FighterState.NEUTRAL ||
                            fighter.state === FighterState.CLINCH ||
                            fighter.state === FighterState.TIMING;
 
-    if (isRecoveryState && currentPercent < 0.50) {
-      // Reduce all costs by 50-80% when actively conserving at low stamina
-      const conservationReduction = 0.5 + (0.50 - currentPercent) * 0.6; // 50% to 80% reduction
-      cost *= (1 - conservationReduction);
-    }
+    const conservationMod = (isRecoveryState && currentPercent < conservationParams.enabledThreshold)
+      ? 1 - (conservationParams.minReduction + (conservationParams.enabledThreshold - currentPercent) * conservationParams.scaling)
+      : 1.0;
 
-    // MINIMUM DRAIN FLOOR - always drain at least this much per second
-    // BUT: Reduced or eliminated when actively conserving
-    // This allows stamina to actually GO UP when resting
-    let minimumDrain = 0.02 * deltaTime;  // ~0.02/sec minimum drain
+    // Apply all modifiers
+    const modifiedCost = rawCost * workRateMod * paceControlMod * cardioMod * bodyDamageMod * conservationMod;
 
-    if (isRecoveryState && currentPercent < 0.40) {
-      // No minimum drain when actively resting at low stamina
-      // This allows visible recovery
-      minimumDrain = 0;
-    }
+    // Apply minimum drain floor (functional)
+    const minimumDrain = (isRecoveryState && currentPercent < conservationParams.minDrainThreshold)
+      ? 0
+      : conservationParams.minDrainNormal * deltaTime;
 
-    cost = Math.max(cost, minimumDrain);
+    const costWithFloor = Math.max(modifiedCost, minimumDrain);
 
-    // Apply stamina floor - fighters with good cardio maintain a reserve
-    // Elite cardio (90) = 10% floor, Average (70) = 5% floor, Poor (50) = 2% floor
-    const staminaFloor = (fighter.stamina.cardio - 40) * 0.002; // 0.02-0.10
+    // Apply stamina floor protection
+    const staminaFloor = (fighter.stamina.cardio - floorParams.cardioThreshold) * floorParams.factor;
+    const maxAllowedCost = currentPercent - (costWithFloor / fighter.maxStamina) < staminaFloor
+      ? Math.max(0, (currentPercent - staminaFloor) * fighter.maxStamina)
+      : costWithFloor;
 
-    // If we're near the floor, reduce cost to prevent going below it
-    if (currentPercent - (cost / fighter.maxStamina) < staminaFloor) {
-      const maxAllowedCost = (currentPercent - staminaFloor) * fighter.maxStamina;
-      cost = Math.max(0, maxAllowedCost);
-    }
-
-    return Math.max(0, cost);
+    return Math.max(0, maxAllowedCost);
   }
 
   /**
@@ -308,23 +318,24 @@ export class StaminaManager {
 
   /**
    * Calculate cost for a specific action
+   * Uses getter functions to load costs from parameters
    */
-  calculateActionCost(action, fighter) {
+  calculateActionCost(action, _fighter) {
     switch (action.type) {
       case ActionType.PUNCH:
-        return this.calculatePunchCost(action, fighter);
+        return this.calculatePunchCost(action);
 
       case ActionType.BLOCK:
-        return STAMINA_COSTS.defense[DefensiveSubState.HIGH_GUARD] * 0.5;
+        return getDefenseCost(DefensiveSubState.HIGH_GUARD) * 0.5;
 
       case ActionType.EVADE:
-        return STAMINA_COSTS.defense[DefensiveSubState.HEAD_MOVEMENT] * 0.5;
+        return getDefenseCost(DefensiveSubState.HEAD_MOVEMENT) * 0.5;
 
       case ActionType.MOVE:
         return this.calculateMovementCost(action);
 
       case ActionType.CLINCH:
-        return STAMINA_COSTS.clinch.initiation;
+        return ModelParameters.get('stamina.costs.clinch.initiation', 0.5);
 
       default:
         return 0;
@@ -332,46 +343,41 @@ export class StaminaManager {
   }
 
   /**
-   * Calculate punch cost
+   * Calculate punch cost using parameters
    */
-  calculatePunchCost(action, fighter) {
-    // Combination
+  calculatePunchCost(action) {
+    // Combination - use functional reduce pattern
     if (action.punchType === 'combination' && action.combination) {
-      let totalCost = 0;
-
-      for (const punch of action.combination) {
-        totalCost += STAMINA_COSTS.punches[punch] || 2.0;
-      }
-
-      // Combination bonus cost
-      const comboLength = action.combination.length;
-      totalCost += STAMINA_COSTS.combination[Math.min(5, comboLength)] || 0;
-
-      return totalCost;
+      const punchCosts = action.combination.reduce(
+        (total, punch) => total + getPunchCost(punch),
+        0
+      );
+      const comboBonusCost = getCombinationCost(action.combination.length);
+      return punchCosts + comboBonusCost;
     }
 
     // Single punch
-    return STAMINA_COSTS.punches[action.punchType] || 2.0;
+    return getPunchCost(action.punchType);
   }
 
   /**
-   * Calculate movement cost
+   * Calculate movement cost using parameters
    */
   calculateMovementCost(action) {
     const direction = action.direction || 'forward';
 
     if (action.cutting) {
-      return STAMINA_COSTS.movement.cutting * 0.5;
+      return getMovementCost('cutting') * 0.5;
     }
     if (action.lateral) {
-      return STAMINA_COSTS.movement.lateral * 0.5;
+      return getMovementCost('lateral') * 0.5;
     }
 
-    return (STAMINA_COSTS.movement[direction] || 0.5) * 0.5;
+    return getMovementCost(direction) * 0.5;
   }
 
   /**
-   * Calculate ongoing state cost
+   * Calculate ongoing state cost using parameters
    */
   calculateStateCost(fighter, deltaTime) {
     const state = fighter.state;
@@ -379,18 +385,18 @@ export class StaminaManager {
 
     // Defensive states have ongoing cost
     if (state === FighterState.DEFENSIVE && subState) {
-      const costPerSecond = STAMINA_COSTS.defense[subState] || 1.0;
+      const costPerSecond = getDefenseCost(subState);
       return costPerSecond * deltaTime;
     }
 
     // Moving states have ongoing cost
     if (state === FighterState.MOVING) {
-      return STAMINA_COSTS.movement.circling * deltaTime * 0.5;
+      return getMovementCost('circling') * deltaTime * 0.5;
     }
 
     // Clinch holding
     if (state === FighterState.CLINCH) {
-      return STAMINA_COSTS.clinch.holding * deltaTime;
+      return ModelParameters.get('stamina.costs.clinch.holding', 0.1) * deltaTime;
     }
 
     return 0;
@@ -400,20 +406,16 @@ export class StaminaManager {
    * Calculate stamina cost from getting hit
    * Hard shots drain more stamina - body shots are especially draining
    */
-  calculateHitStaminaCost(damage, location, attacker) {
-    // Base cost from getting hit
-    let cost = STAMINA_COSTS.damage.gettingHitBase;
-
-    // Add cost based on damage dealt (harder shots drain more)
-    cost += damage * STAMINA_COSTS.damage.gettingHitPerPower;
+  calculateHitStaminaCost(damage, location, _attacker) {
+    // Base cost from getting hit plus damage-scaled cost
+    const baseCost = getDamageCost('gettingHitBase');
+    const perPowerCost = getDamageCost('gettingHitPerPower');
+    const rawCost = baseCost + (damage * perPowerCost);
 
     // Body shots drain extra stamina
-    const isBody = location === 'body';
-    if (isBody) {
-      cost *= STAMINA_COSTS.damage.bodyHitMultiplier;
-    }
+    const bodyMultiplier = location === 'body' ? getDamageCost('bodyHitMultiplier') : 1.0;
 
-    return cost;
+    return rawCost * bodyMultiplier;
   }
 
   /**
@@ -425,23 +427,17 @@ export class StaminaManager {
    */
   calculateMissStaminaCost(punchType, isWildSwing = false) {
     // Get base punch cost
-    const baseCost = STAMINA_COSTS.punches[punchType] || 0.3;
+    const baseCost = getPunchCost(punchType);
 
-    // Determine miss multiplier based on punch type
+    // Determine miss multiplier based on punch type (functional ternary chain)
     const powerPunches = ['cross', 'rear_hook', 'rear_uppercut', 'body_hook_rear', 'body_cross'];
     const isPower = powerPunches.includes(punchType);
 
-    let missMultiplier;
-    if (isWildSwing) {
-      // Wild haymakers that miss are devastating to stamina
-      missMultiplier = STAMINA_COSTS.miss.haymakMissMultiplier;
-    } else if (isPower) {
-      // Power punches that miss cost more
-      missMultiplier = STAMINA_COSTS.miss.powerMissMultiplier;
-    } else {
-      // Jabs and light punches - minimal miss penalty
-      missMultiplier = STAMINA_COSTS.miss.baseMissMultiplier;
-    }
+    const missMultiplier = isWildSwing
+      ? getMissCost('haymakMissMultiplier')
+      : isPower
+        ? getMissCost('powerMissMultiplier')
+        : getMissCost('baseMissMultiplier');
 
     // The extra cost is the difference between miss cost and landing cost
     // (since landing cost is already applied, we add the extra penalty)
@@ -458,21 +454,15 @@ export class StaminaManager {
   calculateComboMissStaminaCost(punchesThrown, punchesMissed) {
     if (punchesThrown === 0 || punchesMissed === 0) return 0;
 
-    // Penalty scales with how many missed
-    // If you throw 4 and miss 3, that's really tiring
     const missRate = punchesMissed / punchesThrown;
+    const comboMissPenalty = getMissCost('comboMissPenalty');
 
-    // High miss rate on combos = extra penalty
-    if (missRate >= 0.75) {
-      // Mostly whiffed - big penalty
-      return punchesMissed * STAMINA_COSTS.miss.comboMissPenalty * 1.5;
-    } else if (missRate >= 0.50) {
-      // Half missed - moderate penalty
-      return punchesMissed * STAMINA_COSTS.miss.comboMissPenalty;
-    } else {
-      // Landed most - small penalty
-      return punchesMissed * STAMINA_COSTS.miss.comboMissPenalty * 0.5;
-    }
+    // High miss rate on combos = extra penalty (functional ternary)
+    const missRateMultiplier = missRate >= 0.75 ? 1.5
+      : missRate >= 0.50 ? 1.0
+      : 0.5;
+
+    return punchesMissed * comboMissPenalty * missRateMultiplier;
   }
 
   /**
@@ -482,50 +472,50 @@ export class StaminaManager {
    *
    * KEY: Recovery efficiency decreases as stamina increases - prevents pinning at 100%
    */
-  calculateRecovery(fighter, decision, deltaTime) {
-    // Base recovery rate from cardio
-    // Elite cardio (90) ~= 0.72/sec base, Average (70) ~= 0.56/sec, Poor (50) ~= 0.40/sec
-    const baseRate = fighter.stamina.cardio * 0.008;
+  calculateRecovery(fighter, _decision, deltaTime) {
+    // Load recovery parameters
+    const recoveryParams = {
+      baseRatePerCardio: ModelParameters.get('stamina.recovery.base_rate_per_cardio', 0.008),
+      paceControlFactor: ModelParameters.get('stamina.recovery.pace_control_factor', 0.005),
+      recoveryRateFactor: ModelParameters.get('stamina.recovery.recovery_rate_factor', 0.005),
+      maxAttributeBonus: ModelParameters.get('stamina.recovery.max_attribute_bonus', 0.35),
+      bodyDamageFactor: ModelParameters.get('stamina.recovery.body_damage_factor', 150),
+      headDamageFactor: ModelParameters.get('stamina.recovery.head_damage_factor', 300)
+    };
+
+    // Calculate base recovery rate from cardio
+    const baseRate = fighter.stamina.cardio * recoveryParams.baseRatePerCardio;
 
     // State modifier - only recover meaningfully when truly resting
     const stateMod = this.getStateRecoveryModifier(fighter);
 
     // Attribute bonuses - ADDITIVE not multiplicative to prevent stacking abuse
-    const paceControlBonus = (fighter.stamina.paceControl - 50) * 0.005;
-    const recoveryBonus = (fighter.stamina.recoveryRate - 50) * 0.005;
-    const attributeBonus = 1 + Math.min(0.35, paceControlBonus + recoveryBonus);
+    const paceControlBonus = (fighter.stamina.paceControl - 50) * recoveryParams.paceControlFactor;
+    const recoveryBonus = (fighter.stamina.recoveryRate - 50) * recoveryParams.recoveryRateFactor;
+    const attributeBonus = 1 + Math.min(recoveryParams.maxAttributeBonus, paceControlBonus + recoveryBonus);
 
     // Body damage reduces recovery significantly
-    const bodyDamageMod = 1 - (fighter.bodyDamage / 150);
+    const bodyDamageMod = 1 - (fighter.bodyDamage / recoveryParams.bodyDamageFactor);
 
     // Head damage reduces recovery
-    const headDamageMod = 1 - (fighter.headDamage / 300);
+    const headDamageMod = 1 - (fighter.headDamage / recoveryParams.headDamageFactor);
 
     // Age factor
     const ageMod = this.getAgeRecoveryModifier(fighter.physical.age);
 
-    // STAMINA CEILING - Recovery efficiency drops as stamina increases
-    // This prevents fighters from pinning at 100%
-    // At 50% stamina: 100% efficiency (full recovery rate)
-    // At 75% stamina: 60% efficiency
-    // At 90% stamina: 25% efficiency
-    // At 95% stamina: 10% efficiency
-    // At 100% stamina: 0% efficiency (no recovery when full)
+    // Stamina ceiling efficiency (prevents pinning at 100%)
     const staminaPercent = fighter.getStaminaPercent();
     const ceilingEfficiency = this.getRecoveryCeilingEfficiency(staminaPercent);
 
-    // CONSERVATION BONUS - When actively conserving (low stamina + recovery-friendly state)
-    // Fighters who recognize they need to rest and actively do so get rewarded
-    // This makes the "CONSERVING" strategy much more effective
+    // Conservation bonus (reward smart energy management)
     const conservationBonus = this.getConservationBonus(fighter, staminaPercent);
 
-    // Calculate total recovery
-    let recovery = baseRate * stateMod * attributeBonus * bodyDamageMod * headDamageMod * ageMod * ceilingEfficiency * conservationBonus * deltaTime;
+    // Calculate total recovery (functional - no mutation)
+    const rawRecovery = baseRate * stateMod * attributeBonus * bodyDamageMod * headDamageMod *
+                        ageMod * ceilingEfficiency * conservationBonus * deltaTime;
 
     // Zero recovery when hurt (survival mode)
-    if (fighter.state === FighterState.HURT) {
-      recovery = 0;
-    }
+    const recovery = fighter.state === FighterState.HURT ? 0 : rawRecovery;
 
     return Math.max(0, recovery);
   }
@@ -539,6 +529,17 @@ export class StaminaManager {
   getConservationBonus(fighter, staminaPercent) {
     const state = fighter.state;
 
+    // Load conservation parameters
+    const conservParams = {
+      mildThreshold: ModelParameters.get('stamina.conservation.recovery_bonus.mild_threshold', 0.50),
+      mildBonus: ModelParameters.get('stamina.conservation.recovery_bonus.mild_bonus', 1.5),
+      scaling: ModelParameters.get('stamina.conservation.recovery_bonus.scaling', 8.0),
+      fightIQFactor: ModelParameters.get('stamina.conservation.recovery_bonus.fight_iq_factor', 0.4),
+      clinchMultiplier: ModelParameters.get('stamina.conservation.recovery_bonus.clinch_multiplier', 1.5),
+      recoveryRateFactor: ModelParameters.get('stamina.conservation.recovery_bonus.recovery_rate_factor', 0.3),
+      maxBonus: ModelParameters.get('stamina.conservation.recovery_bonus.max_bonus', 6.0)
+    };
+
     // Only applies when in recovery-friendly states
     const isConservingState = state === FighterState.DEFENSIVE ||
                               state === FighterState.NEUTRAL ||
@@ -549,39 +550,28 @@ export class StaminaManager {
       return 1.0; // No bonus when attacking/moving/hurt
     }
 
-    // Conservation bonus scales with how depleted stamina is
-    // At 50% stamina: 1.5x (mild bonus - reward early conservation)
-    // At 40% stamina: 2.5x bonus
-    // At 30% stamina: 3.5x bonus
-    // At 20% stamina: 4.5x bonus
-    // At 10% stamina: 5.5x bonus (desperate recovery)
-    if (staminaPercent >= 0.50) {
-      return 1.5; // Mild bonus even above 50% to encourage conservation
+    // Mild bonus above threshold
+    if (staminaPercent >= conservParams.mildThreshold) {
+      return conservParams.mildBonus;
     }
 
-    // Calculate bonus - STRONG scaling as stamina drops
-    // Formula: 1.5 + (0.5 - staminaPercent) * 8
-    // This gives us 1.5 at 50%, 3.5 at 40%, 4.5 at 30%, 5.5 at ~20%
-    const depletionLevel = 0.50 - staminaPercent;
-    let bonus = 1.5 + (depletionLevel * 8.0);
+    // Calculate bonus - scales with depletion level
+    const depletionLevel = conservParams.mildThreshold - staminaPercent;
+    const baseBonus = conservParams.mildBonus + (depletionLevel * conservParams.scaling);
 
     // Fight IQ bonus - smarter fighters conserve more efficiently
     const fightIQ = fighter.mental?.fightIQ || fighter.technical?.fightIQ || 70;
-    const iqBonus = 1 + ((fightIQ - 50) / 100) * 0.4; // Up to +20% at 100 IQ
-    bonus *= iqBonus;
+    const iqMod = 1 + ((fightIQ - 50) / 100) * conservParams.fightIQFactor;
 
-    // Clinching gets extra bonus - it's the ultimate conservation move
-    if (state === FighterState.CLINCH) {
-      bonus *= 1.5;
-    }
+    // Clinch bonus
+    const clinchMod = state === FighterState.CLINCH ? conservParams.clinchMultiplier : 1.0;
 
-    // Recovery rate bonus - fighters with better recovery capitalize more
+    // Recovery rate bonus
     const recoveryRate = fighter.stamina?.recoveryRate || 70;
-    const recoveryBonus = 1 + ((recoveryRate - 50) / 100) * 0.3;
-    bonus *= recoveryBonus;
+    const recoveryMod = 1 + ((recoveryRate - 50) / 100) * conservParams.recoveryRateFactor;
 
-    // Cap at 6x to prevent extreme recovery
-    return Math.min(6.0, bonus);
+    // Combine all modifiers and cap
+    return Math.min(conservParams.maxBonus, baseBonus * iqMod * clinchMod * recoveryMod);
   }
 
   /**
@@ -592,28 +582,30 @@ export class StaminaManager {
    * - Reduces recovery as you approach 100% (ceiling effect)
    */
   getRecoveryCeilingEfficiency(staminaPercent) {
-    // Very low stamina (0-15%): BOOSTED recovery - body desperately needs energy
-    // This helps fighters climb out of "gassed" tier faster
-    if (staminaPercent <= 0.15) {
-      // 1.5x recovery at 0%, tapering to 1.3x at 15%
-      return 1.5 - (staminaPercent / 0.15) * 0.2;
+    // Load ceiling parameters
+    const desperateThreshold = ModelParameters.get('stamina.recovery.desperate_recovery.threshold', 0.15);
+    const maxBoost = ModelParameters.get('stamina.recovery.desperate_recovery.max_boost', 1.5);
+    const minBoost = ModelParameters.get('stamina.recovery.desperate_recovery.min_boost', 1.3);
+
+    // Very low stamina: BOOSTED recovery
+    if (staminaPercent <= desperateThreshold) {
+      return maxBoost - (staminaPercent / desperateThreshold) * (maxBoost - minBoost);
     }
 
-    // Low stamina (15-30%): Moderate boost - still recovering urgently
+    // Low stamina (15-30%): Moderate boost
     if (staminaPercent <= 0.30) {
-      // 1.3x at 15%, tapering to 1.1x at 30%
-      return 1.3 - ((staminaPercent - 0.15) / 0.15) * 0.2;
+      return minBoost - ((staminaPercent - desperateThreshold) / desperateThreshold) * 0.2;
     }
 
     // Mid-range (30-90%): Normal recovery
     if (staminaPercent <= 0.90) return 1.0;
 
-    // 90-95%: gradual decline (100% -> 50%)
+    // 90-95%: gradual decline
     if (staminaPercent <= 0.95) {
       return 1.0 - (staminaPercent - 0.90) * 10.0;
     }
 
-    // 95-100%: steep decline (50% -> 0%) - prevents pinning at max
+    // 95-100%: steep decline - prevents pinning at max
     return Math.max(0, 0.5 - (staminaPercent - 0.95) * 10.0);
   }
 
@@ -626,11 +618,11 @@ export class StaminaManager {
 
     // For defensive state, use sub-state modifier directly (not multiplied)
     if (state === FighterState.DEFENSIVE && subState) {
-      return RECOVERY_RATES.defensiveSubStates[subState] || 0.5;
+      return getDefensiveSubStateRecovery(subState);
     }
 
     // Otherwise use base state modifier
-    return RECOVERY_RATES.states[state] || 0;
+    return getStateRecoveryRate(state);
   }
 
   /**
@@ -651,9 +643,6 @@ export class StaminaManager {
    */
   calculateBetweenRoundRecovery(fighter) {
     // Base from recovery rate attribute - GENEROUS for dramatic round-to-round swings
-    // Elite recovery (90) = can recover ~50% of max between rounds
-    // Average recovery (70) = can recover ~35% of max
-    // Poor recovery (50) = can recover ~25% of max
     const baseRecovery = fighter.maxStamina * (fighter.stamina.recoveryRate / 100) * 0.55;
 
     // Cardio bonus - well-conditioned fighters recover better between rounds
@@ -670,13 +659,11 @@ export class StaminaManager {
     // Age factor
     const ageMod = this.getAgeRecoveryModifier(fighter.physical.age);
 
-    // Calculate total
-    let recovery = baseRecovery * cardioBonus * (1 + cornerBonus) * bodyPenalty * ageMod;
+    // Calculate total (functional - single expression with cap)
+    const rawRecovery = baseRecovery * cardioBonus * (1 + cornerBonus) * bodyPenalty * ageMod;
 
     // Cap at 60% of max - significant recovery but can't fully reset
-    recovery = Math.min(recovery, fighter.maxStamina * 0.60);
-
-    return recovery;
+    return Math.min(rawRecovery, fighter.maxStamina * 0.60);
   }
 
   /**
@@ -745,24 +732,19 @@ export class StaminaManager {
    * Calculate stamina drain from taking body damage
    */
   calculateBodyDamageStaminaDrain(damage, punchType) {
-    let drain = damage * 0.5;
+    const baseDrain = damage * 0.5;
 
-    // Liver shot
-    if (punchType === PunchType.BODY_HOOK_LEAD || punchType === PunchType.BODY_HOOK_REAR) {
-      // Chance of liver shot
-      if (Math.random() < 0.15) {
-        drain = damage * 1.0; // Double drain
-      }
-    }
+    // Liver shot chance (body hooks)
+    const isBodyHook = punchType === PunchType.BODY_HOOK_LEAD || punchType === PunchType.BODY_HOOK_REAR;
+    const liverShotTriggered = isBodyHook && Math.random() < 0.15;
 
-    // Solar plexus
-    if (punchType === PunchType.BODY_CROSS) {
-      if (Math.random() < 0.1) {
-        drain = damage * 0.8 + 5; // Extra flat drain
-      }
-    }
+    // Solar plexus chance (body cross)
+    const solarPlexusTriggered = punchType === PunchType.BODY_CROSS && Math.random() < 0.1;
 
-    return drain;
+    // Calculate final drain (functional ternary)
+    return liverShotTriggered ? damage * 1.0
+      : solarPlexusTriggered ? damage * 0.8 + 5
+      : baseDrain;
   }
 
   /**

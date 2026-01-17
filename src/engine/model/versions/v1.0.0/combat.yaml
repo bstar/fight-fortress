@@ -1,0 +1,416 @@
+# Combat Parameters v1.0.0
+# Extracted from DamageCalculator.js and CombatResolver.js
+# These values control punch damage, knockdowns, hurt states, and accuracy
+
+version: "1.0.0"
+description: "Combat parameters - baseline extraction from current code"
+source_files:
+  - "src/engine/DamageCalculator.js"
+  - "src/engine/CombatResolver.js"
+
+damage:
+  # Thresholds for state transitions
+  thresholds:
+    hurt:
+      head: 5              # DamageCalculator.js:12 - Single punch threshold to enter hurt state
+      body: 8              # DamageCalculator.js:13 - Body shots need more to hurt
+    knockdown:
+      base: 8              # DamageCalculator.js:16 - Single punch knockdown threshold
+      cumulative: 50       # DamageCalculator.js:17 - Accumulated damage before knockdowns become likely
+    ko:
+      head: 100            # DamageCalculator.js:20
+      body: 120            # DamageCalculator.js:21
+
+  # Damage calculation modifiers
+  modifiers:
+    chin_factor: 0.005     # How much chin stat reduces damage (chin / 200)
+    counter_bonus: 1.25    # Counter punches do 25% more damage
+    stamina_threshold: 0.5 # Below this stamina level, punches lose power
+    stamina_retention_base: 1.0  # Punching stamina affects power retention
+
+  # Target-specific modifiers
+  target_modifiers:
+    head_chin_bonus: 0.5   # Chin mod = 1 - (chin / 200), applied as 1 + chinMod
+    body_multiplier: 1.0   # Body shots base multiplier
+
+  # Resistance calculation
+  resistance:
+    blocking_factor: 500   # Blocking skill divided by this for resistance
+    experience_factor: 1000 # Experience divided by this for resistance
+    max_resistance: 0.3    # Cap on damage resistance
+    body_types:
+      stocky: 0.05
+      muscular: 0.03
+      average: 0
+      lean: -0.02
+      lanky: -0.03
+      "tall-rangy": -0.02
+
+# Accuracy parameters
+accuracy:
+  base_miss_chance: 0.35   # Base chance to miss at optimal range
+  distance_penalty: 0.15   # Additional miss chance per range unit off optimal
+  footwork_factor: 0.003   # How much footwork reduces miss chance
+  movement_penalty: 0.1    # Penalty when target is moving
+  style_bonuses:
+    jab: 0.1               # Jabs are more accurate
+    counter: 0.15          # Counter punches more accurate
+
+# Knockdown probability
+knockdown:
+  base_chance_at_threshold: 0.50  # Base chance when damage >= threshold
+  over_threshold_scaling: 0.3     # Additional chance per point over threshold
+  power_punch_multiplier: 1.3     # Hooks/uppercuts more likely to KD
+  counter_multiplier: 1.2         # Counter punches more likely to KD
+  cumulative_damage_factor: 0.5   # How much accumulated damage increases KD chance
+  stamina_low_threshold: 0.3      # Stamina below this increases KD vulnerability
+  stamina_low_multiplier: 1.3     # Multiplier when stamina is low
+  chin_factor: 200                # Chin divided by this reduces KD chance
+  max_chance: 0.9                 # Cap on knockdown probability
+
+# Hurt state parameters
+hurt:
+  base_chance: 0.25        # Base hurt chance when damage exceeds threshold
+  damage_ratio_scaling: 0.3 # Additional chance based on damage/threshold ratio
+  chin_modifier_factor: 0.4 # How much chin affects hurt resistance
+  composure_factor: 300     # Composure divided by this reduces hurt chance
+  damage_percent_threshold: 0.4  # When accumulated damage exceeds this, more vulnerable
+  damage_percent_multiplier: 0.8 # Max additional vulnerability from accumulated damage
+  low_stamina_threshold: 0.3
+  low_stamina_multiplier: 1.3
+  medium_stamina_threshold: 0.5
+  medium_stamina_multiplier: 1.15
+  min_chance: 0.10         # Minimum hurt chance even with great chin
+  max_chance: 0.60         # Maximum hurt chance even with weak chin
+
+# Recovery parameters
+recovery:
+  knockdown:
+    base_chance_multiplier: 0.5  # (chin + heart) / 200
+    experience_bonus: 300        # Experience divided by this adds to recovery
+    damage_penalty: 0.4          # Damage percent reduces recovery by this much
+    stamina_factor: 0.5          # Stamina contribution to recovery
+    early_count_bonus: 1.3       # Bonus for counts 1-4
+    mid_count_bonus: 1.1         # Bonus for counts 5-6
+    late_count_penalty: 0.7      # Penalty for counts 9+
+    previous_kd_factor: 0.85     # Each previous KD this round multiplies by this
+    max_chance: 0.95
+    min_chance: 0.1
+  between_rounds:
+    head_damage_recovery: 0.1    # 10% head damage recovered between rounds
+    body_damage_recovery: 0.05   # 5% body damage recovered between rounds
+
+# TKO calculation
+tko:
+  damage_thresholds:
+    severe: 0.9            # 90% damage = high TKO chance
+    moderate: 0.8          # 80% damage = moderate TKO chance
+    elevated: 0.7          # 70% damage = some TKO chance
+  damage_chances:
+    severe: 0.4
+    moderate: 0.2
+    elevated: 0.1
+  hurt_bonus: 0.15
+  prolonged_hurt_bonus: 0.15  # If hurt duration > 5
+  knockdowns_this_round:
+    one: 0.20
+    two: 0.45
+    three_plus: 0.70
+  cut_severity:
+    severe: 0.2            # Severity >= 3
+    moderate: 0.1          # Severity >= 2
+  referee_protectiveness_base: 0.5
+
+# Cut and swelling
+cuts:
+  damage_threshold: 12     # Minimum damage to potentially cause cut
+  hook_chance_bonus: 0.03
+  uppercut_chance_bonus: 0.02
+  severity_thresholds:
+    damage_20: 3
+    damage_15: 2
+    damage_10: 1
+  eyebrow_bonus: 1         # Additional severity for eyebrow cuts
+  max_severity: 4
+  locations:
+    left_eyebrow: 0.3
+    right_eyebrow: 0.3
+    left_eye: 0.1
+    right_eye: 0.1
+    nose: 0.1
+    lip: 0.1
+
+swelling:
+  hits_threshold_severe: 15    # Clean punches for severity 3
+  hits_threshold_moderate: 10  # Clean punches for severity 2
+  hits_threshold_mild: 5       # Clean punches for severity 1
+  chance_per_check: 0.05       # 5% chance to develop swelling per check
+
+# Vision impairment from cuts/swelling
+vision:
+  cut_impairment_per_severity: 0.1   # When bleeding
+  swelling_impairment_per_severity: 0.15
+  max_impairment: 0.5
+
+# =================================================
+# COMBAT RESOLVER PARAMETERS
+# Extracted from CombatResolver.js
+# =================================================
+
+# Weight class profiles - control punch output and activity rates
+weight_classes:
+  heavyweight:
+    min_weight: 90.7
+    activity_rate: 0.35
+    max_combo_length: 4
+    combo_chance: 0.30
+    recovery_ticks: 3
+    stamina_multiplier: 1.15
+    damage_multiplier: 1.25
+    punches_per_round: { min: 35, max: 55 }
+  cruiserweight:
+    min_weight: 79.4
+    activity_rate: 0.40
+    max_combo_length: 4
+    combo_chance: 0.30
+    recovery_ticks: 2
+    stamina_multiplier: 1.2
+    damage_multiplier: 1.12
+    punches_per_round: { min: 45, max: 65 }
+  light_heavyweight:
+    min_weight: 76.2
+    activity_rate: 0.45
+    max_combo_length: 4
+    combo_chance: 0.35
+    recovery_ticks: 2
+    stamina_multiplier: 1.15
+    damage_multiplier: 1.08
+    punches_per_round: { min: 50, max: 70 }
+  middleweight:
+    min_weight: 72.6
+    activity_rate: 0.50
+    max_combo_length: 5
+    combo_chance: 0.40
+    recovery_ticks: 2
+    stamina_multiplier: 1.0
+    damage_multiplier: 1.0
+    punches_per_round: { min: 55, max: 75 }
+  welterweight:
+    min_weight: 66.7
+    activity_rate: 0.55
+    max_combo_length: 5
+    combo_chance: 0.45
+    recovery_ticks: 1
+    stamina_multiplier: 0.95
+    damage_multiplier: 0.9
+    punches_per_round: { min: 60, max: 85 }
+  lightweight:
+    min_weight: 61.2
+    activity_rate: 0.60
+    max_combo_length: 6
+    combo_chance: 0.50
+    recovery_ticks: 1
+    stamina_multiplier: 0.9
+    damage_multiplier: 0.8
+    punches_per_round: { min: 70, max: 95 }
+  featherweight:
+    min_weight: 57.2
+    activity_rate: 0.65
+    max_combo_length: 6
+    combo_chance: 0.55
+    recovery_ticks: 1
+    stamina_multiplier: 0.85
+    damage_multiplier: 0.7
+    punches_per_round: { min: 75, max: 100 }
+  bantamweight:
+    min_weight: 53.5
+    activity_rate: 0.70
+    max_combo_length: 7
+    combo_chance: 0.60
+    recovery_ticks: 1
+    stamina_multiplier: 0.8
+    damage_multiplier: 0.65
+    punches_per_round: { min: 80, max: 110 }
+  flyweight:
+    min_weight: 0
+    activity_rate: 0.75
+    max_combo_length: 8
+    combo_chance: 0.65
+    recovery_ticks: 1
+    stamina_multiplier: 0.75
+    damage_multiplier: 0.6
+    punches_per_round: { min: 85, max: 120 }
+
+# Punch base statistics
+punches:
+  jab:
+    base_damage: 0.5
+    base_accuracy: 0.42
+    speed: 1.0
+    range: 5.0
+    stamina_cost: 1.5
+  cross:
+    base_damage: 2.0
+    base_accuracy: 0.32
+    speed: 0.85
+    range: 4.5
+    stamina_cost: 3.5
+  lead_hook:
+    base_damage: 1.5
+    base_accuracy: 0.28
+    speed: 0.88
+    range: 3.0
+    stamina_cost: 3.0
+  rear_hook:
+    base_damage: 2.5
+    base_accuracy: 0.26
+    speed: 0.82
+    range: 3.0
+    stamina_cost: 4.0
+  lead_uppercut:
+    base_damage: 1.2
+    base_accuracy: 0.25
+    speed: 0.80
+    range: 2.5
+    stamina_cost: 2.5
+  rear_uppercut:
+    base_damage: 3.0
+    base_accuracy: 0.22
+    speed: 0.75
+    range: 2.5
+    stamina_cost: 4.5
+  body_jab:
+    base_damage: 0.6
+    base_accuracy: 0.40
+    speed: 0.95
+    range: 4.5
+    stamina_cost: 1.5
+  body_cross:
+    base_damage: 1.8
+    base_accuracy: 0.30
+    speed: 0.83
+    range: 4.0
+    stamina_cost: 3.5
+  body_hook_lead:
+    base_damage: 1.5
+    base_accuracy: 0.30
+    speed: 0.85
+    range: 2.5
+    stamina_cost: 3.0
+  body_hook_rear:
+    base_damage: 2.0
+    base_accuracy: 0.28
+    speed: 0.80
+    range: 2.5
+    stamina_cost: 4.0
+
+# Combat resolution parameters
+resolution:
+  # Accuracy modifiers
+  accuracy:
+    attacker_skill_base: 0.5         # Base accuracy from skill
+    attacker_skill_divisor: 100      # Divide attacker accuracy by this
+    hand_speed_base: 0.8             # Base hand speed contribution
+    hand_speed_divisor: 500          # Divide hand speed by this
+    range_penalty: 0.15              # Accuracy penalty per range deviation
+    reach_bonus_factor: 0.6          # Reach advantage bonus multiplier
+    counter_multiplier: 1.2          # Counter punch accuracy bonus
+    hurt_target_bonus: 1.3           # Bonus when target is hurt
+    fatigue_severe_penalty: 0.8      # Below 40% stamina
+    fatigue_moderate_penalty: 0.9    # Below 60% stamina
+
+  # Defense parameters
+  defense:
+    hurt_defense_chance: 0.3         # Base defense chance when hurt
+    corner_defense_chance: 0.4       # Defense chance when cornered
+    ropes_defense_chance: 0.6        # Defense chance on ropes
+    critical_damage_threshold: 0.95  # Nearly KO'd threshold
+    critical_defense_chance: 0.1     # Defense at critical damage
+    high_damage_threshold: 0.85      # High damage threshold
+    high_damage_defense_chance: 0.25 # Defense at high damage
+    moderate_damage_threshold: 0.70  # Moderate damage threshold
+    moderate_damage_defense_chance: 0.5
+
+  # Evasion parameters
+  evasion:
+    base_chance: 0.1                 # Base evasion chance
+    head_movement_divisor: 500       # Divide head movement by this
+    reflexes_divisor: 600            # Divide reflexes by this
+    body_shot_multiplier: 0.4        # Evasion penalty for body shots
+    hook_uppercut_multiplier: 0.7    # Evasion penalty for hooks/uppercuts
+    fatigue_penalty: 0.7             # Evasion penalty when fatigued
+    experience_bonus_threshold: 80   # Experience threshold for bonus
+    experience_bonus_divisor: 200    # Up to 10% bonus at 100 experience
+    max_evade_chance: 0.45           # Maximum evasion chance
+
+  # Blocking parameters
+  blocking:
+    base_chance: 0.3                 # Base block chance
+    high_guard_bonus: 0.25           # High guard block bonus
+    high_guard_reduction: 0.7        # High guard damage reduction
+    high_guard_body_penalty: 0.15    # High guard penalty vs body
+    philly_shell_straight_bonus: 0.3 # Philly shell vs straights
+    philly_shell_straight_reduction: 0.8
+    philly_shell_hook_bonus: 0.1     # Philly shell vs hooks
+    philly_shell_hook_reduction: 0.5
+    skill_divisor: 400               # Divide blocking skill by this
+    parry_threshold: 60              # Parrying skill threshold
+    parry_bonus: 0.1                 # Parrying bonus
+    parry_reduction: 0.9             # Parrying damage reduction
+    partial_threshold: 0.15          # Chance for partial block
+    partial_reduction: 0.3           # Partial block damage reduction
+
+  # Passive defense
+  passive:
+    base_chance: 0.1
+    ring_awareness_divisor: 500
+    experience_divisor: 500
+
+  # Damage calculation
+  damage:
+    power_base: 0.6                  # Base power multiplier
+    power_divisor: 250               # Divide power stat by this
+    ko_power_elite_threshold: 85     # Elite KO power threshold
+    ko_power_elite_bonus: 1.15       # Elite KO power bonus base
+    ko_power_good_threshold: 70      # Good KO power threshold
+    counter_base_bonus: 1.15         # Counter punch base bonus
+    counter_skill_divisor: 400       # Counter skill contribution
+    partial_hit_multiplier: 0.5      # Partial hit damage reduction
+    body_punch_base: 0.7             # Body punch base multiplier
+    body_punch_divisor: 150          # Body punching skill divisor
+    fatigue_severe_threshold: 0.25
+    fatigue_severe_multiplier: 0.6
+    fatigue_moderate_threshold: 0.4
+    fatigue_moderate_multiplier: 0.75
+    fatigue_mild_threshold: 0.6
+    fatigue_mild_multiplier: 0.9
+    variance_min: 0.85               # Minimum damage variance
+    variance_range: 0.3              # Damage variance range
+
+  # Knockdown thresholds for CombatResolver
+  knockdown_check:
+    min_damage_percent: 0.15         # Minimum accumulated damage for KD
+    chin_base: 3                     # Base knockdown threshold
+    chin_divisor: 15                 # Chin contribution to threshold
+    damage_reduction_threshold: 0.5  # Damage percent for threshold reduction
+    damage_reduction_factor: 0.3     # Max threshold reduction from damage
+    stamina_severe_threshold: 0.25
+    stamina_severe_reduction: 0.85
+    stamina_moderate_threshold: 0.4
+    stamina_moderate_reduction: 0.92
+    zero_stamina_threshold: 0.10     # Below this stamina, KO vulnerability increases
+    zero_stamina_max_multiplier: 2.0 # Max KO multiplier at 0% stamina
+    direct_knockdown_fresh_multiplier: 1.3  # Fresh fighter requires this much more damage for direct KD
+    flash_damage_threshold: 8        # Damage for flash KD on fresh fighter
+    flash_cap_elite_chin: 0.025      # 90+ chin
+    flash_cap_good_chin: 0.035       # 85+ chin
+    flash_cap_decent_chin: 0.045     # 80+ chin
+    flash_cap_weak_chin: 0.10        # <70 chin
+    flash_cap_default: 0.06          # Default flash cap
+
+  # Combination parameters
+  combinations:
+    accuracy_decay: 0.92             # Accuracy loss per combo punch
+    block_decay: 0.95                # Accuracy loss through blocks
+    break_on_miss_chance: 0.5        # Chance combo breaks on miss
+    break_on_evade_chance: 0.4       # Chance combo breaks on evade

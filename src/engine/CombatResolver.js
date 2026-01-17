@@ -1,10 +1,14 @@
 /**
  * Combat Resolver
  * Resolves combat interactions between fighters, determining hits, blocks, and outcomes
+ *
+ * Parameters are loaded from ModelParameters with fallback to hardcoded defaults.
+ * See: src/engine/model/versions/v1.0.0/combat.yaml
  */
 
 import { FighterState, DefensiveSubState } from '../models/Fighter.js';
 import { ActionType, PunchType } from './FighterAI.js';
+import { ModelParameters } from './model/ModelParameters.js';
 
 /**
  * Weight class profiles - control punch output and activity rates
@@ -13,36 +17,16 @@ import { ActionType, PunchType } from './FighterAI.js';
  * - Middleweight: 50-70 punches thrown, ~35% accuracy
  * - Welterweight: 60-80 punches thrown, ~38% accuracy
  * - Lightweight: 70-90 punches thrown, ~40% accuracy
+ *
+ * NOW LOADED FROM: ModelParameters.get('combat.weight_classes.<class>')
  */
-const WEIGHT_CLASS_PROFILES = {
-  heavyweight: {
-    activityRate: 0.35,      // Chance to throw when in offensive state (per tick)
-    maxComboLength: 4,       // Heavyweights can throw 4-punch combos (Tyson style)
-    comboChance: 0.30,       // Can throw combos
-    recoveryTicks: 3,        // Ticks between punch opportunities
-    staminaMultiplier: 1.15, // Punches cost slightly more stamina (was 1.3 - too punishing)
-    damageMultiplier: 1.25,  // Hit harder
-    punchesPerRound: { min: 35, max: 55 }  // Target range
-  },
-  cruiserweight: {
-    activityRate: 0.40,
-    maxComboLength: 4,
-    comboChance: 0.30,
-    recoveryTicks: 2,
-    staminaMultiplier: 1.2,
-    damageMultiplier: 1.12,
-    punchesPerRound: { min: 45, max: 65 }
-  },
-  'light-heavyweight': {
-    activityRate: 0.45,
-    maxComboLength: 4,
-    comboChance: 0.35,
-    recoveryTicks: 2,
-    staminaMultiplier: 1.15,
-    damageMultiplier: 1.08,
-    punchesPerRound: { min: 50, max: 70 }
-  },
-  middleweight: {
+
+/**
+ * Get weight class profile from ModelParameters
+ * Falls back to hardcoded defaults if parameters not loaded
+ */
+const getWeightClassProfileFromParams = (weightClass) => {
+  const defaults = {
     activityRate: 0.50,
     maxComboLength: 5,
     comboChance: 0.40,
@@ -50,132 +34,94 @@ const WEIGHT_CLASS_PROFILES = {
     staminaMultiplier: 1.0,
     damageMultiplier: 1.0,
     punchesPerRound: { min: 55, max: 75 }
-  },
-  welterweight: {
-    activityRate: 0.55,
-    maxComboLength: 5,
-    comboChance: 0.45,
-    recoveryTicks: 1,
-    staminaMultiplier: 0.95,
-    damageMultiplier: 0.9,
-    punchesPerRound: { min: 60, max: 85 }
-  },
-  lightweight: {
-    activityRate: 0.60,
-    maxComboLength: 6,
-    comboChance: 0.50,
-    recoveryTicks: 1,
-    staminaMultiplier: 0.9,
-    damageMultiplier: 0.8,
-    punchesPerRound: { min: 70, max: 95 }
-  },
-  featherweight: {
-    activityRate: 0.65,
-    maxComboLength: 6,
-    comboChance: 0.55,
-    recoveryTicks: 1,
-    staminaMultiplier: 0.85,
-    damageMultiplier: 0.7,
-    punchesPerRound: { min: 75, max: 100 }
-  },
-  bantamweight: {
-    activityRate: 0.70,
-    maxComboLength: 7,
-    comboChance: 0.60,
-    recoveryTicks: 1,
-    staminaMultiplier: 0.8,
-    damageMultiplier: 0.65,
-    punchesPerRound: { min: 80, max: 110 }
-  },
-  flyweight: {
-    activityRate: 0.75,
-    maxComboLength: 8,
-    comboChance: 0.65,
-    recoveryTicks: 1,
-    staminaMultiplier: 0.75,
-    damageMultiplier: 0.6,
-    punchesPerRound: { min: 85, max: 120 }
-  }
+  };
+
+  // Convert weight class name to parameter key (e.g., 'light-heavyweight' -> 'light_heavyweight')
+  const paramKey = weightClass.replace(/-/g, '_');
+  const basePath = `combat.weight_classes.${paramKey}`;
+
+  return {
+    activityRate: ModelParameters.get(`${basePath}.activity_rate`, defaults.activityRate),
+    maxComboLength: ModelParameters.get(`${basePath}.max_combo_length`, defaults.maxComboLength),
+    comboChance: ModelParameters.get(`${basePath}.combo_chance`, defaults.comboChance),
+    recoveryTicks: ModelParameters.get(`${basePath}.recovery_ticks`, defaults.recoveryTicks),
+    staminaMultiplier: ModelParameters.get(`${basePath}.stamina_multiplier`, defaults.staminaMultiplier),
+    damageMultiplier: ModelParameters.get(`${basePath}.damage_multiplier`, defaults.damageMultiplier),
+    punchesPerRound: {
+      min: ModelParameters.get(`${basePath}.punches_per_round.min`, defaults.punchesPerRound.min),
+      max: ModelParameters.get(`${basePath}.punches_per_round.max`, defaults.punchesPerRound.max)
+    }
+  };
 };
 
-// Default profile for unknown weight classes
-const DEFAULT_PROFILE = WEIGHT_CLASS_PROFILES.middleweight;
+/**
+ * Get weight class thresholds from ModelParameters
+ */
+const getWeightClassThresholds = () => ({
+  heavyweight: ModelParameters.get('combat.weight_classes.heavyweight.min_weight', 90.7),
+  cruiserweight: ModelParameters.get('combat.weight_classes.cruiserweight.min_weight', 79.4),
+  lightHeavyweight: ModelParameters.get('combat.weight_classes.light_heavyweight.min_weight', 76.2),
+  middleweight: ModelParameters.get('combat.weight_classes.middleweight.min_weight', 72.6),
+  welterweight: ModelParameters.get('combat.weight_classes.welterweight.min_weight', 66.7),
+  lightweight: ModelParameters.get('combat.weight_classes.lightweight.min_weight', 61.2),
+  featherweight: ModelParameters.get('combat.weight_classes.featherweight.min_weight', 57.2),
+  bantamweight: ModelParameters.get('combat.weight_classes.bantamweight.min_weight', 53.5)
+});
 
-// Base punch statistics - damage scaled for 10-12 round fights
-// Target: Fighter takes ~100-150 punches landed over full fight
-// With maxHeadDamage 100-180, each punch should average ~0.5-1.0 damage
-// Damage values REDUCED to allow fights to go the distance
-const PUNCH_BASE_STATS = {
-  [PunchType.JAB]: {
-    baseDamage: 0.5,      // Light scoring punch - mostly for points
-    baseAccuracy: 0.42,
-    speed: 1.0,
-    range: 5.0,
-    staminaCost: 1.5
-  },
-  [PunchType.CROSS]: {
-    baseDamage: 2.0,      // Power punch
-    baseAccuracy: 0.32,
-    speed: 0.85,
-    range: 4.5,
-    staminaCost: 3.5
-  },
-  [PunchType.LEAD_HOOK]: {
-    baseDamage: 1.5,
-    baseAccuracy: 0.28,
-    speed: 0.88,
-    range: 3.0,
-    staminaCost: 3.0
-  },
-  [PunchType.REAR_HOOK]: {
-    baseDamage: 2.5,      // Big power punch
-    baseAccuracy: 0.26,
-    speed: 0.82,
-    range: 3.0,
-    staminaCost: 4.0
-  },
-  [PunchType.LEAD_UPPERCUT]: {
-    baseDamage: 1.2,
-    baseAccuracy: 0.25,
-    speed: 0.80,
-    range: 2.5,
-    staminaCost: 2.5
-  },
-  [PunchType.REAR_UPPERCUT]: {
-    baseDamage: 3.0,      // Biggest power punch - KO threat
-    baseAccuracy: 0.22,
-    speed: 0.75,
-    range: 2.5,
-    staminaCost: 4.5
-  },
-  [PunchType.BODY_JAB]: {
-    baseDamage: 0.6,
-    baseAccuracy: 0.40,
-    speed: 0.95,
-    range: 4.5,
-    staminaCost: 1.5
-  },
-  [PunchType.BODY_CROSS]: {
-    baseDamage: 1.8,
-    baseAccuracy: 0.30,
-    speed: 0.83,
-    range: 4.0,
-    staminaCost: 3.5
-  },
-  [PunchType.BODY_HOOK_LEAD]: {
-    baseDamage: 1.5,
-    baseAccuracy: 0.30,
-    speed: 0.85,
-    range: 2.5,
-    staminaCost: 3.0
-  },
-  [PunchType.BODY_HOOK_REAR]: {
-    baseDamage: 2.0,
-    baseAccuracy: 0.28,
-    speed: 0.80,
-    range: 2.5,
-    staminaCost: 4.0
-  }
+/**
+ * Base punch statistics - NOW LOADED FROM ModelParameters
+ * Damage scaled for 10-12 round fights
+ * Target: Fighter takes ~100-150 punches landed over full fight
+ *
+ * NOW LOADED FROM: ModelParameters.get('combat.punches.<type>')
+ */
+
+/**
+ * Get punch stats from ModelParameters for a given punch type
+ * Falls back to defaults if parameters not loaded
+ */
+const getPunchStatsFromParams = (punchType) => {
+  // Map PunchType enum to parameter key
+  const punchTypeToKey = {
+    [PunchType.JAB]: 'jab',
+    [PunchType.CROSS]: 'cross',
+    [PunchType.LEAD_HOOK]: 'lead_hook',
+    [PunchType.REAR_HOOK]: 'rear_hook',
+    [PunchType.LEAD_UPPERCUT]: 'lead_uppercut',
+    [PunchType.REAR_UPPERCUT]: 'rear_uppercut',
+    [PunchType.BODY_JAB]: 'body_jab',
+    [PunchType.BODY_CROSS]: 'body_cross',
+    [PunchType.BODY_HOOK_LEAD]: 'body_hook_lead',
+    [PunchType.BODY_HOOK_REAR]: 'body_hook_rear'
+  };
+
+  // Default values matching original hardcoded values
+  const defaults = {
+    jab: { baseDamage: 0.5, baseAccuracy: 0.42, speed: 1.0, range: 5.0, staminaCost: 1.5 },
+    cross: { baseDamage: 2.0, baseAccuracy: 0.32, speed: 0.85, range: 4.5, staminaCost: 3.5 },
+    lead_hook: { baseDamage: 1.5, baseAccuracy: 0.28, speed: 0.88, range: 3.0, staminaCost: 3.0 },
+    rear_hook: { baseDamage: 2.5, baseAccuracy: 0.26, speed: 0.82, range: 3.0, staminaCost: 4.0 },
+    lead_uppercut: { baseDamage: 1.2, baseAccuracy: 0.25, speed: 0.80, range: 2.5, staminaCost: 2.5 },
+    rear_uppercut: { baseDamage: 3.0, baseAccuracy: 0.22, speed: 0.75, range: 2.5, staminaCost: 4.5 },
+    body_jab: { baseDamage: 0.6, baseAccuracy: 0.40, speed: 0.95, range: 4.5, staminaCost: 1.5 },
+    body_cross: { baseDamage: 1.8, baseAccuracy: 0.30, speed: 0.83, range: 4.0, staminaCost: 3.5 },
+    body_hook_lead: { baseDamage: 1.5, baseAccuracy: 0.30, speed: 0.85, range: 2.5, staminaCost: 3.0 },
+    body_hook_rear: { baseDamage: 2.0, baseAccuracy: 0.28, speed: 0.80, range: 2.5, staminaCost: 4.0 }
+  };
+
+  const key = punchTypeToKey[punchType];
+  if (!key) return null;
+
+  const defaultStats = defaults[key];
+  const basePath = `combat.punches.${key}`;
+
+  return {
+    baseDamage: ModelParameters.get(`${basePath}.base_damage`, defaultStats.baseDamage),
+    baseAccuracy: ModelParameters.get(`${basePath}.base_accuracy`, defaultStats.baseAccuracy),
+    speed: ModelParameters.get(`${basePath}.speed`, defaultStats.speed),
+    range: ModelParameters.get(`${basePath}.range`, defaultStats.range),
+    staminaCost: ModelParameters.get(`${basePath}.stamina_cost`, defaultStats.staminaCost)
+  };
 };
 
 export class CombatResolver {
@@ -196,20 +142,25 @@ export class CombatResolver {
 
   /**
    * Get weight class profile for a fighter
+   * Now loads from ModelParameters with fallback defaults
    */
   getWeightClassProfile(fighter) {
     // Determine weight class from fighter's weight
     const weight = fighter.physical?.weight || 75; // kg
+    const thresholds = getWeightClassThresholds();
 
-    if (weight >= 90.7) return WEIGHT_CLASS_PROFILES.heavyweight;
-    if (weight >= 79.4) return WEIGHT_CLASS_PROFILES.cruiserweight;
-    if (weight >= 76.2) return WEIGHT_CLASS_PROFILES['light-heavyweight'];
-    if (weight >= 72.6) return WEIGHT_CLASS_PROFILES.middleweight;
-    if (weight >= 66.7) return WEIGHT_CLASS_PROFILES.welterweight;
-    if (weight >= 61.2) return WEIGHT_CLASS_PROFILES.lightweight;
-    if (weight >= 57.2) return WEIGHT_CLASS_PROFILES.featherweight;
-    if (weight >= 53.5) return WEIGHT_CLASS_PROFILES.bantamweight;
-    return WEIGHT_CLASS_PROFILES.flyweight;
+    // Determine weight class name based on weight thresholds
+    const weightClassName = weight >= thresholds.heavyweight ? 'heavyweight'
+      : weight >= thresholds.cruiserweight ? 'cruiserweight'
+      : weight >= thresholds.lightHeavyweight ? 'light-heavyweight'
+      : weight >= thresholds.middleweight ? 'middleweight'
+      : weight >= thresholds.welterweight ? 'welterweight'
+      : weight >= thresholds.lightweight ? 'lightweight'
+      : weight >= thresholds.featherweight ? 'featherweight'
+      : weight >= thresholds.bantamweight ? 'bantamweight'
+      : 'flyweight';
+
+    return getWeightClassProfileFromParams(weightClassName);
   }
 
   /**
@@ -322,7 +273,7 @@ export class CombatResolver {
     }
 
     const punchType = action.punchType;
-    const punchStats = PUNCH_BASE_STATS[punchType];
+    const punchStats = getPunchStatsFromParams(punchType);
 
     if (!punchStats) {
       return { outcome: 'miss', punchType, attacker: attackerId };
@@ -384,12 +335,10 @@ export class CombatResolver {
       };
     }
 
-    // Hit lands
-    let damage = this.calculateDamage(attacker, punchType, distance, action.isCounter, defenseResult.partial, attackerId, defender);
-
-    // Apply stun vulnerability - stunned fighters take more damage
+    // Hit lands - calculate damage with stun vulnerability applied
+    const baseDamage = this.calculateDamage(attacker, punchType, distance, action.isCounter, defenseResult.partial, attackerId, defender);
     const stunVulnerability = defender.getStunVulnerability ? defender.getStunVulnerability() : 1.0;
-    damage = Math.round(damage * stunVulnerability);
+    const damage = Math.round(baseDamage * stunVulnerability);
 
     const quality = defenseResult.partial ? 'partial' : 'clean';
 
@@ -408,8 +357,17 @@ export class CombatResolver {
 
   /**
    * Resolve a combination of punches
+   * Parameters loaded from ModelParameters with fallback defaults
    */
   resolveCombination(attacker, defender, action, defenderDecision, attackerId) {
+    // Load combination parameters
+    const comboParams = {
+      accuracyDecay: ModelParameters.get('combat.resolution.combinations.accuracy_decay', 0.92),
+      blockDecay: ModelParameters.get('combat.resolution.combinations.block_decay', 0.95),
+      breakOnMissChance: ModelParameters.get('combat.resolution.combinations.break_on_miss_chance', 0.5),
+      breakOnEvadeChance: ModelParameters.get('combat.resolution.combinations.break_on_evade_chance', 0.4)
+    };
+
     const defenderId = attackerId === 'A' ? 'B' : 'A';
     const results = [];
 
@@ -419,14 +377,14 @@ export class CombatResolver {
     // Limit combination length based on weight class
     const maxPunches = Math.min(action.combination.length, profile.maxComboLength);
 
-    // Accuracy penalty accumulates through combo
-    let comboAccuracyMod = 1.0;
+    // Accuracy penalty accumulates through combo (using functional reduce pattern)
+    const processCombo = (punches, accMod = 1.0, idx = 0) => {
+      if (idx >= punches.length) return results;
 
-    for (let i = 0; i < maxPunches; i++) {
-      const punchType = action.combination[i];
-      const punchStats = PUNCH_BASE_STATS[punchType];
+      const punchType = punches[idx];
+      const punchStats = getPunchStatsFromParams(punchType);
 
-      if (!punchStats) continue;
+      if (!punchStats) return processCombo(punches, accMod, idx + 1);
 
       const distance = this.calculateDistance(attacker, defender);
 
@@ -439,11 +397,11 @@ export class CombatResolver {
           target: defenderId,
           reason: 'out_of_range'
         });
-        continue;
+        return processCombo(punches, accMod, idx + 1);
       }
 
       // Calculate accuracy with combo modifier
-      const accuracy = this.calculateAccuracy(attacker, defender, punchType, distance, false, attackerId, defenderId) * comboAccuracyMod;
+      const accuracy = this.calculateAccuracy(attacker, defender, punchType, distance, false, attackerId, defenderId) * accMod;
 
       // Roll for hit
       if (Math.random() > accuracy) {
@@ -453,9 +411,10 @@ export class CombatResolver {
           attacker: attackerId,
           target: defenderId
         });
-        // Combo broken on miss (chance)
-        if (Math.random() > 0.5) break;
-        continue;
+        // Combo broken on miss (chance based on parameter)
+        return Math.random() > comboParams.breakOnMissChance
+          ? results  // Combo broken
+          : processCombo(punches, accMod, idx + 1);
       }
 
       // Check defense
@@ -469,9 +428,8 @@ export class CombatResolver {
           target: defenderId,
           blockType: defenseResult.blockType
         });
-        // Combo continues through blocks
-        comboAccuracyMod *= 0.95;
-        continue;
+        // Combo continues through blocks with accuracy decay
+        return processCombo(punches, accMod * comboParams.blockDecay, idx + 1);
       }
 
       if (defenseResult.evaded) {
@@ -482,9 +440,10 @@ export class CombatResolver {
           target: defenderId,
           evadeType: defenseResult.evadeType
         });
-        // Evade might break combo
-        if (Math.random() > 0.6) break;
-        continue;
+        // Evade might break combo (based on parameter)
+        return Math.random() > (1 - comboParams.breakOnEvadeChance)
+          ? results  // Combo broken
+          : processCombo(punches, accMod, idx + 1);
       }
 
       // Hit
@@ -500,9 +459,12 @@ export class CombatResolver {
         quality: defenseResult.partial ? 'partial' : 'clean'
       });
 
-      // Combo continues with slight accuracy decrease
-      comboAccuracyMod *= 0.92;
-    }
+      // Combo continues with accuracy decay
+      return processCombo(punches, accMod * comboParams.accuracyDecay, idx + 1);
+    };
+
+    // Process the combination
+    processCombo(action.combination.slice(0, maxPunches));
 
     // Return the first significant result (hit or miss)
     const hitResult = results.find(r => r.outcome === 'hit');
@@ -523,227 +485,189 @@ export class CombatResolver {
 
   /**
    * Calculate accuracy for a punch
+   * Parameters loaded from ModelParameters with fallback defaults
    */
-  calculateAccuracy(attacker, defender, punchType, distance, isCounter, attackerId = null, defenderId = null) {
-    const punchStats = PUNCH_BASE_STATS[punchType];
-    let accuracy = punchStats.baseAccuracy;
+  calculateAccuracy(attacker, defender, punchType, distance, isCounter, attackerId = null, _defenderId = null) {
+    // Load accuracy parameters
+    const params = {
+      attackerSkillBase: ModelParameters.get('combat.resolution.accuracy.attacker_skill_base', 0.5),
+      attackerSkillDivisor: ModelParameters.get('combat.resolution.accuracy.attacker_skill_divisor', 100),
+      handSpeedBase: ModelParameters.get('combat.resolution.accuracy.hand_speed_base', 0.8),
+      handSpeedDivisor: ModelParameters.get('combat.resolution.accuracy.hand_speed_divisor', 500),
+      rangePenalty: ModelParameters.get('combat.resolution.accuracy.range_penalty', 0.15),
+      reachBonusFactor: ModelParameters.get('combat.resolution.accuracy.reach_bonus_factor', 0.6),
+      counterMultiplier: ModelParameters.get('combat.resolution.accuracy.counter_multiplier', 1.2),
+      hurtTargetBonus: ModelParameters.get('combat.resolution.accuracy.hurt_target_bonus', 1.3),
+      fatigueSeverePenalty: ModelParameters.get('combat.resolution.accuracy.fatigue_severe_penalty', 0.8),
+      fatigueModeratePenalty: ModelParameters.get('combat.resolution.accuracy.fatigue_moderate_penalty', 0.9)
+    };
+
+    const punchStats = getPunchStatsFromParams(punchType);
+    const baseAccuracy = punchStats.baseAccuracy;
 
     // Apply effects manager accuracy modifier for attacker
-    if (this.effectsManager && attackerId) {
-      const accuracyMod = this.effectsManager.getAccuracyModifier(attackerId);
-      accuracy *= 1 + accuracyMod;
-    }
+    const effectsMod = (this.effectsManager && attackerId)
+      ? this.effectsManager.getAccuracyModifier(attackerId)
+      : 0;
 
     // Attacker accuracy modifier
     const attackerAccuracy = punchType.includes('jab')
       ? attacker.offense.jabAccuracy
       : attacker.offense.powerAccuracy;
-    accuracy *= (0.5 + attackerAccuracy / 100);
+    const skillMod = params.attackerSkillBase + attackerAccuracy / params.attackerSkillDivisor;
 
     // Hand speed bonus
-    accuracy *= (0.8 + attacker.speed.handSpeed / 500);
+    const handSpeedMod = params.handSpeedBase + attacker.speed.handSpeed / params.handSpeedDivisor;
 
     // Distance modifier
     const optimalRange = punchStats.range;
     const rangeDeviation = Math.abs(distance - optimalRange);
-    accuracy *= Math.max(0.3, 1 - rangeDeviation * 0.15);
+    const rangeMod = Math.max(0.3, 1 - rangeDeviation * params.rangePenalty);
+
+    // Calculate base accuracy with all modifiers
+    const accuracyWithBaseMods = baseAccuracy * (1 + effectsMod) * skillMod * handSpeedMod * rangeMod;
 
     // REACH ADVANTAGE: Longer reach = more effective at distance
-    // Lewis (213cm) vs Tyson (180cm) = 33cm advantage at range
     const attackerReach = attacker.physical?.reach || 180;
     const defenderReach = defender.physical?.reach || 180;
-    const reachDiff = attackerReach - defenderReach; // Positive = attacker has longer reach
+    const reachDiff = attackerReach - defenderReach;
 
-    if (reachDiff !== 0 && distance >= 3.5) {
-      // At long range (3.5+), reach advantage matters SIGNIFICANTLY
-      // This is a major factor in boxing - Lewis's jab was a weapon Tyson couldn't match
-      // +10cm reach = ~6% accuracy bonus at range
-      // +23cm reach (like Lewis vs Holyfield) = ~14% bonus
-      // +33cm reach (like Lewis vs Tyson) = ~20% bonus at peak distance
-      const reachBonus = (reachDiff / 100) * 0.6;  // Increased from 0.35
-      const distanceFactor = Math.min(2.0, distance / 3.5);
-      accuracy *= 1 + (reachBonus * distanceFactor);
-
-      // ALSO: Longer reach means opponent's punches fall short more often
-      // Apply penalty to the shorter fighter's accuracy when they try to reach
-      // (This is handled via the negative reachDiff for the attacker)
-    } else if (reachDiff < 0 && distance < 2.5) {
-      // At close range, shorter fighter can get UNDER longer reach
-      // Tyson's style was built to nullify reach advantages inside
-      // Shorter reach is an advantage in the phone booth
-      const insideBonus = Math.abs(reachDiff / 100) * 0.30;  // Reduced from 0.35 - inside shouldn't fully compensate
-      accuracy *= 1 + insideBonus;
-    } else if (reachDiff < 0 && distance >= 3.5) {
-      // CRITICAL: Shorter reach fighter trying to hit from distance = MAJOR penalty
-      // Tyson at range can't reach Lewis effectively
-      // This is why Tyson HAD to get inside
-      const reachPenalty = Math.abs(reachDiff / 100) * 0.5;  // 33cm disadvantage = 16.5% penalty
-      const distanceFactor = Math.min(2.0, distance / 3.5);
-      accuracy *= 1 - (reachPenalty * distanceFactor * 0.5);
-    }
+    const reachMod = reachDiff !== 0 && distance >= 3.5
+      // At long range, reach advantage matters significantly
+      ? 1 + ((reachDiff / 100) * params.reachBonusFactor * Math.min(2.0, distance / 3.5))
+      : reachDiff < 0 && distance < 2.5
+        // At close range, shorter fighter can get under longer reach
+        ? 1 + Math.abs(reachDiff / 100) * 0.30
+        : reachDiff < 0 && distance >= 3.5
+          // Shorter reach fighter at distance = major penalty
+          ? 1 - (Math.abs(reachDiff / 100) * 0.5 * Math.min(2.0, distance / 3.5) * 0.5)
+          : 1.0;
 
     // Defender style bonus - rangy boxers are harder to hit at distance
-    // REDUCED: Was too powerful on top of reach advantage
     const defenderStyle = defender.style?.primary;
-    if (distance > 4 && (defenderStyle === 'out-boxer' || defenderStyle === 'counter-puncher' || defenderStyle === 'boxer-puncher')) {
-      const outsideFightingDef = defender.technical?.outsideFighting || 50;
-      // REDUCED: 92 outsideFighting = 12% harder to hit (was 28%), 50 = 5% harder to hit
-      accuracy *= 0.95 - outsideFightingDef / 750;
-    }
+    const isRangyDefender = defenderStyle === 'out-boxer' || defenderStyle === 'counter-puncher' || defenderStyle === 'boxer-puncher';
+    const outsideFightingDef = defender.technical?.outsideFighting || 50;
+    const defenderStyleMod = distance > 4 && isRangyDefender
+      ? 0.95 - outsideFightingDef / 750
+      : 1.0;
 
     // Defender movement penalty
-    if (defender.state === FighterState.MOVING) {
-      accuracy *= 0.85;
-    }
+    const movementMod = defender.state === FighterState.MOVING ? 0.85 : 1.0;
 
-    // Counter punch bonus
-    if (isCounter) {
-      accuracy *= 1.2;
-      accuracy += attacker.offense.counterPunching / 200;
-    }
+    // Counter punch bonus (uses parameter)
+    const counterMod = isCounter
+      ? params.counterMultiplier + attacker.offense.counterPunching / 200
+      : 1.0;
 
     // Inside fighting bonus - sluggers and inside fighters excel at close range
-    // But this shouldn't completely negate reach disadvantage
     const attackerStyle = attacker.style?.primary;
-    if (distance < 3.5 && (attackerStyle === 'slugger' || attackerStyle === 'inside-fighter' || attackerStyle === 'swarmer')) {
-      // Inside fighting skill bonus for close range
-      // 98 insideFighting = 39% bonus (reduced from 58%)
-      accuracy *= 1.0 + (attacker.technical?.insideFighting || 50) / 250;
-      // Power punches are effective inside but not overwhelmingly so
-      if (!punchType.includes('jab')) {
-        accuracy *= 1.10;  // Reduced from 1.15
-      }
-    }
+    const isInsideFighter = attackerStyle === 'slugger' || attackerStyle === 'inside-fighter' || attackerStyle === 'swarmer';
+    const insideFightingSkill = attacker.technical?.insideFighting || 50;
+    const insideFightingMod = distance < 3.5 && isInsideFighter
+      ? (1.0 + insideFightingSkill / 250) * (punchType.includes('jab') ? 1.0 : 1.10)
+      : 1.0;
 
     // Out-boxer penalty at close range
-    if (distance < 3 && attackerStyle === 'out-boxer') {
-      accuracy *= 0.85;
-    }
+    const outBoxerCloseMod = distance < 3 && attackerStyle === 'out-boxer' ? 0.85 : 1.0;
 
-    // OUTSIDE FIGHTING OFFENSIVE BONUS - Rangy boxers are more accurate at distance
-    // Lewis's 92 outsideFighting = elite ability to land from range
-    if (distance >= 4 && (attackerStyle === 'out-boxer' || attackerStyle === 'boxer-puncher')) {
-      const outsideFighting = attacker.technical?.outsideFighting || 50;
-      // 92 outsideFighting = +16.8% accuracy at range, 50 = 0%
-      const outsideBonus = (outsideFighting - 50) / 250;
-      accuracy *= 1 + outsideBonus;
-    }
+    // Outside fighting offensive bonus - rangy boxers are more accurate at distance
+    const isRangyAttacker = attackerStyle === 'out-boxer' || attackerStyle === 'boxer-puncher';
+    const outsideFightingAttack = attacker.technical?.outsideFighting || 50;
+    const outsideFightingMod = distance >= 4 && isRangyAttacker
+      ? 1 + (outsideFightingAttack - 50) / 250
+      : 1.0;
 
-    // DISTANCE MANAGEMENT - Fighters with high distanceManagement control the range better
-    // This translates to better accuracy when fighting at THEIR optimal distance
+    // Distance management - fighters with high distanceManagement control range better
     const attackerDistMgmt = attacker.technical?.distanceManagement || 50;
     const defenderDistMgmt = defender.technical?.distanceManagement || 50;
     const distMgmtDiff = attackerDistMgmt - defenderDistMgmt;
+    const distMgmtMod = distMgmtDiff > 10
+      ? 1 + distMgmtDiff / 250
+      : distMgmtDiff < -10
+        ? 1 + distMgmtDiff / 300
+        : 1.0;
 
-    if (distMgmtDiff > 10) {
-      // Attacker controls the distance better - fights where they want
-      // Lewis (90) vs Holyfield (75) = 15 diff = ~6% bonus
-      accuracy *= 1 + (distMgmtDiff / 250);
-    } else if (distMgmtDiff < -10) {
-      // Defender controls distance - attacker at disadvantage
-      accuracy *= 1 + (distMgmtDiff / 300); // Smaller penalty
-    }
+    // Style matchup modifiers - "Styles make fights"
+    const styleMatchupMod = this.calculateStyleMatchupMod(attackerStyle, defenderStyle, distance);
 
-    // STYLE MATCHUP MODIFIERS - "Styles make fights"
-    // Certain styles have natural advantages against others
-    // (defenderStyle already defined above)
-
-    // Swarmer vs Inside-Fighter: Constant pressure disrupts inside-fighter's timing
-    // Holyfield's relentless pressure never let Tyson settle into his rhythm
-    if (attackerStyle === 'inside-fighter' && defenderStyle === 'swarmer') {
-      accuracy *= 0.94; // 6% penalty - hard to time shots against constant pressure
-    }
-    // Swarmer advantage when attacking: Pressure creates openings
-    if (attackerStyle === 'swarmer' && defenderStyle === 'inside-fighter') {
-      accuracy *= 1.04; // 4% bonus - pressure creates openings
-    }
-
-    // Out-boxer vs Slugger: Movement frustrates power punchers
-    if (attackerStyle === 'slugger' && defenderStyle === 'out-boxer') {
-      accuracy *= 0.90; // 10% penalty
-    }
-
-    // Counter-puncher vs Slugger: Timing beats loading up
-    if (attackerStyle === 'slugger' && defenderStyle === 'counter-puncher') {
-      accuracy *= 0.88; // 12% penalty
-    }
-
-    // Boxer-puncher vs Swarmer: Range advantage at distance, but swarmers thrive inside
-    // Lewis used his jab and size to keep Holyfield at bay... until Holyfield got inside
-    if (attackerStyle === 'boxer-puncher' && defenderStyle === 'swarmer') {
-      if (distance >= 4) {
-        accuracy *= 1.08; // 8% bonus at range - can pick shots
-      } else if (distance < 3) {
-        accuracy *= 0.92; // 8% penalty inside - swarmers smother boxer-punchers
-      }
-    }
-    if (attackerStyle === 'swarmer' && defenderStyle === 'boxer-puncher') {
-      if (distance >= 4) {
-        accuracy *= 0.92; // 8% penalty at range - running into counters
-      } else if (distance < 3) {
-        accuracy *= 1.12; // 12% bonus inside - swarmers dominate in close
-      }
-    }
-
-    // Inside-fighter vs Swarmer: Explosive inside-fighters beat volume swarmers
-    // Tyson's peek-a-boo and explosive short punches were devastating against pressure fighters
-    // Inside-fighters get inside FASTER and land HARDER than swarmers
-    if (attackerStyle === 'inside-fighter' && defenderStyle === 'swarmer') {
-      if (distance < 3) {
-        // Inside-fighters dominate at close range - shorter, more explosive punches
-        accuracy *= 1.18; // 18% bonus - Tyson was devastating inside
-      }
-    }
-    if (attackerStyle === 'swarmer' && defenderStyle === 'inside-fighter') {
-      if (distance < 3) {
-        // Swarmers less effective against elite inside-fighters - peek-a-boo defense
-        accuracy *= 0.88; // 12% penalty - Holyfield's volume less effective vs Tyson's defense
-      }
-    }
-
-    // FIRST STEP ADVANTAGE - Explosive starters dominate early in exchanges
-    // Tyson's first step was legendary - he could close and land before opponents reacted
+    // First step advantage - explosive starters dominate early in exchanges
     const firstStepAdvantage = (attacker.speed?.firstStep || 70) - (defender.speed?.firstStep || 70);
-    if (firstStepAdvantage > 10 && distance < 3.5) {
-      // Big first step advantage at close-mid range
-      const firstStepBonus = 1 + (firstStepAdvantage - 10) / 100;
-      accuracy *= firstStepBonus; // 98 vs 78 = 1.10x bonus
-    }
+    const firstStepMod = firstStepAdvantage > 10 && distance < 3.5
+      ? 1 + (firstStepAdvantage - 10) / 100
+      : 1.0;
 
-    // Defender hurt bonus (easier to hit)
-    if (defender.isHurt) {
-      accuracy *= 1.3;
-    }
+    // Defender hurt bonus (easier to hit) - uses parameter
+    const hurtMod = defender.isHurt ? params.hurtTargetBonus : 1.0;
 
-    // Fatigue penalty
+    // Fatigue penalty - uses parameters
     const staminaPercent = attacker.getStaminaPercent();
-    if (staminaPercent < 0.4) {
-      accuracy *= 0.8;
-    } else if (staminaPercent < 0.6) {
-      accuracy *= 0.9;
-    }
+    const fatigueMod = staminaPercent < 0.4 ? params.fatigueSeverePenalty
+      : staminaPercent < 0.6 ? params.fatigueModeratePenalty
+      : 1.0;
 
-    // ADAPTABILITY BONUS: Fighters with high adaptability "figure out" their opponent
-    // As rounds progress, adaptable fighters get more accurate
-    // Holyfield (85 adaptability) vs Tyson (75) should gain edge over 12 rounds
+    // Adaptability bonus - fighters "figure out" opponent over rounds
     const adaptability = attacker.technical?.adaptability || 70;
     const round = this.currentRound || 1;
-    if (adaptability > 70 && round > 2) {
-      // Each round after round 2, gain up to 1.5% accuracy per point over 70
-      // By round 12, an 85 adaptability fighter gains up to 15% accuracy
-      const roundBonus = (round - 2) * 0.015;  // 0-15% over 10 rounds
-      const adaptBonus = (adaptability - 70) / 100;  // 0-0.30 for 70-100 adaptability
-      accuracy *= 1 + (roundBonus * adaptBonus);
-    }
+    const adaptMod = adaptability > 70 && round > 2
+      ? 1 + ((round - 2) * 0.015) * ((adaptability - 70) / 100)
+      : 1.0;
 
-    // EXPERIENCE BONUS: Veterans read opponents better
+    // Experience bonus - veterans read opponents better
     const experience = attacker.mental?.experience || 70;
-    if (experience > 80) {
-      // Small accuracy bonus for experienced fighters
-      accuracy *= 1 + (experience - 80) / 500; // Up to 4% bonus at 100 experience
+    const expMod = experience > 80 ? 1 + (experience - 80) / 500 : 1.0;
+
+    // Combine all modifiers (functional composition)
+    const finalAccuracy = accuracyWithBaseMods
+      * reachMod
+      * defenderStyleMod
+      * movementMod
+      * counterMod
+      * insideFightingMod
+      * outBoxerCloseMod
+      * outsideFightingMod
+      * distMgmtMod
+      * styleMatchupMod
+      * firstStepMod
+      * hurtMod
+      * fatigueMod
+      * adaptMod
+      * expMod;
+
+    return Math.min(0.95, Math.max(0.1, finalAccuracy));
+  }
+
+  /**
+   * Calculate style matchup modifier for accuracy
+   * Certain styles have natural advantages against others
+   */
+  calculateStyleMatchupMod(attackerStyle, defenderStyle, distance) {
+    // Inside-fighter vs Swarmer at close range
+    if (attackerStyle === 'inside-fighter' && defenderStyle === 'swarmer') {
+      return distance < 3 ? 1.18 : 0.94;
+    }
+    if (attackerStyle === 'swarmer' && defenderStyle === 'inside-fighter') {
+      return distance < 3 ? 0.88 : 1.04;
     }
 
-    return Math.min(0.95, Math.max(0.1, accuracy));
+    // Out-boxer vs Slugger
+    if (attackerStyle === 'slugger' && defenderStyle === 'out-boxer') {
+      return 0.90;
+    }
+
+    // Counter-puncher vs Slugger
+    if (attackerStyle === 'slugger' && defenderStyle === 'counter-puncher') {
+      return 0.88;
+    }
+
+    // Boxer-puncher vs Swarmer
+    if (attackerStyle === 'boxer-puncher' && defenderStyle === 'swarmer') {
+      return distance >= 4 ? 1.08 : distance < 3 ? 0.92 : 1.0;
+    }
+    if (attackerStyle === 'swarmer' && defenderStyle === 'boxer-puncher') {
+      return distance >= 4 ? 0.92 : distance < 3 ? 1.12 : 1.0;
+    }
+
+    return 1.0; // No special matchup modifier
   }
 
   /**
@@ -768,8 +692,22 @@ export class CombatResolver {
 
   /**
    * Resolve defense against a punch
+   * Parameters loaded from ModelParameters with fallback defaults
    */
   resolveDefense(defender, defenderDecision, punchType, target, defenderId = null) {
+    // Load defense parameters
+    const params = {
+      hurtDefenseChance: ModelParameters.get('combat.resolution.defense.hurt_defense_chance', 0.3),
+      cornerDefenseChance: ModelParameters.get('combat.resolution.defense.corner_defense_chance', 0.4),
+      ropesDefenseChance: ModelParameters.get('combat.resolution.defense.ropes_defense_chance', 0.6),
+      criticalDamageThreshold: ModelParameters.get('combat.resolution.defense.critical_damage_threshold', 0.95),
+      criticalDefenseChance: ModelParameters.get('combat.resolution.defense.critical_defense_chance', 0.1),
+      highDamageThreshold: ModelParameters.get('combat.resolution.defense.high_damage_threshold', 0.85),
+      highDamageDefenseChance: ModelParameters.get('combat.resolution.defense.high_damage_defense_chance', 0.25),
+      moderateDamageThreshold: ModelParameters.get('combat.resolution.defense.moderate_damage_threshold', 0.70),
+      moderateDamageDefenseChance: ModelParameters.get('combat.resolution.defense.moderate_damage_defense_chance', 0.5)
+    };
+
     const result = {
       blocked: false,
       evaded: false,
@@ -780,58 +718,47 @@ export class CombatResolver {
     };
 
     // Get effects defense modifier (negative = worse defense)
-    let effectsDefenseMod = 0;
-    if (this.effectsManager && defenderId) {
-      effectsDefenseMod = this.effectsManager.getDefenseModifier(defenderId);
-    }
+    const effectsDefenseMod = (this.effectsManager && defenderId)
+      ? this.effectsManager.getDefenseModifier(defenderId)
+      : 0;
 
     // If defender is hurt, defense is impaired
     if (defender.isHurt) {
-      // 30% chance to block/evade when hurt (modified by effects)
-      const hurtDefenseChance = Math.max(0.1, 0.3 + effectsDefenseMod);
-      if (Math.random() > hurtDefenseChance) {
+      const hurtChance = Math.max(0.1, params.hurtDefenseChance + effectsDefenseMod);
+      if (Math.random() > hurtChance) {
         return result;
       }
     }
 
     // Fighters backed into corner or on ropes are more vulnerable
-    // They have limited movement options and are easier targets
     const inCorner = this.isInCorner(defender);
     const onRopes = this.isOnRopes(defender);
 
-    if (inCorner) {
-      // In corner - severely limited defense options (40% defense chance)
-      if (Math.random() > 0.4) {
-        return result;
-      }
-    } else if (onRopes) {
-      // On ropes - limited movement for evasion (60% defense chance)
-      if (Math.random() > 0.6) {
-        return result;
-      }
+    // Position-based defense limitation
+    const positionCheck = inCorner
+      ? Math.random() > params.cornerDefenseChance
+      : onRopes
+        ? Math.random() > params.ropesDefenseChance
+        : false;
+
+    if (positionCheck) {
+      return result;
     }
 
     // Fighters with critical damage are nearly defenseless
-    // HP below 15% = very hard to defend, below 5% = practically defenseless
     const headDamagePercent = defender.getHeadDamagePercent();
-    if (headDamagePercent >= 0.95) {
-      // Nearly KO'd - almost no defense possible
-      if (Math.random() > 0.1) {
-        return result;
-      }
-    } else if (headDamagePercent >= 0.85) {
-      // Critical damage - severely impaired defense
-      if (Math.random() > 0.25) {
-        return result;
-      }
-    } else if (headDamagePercent >= 0.70) {
-      // High damage - impaired defense
-      if (Math.random() > 0.5) {
-        return result;
-      }
+    const damageDefenseCheck = headDamagePercent >= params.criticalDamageThreshold
+      ? Math.random() > params.criticalDefenseChance
+      : headDamagePercent >= params.highDamageThreshold
+        ? Math.random() > params.highDamageDefenseChance
+        : headDamagePercent >= params.moderateDamageThreshold
+          ? Math.random() > params.moderateDamageDefenseChance
+          : false;
+
+    if (damageDefenseCheck) {
+      return result;
     }
 
-    const defenseState = defender.state === FighterState.DEFENSIVE;
     const defenseSubState = defender.subState;
 
     // Check for active evasion
@@ -876,221 +803,257 @@ export class CombatResolver {
 
   /**
    * Calculate evade chance
-   * Evade should be relatively rare - even elite head movement shouldn't dodge most punches
+   * Parameters loaded from ModelParameters with fallback defaults
    */
   calculateEvadeChance(defender, punchType, target) {
-    let chance = 0.1;
+    // Load evasion parameters
+    const params = {
+      baseChance: ModelParameters.get('combat.resolution.evasion.base_chance', 0.1),
+      headMovementDivisor: ModelParameters.get('combat.resolution.evasion.head_movement_divisor', 500),
+      reflexesDivisor: ModelParameters.get('combat.resolution.evasion.reflexes_divisor', 600),
+      bodyShotMultiplier: ModelParameters.get('combat.resolution.evasion.body_shot_multiplier', 0.4),
+      hookUppercutMultiplier: ModelParameters.get('combat.resolution.evasion.hook_uppercut_multiplier', 0.7),
+      fatiguePenalty: ModelParameters.get('combat.resolution.evasion.fatigue_penalty', 0.7),
+      experienceBonusThreshold: ModelParameters.get('combat.resolution.evasion.experience_bonus_threshold', 80),
+      experienceBonusDivisor: ModelParameters.get('combat.resolution.evasion.experience_bonus_divisor', 200),
+      maxEvadeChance: ModelParameters.get('combat.resolution.evasion.max_evade_chance', 0.45)
+    };
 
-    // Head movement skill (reduced from /300 to /500)
-    chance += defender.defense.headMovement / 500;
+    // Base evade chance
+    const baseChance = params.baseChance;
 
-    // Reflexes (reduced from /400 to /600)
-    chance += defender.speed.reflexes / 600;
+    // Head movement and reflexes contribution
+    const skillBonus = defender.defense.headMovement / params.headMovementDivisor
+      + defender.speed.reflexes / params.reflexesDivisor;
 
-    // Body shots much harder to evade
-    if (target === 'body') {
-      chance *= 0.4;
-    }
+    // Target modifier (body shots much harder to evade)
+    const targetMod = target === 'body' ? params.bodyShotMultiplier : 1.0;
 
-    // Hooks and uppercuts harder to evade (inside punches)
-    if (punchType.includes('hook') || punchType.includes('uppercut')) {
-      chance *= 0.7;
-    }
+    // Punch type modifier (hooks and uppercuts harder to evade)
+    const isInsidePunch = punchType.includes('hook') || punchType.includes('uppercut');
+    const punchTypeMod = isInsidePunch ? params.hookUppercutMultiplier : 1.0;
 
     // Fatigue penalty
-    if (defender.getStaminaPercent() < 0.4) {
-      chance *= 0.7;
-    }
+    const fatigueMod = defender.getStaminaPercent() < 0.4 ? params.fatiguePenalty : 1.0;
 
-    // EXPERIENCE BONUS: Veterans see punches coming
+    // Experience bonus
     const experience = defender.mental?.experience || 70;
-    if (experience > 80) {
-      chance *= 1 + (experience - 80) / 200; // Up to 10% at 100 experience
-    }
+    const expMod = experience > params.experienceBonusThreshold
+      ? 1 + (experience - params.experienceBonusThreshold) / params.experienceBonusDivisor
+      : 1.0;
 
-    // ADAPTABILITY BONUS: Over rounds, adaptable fighters read patterns better
+    // Adaptability bonus over rounds
     const adaptability = defender.technical?.adaptability || 70;
     const round = this.currentRound || 1;
-    if (adaptability > 70 && round > 3) {
-      const roundBonus = (round - 3) * 0.01; // 0-9% over rounds 4-12
-      const adaptBonus = (adaptability - 70) / 100;
-      chance *= 1 + (roundBonus * adaptBonus);
-    }
+    const adaptMod = adaptability > 70 && round > 3
+      ? 1 + ((round - 3) * 0.01) * ((adaptability - 70) / 100)
+      : 1.0;
 
-    // Cap evade at 45% - even the best head movement can't dodge everything
-    return Math.min(0.45, chance);
+    // Combine all modifiers
+    const finalChance = (baseChance + skillBonus) * targetMod * punchTypeMod * fatigueMod * expMod * adaptMod;
+
+    return Math.min(params.maxEvadeChance, finalChance);
   }
 
   /**
    * Calculate block result
+   * Parameters loaded from ModelParameters with fallback defaults
    */
   calculateBlock(defender, defenseSubState, punchType, target) {
-    let blockChance = 0.3;
-    let damageReduction = 0.6;
-    let blockType = 'arm';
+    // Load blocking parameters
+    const params = {
+      baseChance: ModelParameters.get('combat.resolution.blocking.base_chance', 0.3),
+      highGuardBonus: ModelParameters.get('combat.resolution.blocking.high_guard_bonus', 0.25),
+      highGuardReduction: ModelParameters.get('combat.resolution.blocking.high_guard_reduction', 0.7),
+      highGuardBodyPenalty: ModelParameters.get('combat.resolution.blocking.high_guard_body_penalty', 0.15),
+      phillyShellStraightBonus: ModelParameters.get('combat.resolution.blocking.philly_shell_straight_bonus', 0.3),
+      phillyShellStraightReduction: ModelParameters.get('combat.resolution.blocking.philly_shell_straight_reduction', 0.8),
+      phillyShellHookBonus: ModelParameters.get('combat.resolution.blocking.philly_shell_hook_bonus', 0.1),
+      phillyShellHookReduction: ModelParameters.get('combat.resolution.blocking.philly_shell_hook_reduction', 0.5),
+      skillDivisor: ModelParameters.get('combat.resolution.blocking.skill_divisor', 400),
+      parryThreshold: ModelParameters.get('combat.resolution.blocking.parry_threshold', 60),
+      parryBonus: ModelParameters.get('combat.resolution.blocking.parry_bonus', 0.1),
+      parryReduction: ModelParameters.get('combat.resolution.blocking.parry_reduction', 0.9),
+      partialThreshold: ModelParameters.get('combat.resolution.blocking.partial_threshold', 0.15),
+      partialReduction: ModelParameters.get('combat.resolution.blocking.partial_reduction', 0.3)
+    };
 
-    // Defense sub-state bonuses
-    if (defenseSubState === DefensiveSubState.HIGH_GUARD) {
-      blockChance += 0.25;
-      damageReduction = 0.7;
-      blockType = 'high_guard';
+    // Calculate block chance and damage reduction based on stance
+    const { blockChance, damageReduction, blockType } = defenseSubState === DefensiveSubState.HIGH_GUARD
+      ? {
+          blockChance: params.baseChance + params.highGuardBonus + (target === 'body' ? -params.highGuardBodyPenalty : 0),
+          damageReduction: target === 'body' ? 0.4 : params.highGuardReduction,
+          blockType: 'high_guard'
+        }
+      : defenseSubState === DefensiveSubState.PHILLY_SHELL
+        ? {
+            blockChance: params.baseChance + (
+              punchType === PunchType.JAB || punchType === PunchType.CROSS
+                ? params.phillyShellStraightBonus
+                : params.phillyShellHookBonus
+            ),
+            damageReduction: punchType === PunchType.JAB || punchType === PunchType.CROSS
+              ? params.phillyShellStraightReduction
+              : params.phillyShellHookReduction,
+            blockType: 'shell'
+          }
+        : { blockChance: params.baseChance, damageReduction: 0.6, blockType: 'arm' };
 
-      // High guard weak to body
-      if (target === 'body') {
-        blockChance -= 0.15;
-        damageReduction = 0.4;
-      }
-    } else if (defenseSubState === DefensiveSubState.PHILLY_SHELL) {
-      // Philly shell good against straights
-      if (punchType === PunchType.JAB || punchType === PunchType.CROSS) {
-        blockChance += 0.3;
-        damageReduction = 0.8;
-      } else {
-        // Weak to hooks
-        blockChance += 0.1;
-        damageReduction = 0.5;
-      }
-      blockType = 'shell';
-    }
+    // Add blocking skill bonus
+    const skillBonus = defender.defense.blocking / params.skillDivisor;
+    const totalBlockChance = blockChance + skillBonus;
 
-    // Blocking skill
-    blockChance += defender.defense.blocking / 400;
-
-    // Parrying skill (for straights)
-    if ((punchType === PunchType.JAB || punchType === PunchType.CROSS) &&
-        defender.defense.parrying > 60) {
-      blockChance += 0.1;
-      damageReduction = 0.9;
-    }
+    // Parrying skill for straights
+    const isStraightPunch = punchType === PunchType.JAB || punchType === PunchType.CROSS;
+    const canParry = isStraightPunch && defender.defense.parrying > params.parryThreshold;
+    const finalBlockChance = canParry ? totalBlockChance + params.parryBonus : totalBlockChance;
+    const finalDamageReduction = canParry ? params.parryReduction : damageReduction;
 
     // Roll for block
     const roll = Math.random();
 
-    if (roll < blockChance) {
-      return { success: true, type: blockType, damageReduction };
-    } else if (roll < blockChance + 0.15) {
-      return { success: false, partial: true, damageReduction: 0.3 };
-    }
-
-    return { success: false, partial: false };
+    return roll < finalBlockChance
+      ? { success: true, type: blockType, damageReduction: finalDamageReduction }
+      : roll < finalBlockChance + params.partialThreshold
+        ? { success: false, partial: true, damageReduction: params.partialReduction }
+        : { success: false, partial: false };
   }
 
   /**
    * Calculate passive defense (last resort)
+   * Parameters loaded from ModelParameters with fallback defaults
    */
-  calculatePassiveDefense(defender, punchType) {
-    let chance = 0.1;
+  calculatePassiveDefense(defender, _punchType) {
+    const params = {
+      baseChance: ModelParameters.get('combat.resolution.passive.base_chance', 0.1),
+      ringAwarenessDivisor: ModelParameters.get('combat.resolution.passive.ring_awareness_divisor', 500),
+      experienceDivisor: ModelParameters.get('combat.resolution.passive.experience_divisor', 500)
+    };
 
-    // Ring awareness helps
-    chance += defender.defense.ringAwareness / 500;
-
-    // Experience helps
-    chance += defender.mental.experience / 500;
-
-    return chance;
+    // Functional calculation: base chance + skill contributions
+    return params.baseChance
+      + defender.defense.ringAwareness / params.ringAwarenessDivisor
+      + defender.mental.experience / params.experienceDivisor;
   }
 
   /**
    * Calculate damage for a landed punch
+   * Parameters loaded from ModelParameters with fallback defaults
    */
   calculateDamage(attacker, punchType, distance, isCounter, isPartial, attackerId = null, defender = null) {
-    const punchStats = PUNCH_BASE_STATS[punchType];
-    let damage = punchStats.baseDamage;
+    // Load damage parameters
+    const params = {
+      powerBase: ModelParameters.get('combat.resolution.damage.power_base', 0.6),
+      powerDivisor: ModelParameters.get('combat.resolution.damage.power_divisor', 250),
+      koPowerEliteThreshold: ModelParameters.get('combat.resolution.damage.ko_power_elite_threshold', 85),
+      koPowerEliteBonus: ModelParameters.get('combat.resolution.damage.ko_power_elite_bonus', 1.15),
+      koPowerGoodThreshold: ModelParameters.get('combat.resolution.damage.ko_power_good_threshold', 70),
+      counterBaseBonus: ModelParameters.get('combat.resolution.damage.counter_base_bonus', 1.15),
+      counterSkillDivisor: ModelParameters.get('combat.resolution.damage.counter_skill_divisor', 400),
+      partialHitMultiplier: ModelParameters.get('combat.resolution.damage.partial_hit_multiplier', 0.5),
+      bodyPunchBase: ModelParameters.get('combat.resolution.damage.body_punch_base', 0.7),
+      bodyPunchDivisor: ModelParameters.get('combat.resolution.damage.body_punch_divisor', 150),
+      fatigueSevereThreshold: ModelParameters.get('combat.resolution.damage.fatigue_severe_threshold', 0.25),
+      fatigueSevereMultiplier: ModelParameters.get('combat.resolution.damage.fatigue_severe_multiplier', 0.6),
+      fatigueModerateThreshold: ModelParameters.get('combat.resolution.damage.fatigue_moderate_threshold', 0.4),
+      fatigueModerateMultiplier: ModelParameters.get('combat.resolution.damage.fatigue_moderate_multiplier', 0.75),
+      fatigueMildThreshold: ModelParameters.get('combat.resolution.damage.fatigue_mild_threshold', 0.6),
+      fatigueMildMultiplier: ModelParameters.get('combat.resolution.damage.fatigue_mild_multiplier', 0.9),
+      varianceMin: ModelParameters.get('combat.resolution.damage.variance_min', 0.85),
+      varianceRange: ModelParameters.get('combat.resolution.damage.variance_range', 0.3)
+    };
 
-    // Weight class damage multiplier (heavyweights hit harder)
+    const punchStats = getPunchStatsFromParams(punchType);
+    const baseDamage = punchStats.baseDamage;
+
+    // Weight class damage multiplier
     const profile = this.getWeightClassProfile(attacker);
-    damage *= profile.damageMultiplier;
+    const weightClassMod = profile.damageMultiplier;
 
-    // Weight differential modifier - bigger fighters hit smaller fighters MUCH harder
-    // And smaller fighters struggle to hurt bigger opponents
-    if (defender) {
-      const attackerWeight = attacker.physical?.weight || 75;
-      const defenderWeight = defender.physical?.weight || 75;
-      const weightRatio = attackerWeight / defenderWeight;
+    // Weight differential modifier
+    const weightMod = defender ? this.calculateWeightDifferentialMod(attacker, defender) : 1.0;
 
-      if (weightRatio > 1.1) {
-        // Attacker is heavier - bonus damage
-        // 10% heavier = 1.15x, 20% heavier = 1.35x, 50% heavier = 2.0x
-        const weightBonus = 1 + (weightRatio - 1) * 2.0;
-        damage *= Math.min(2.5, weightBonus);
-      } else if (weightRatio < 0.9) {
-        // Attacker is lighter - reduced damage
-        // 10% lighter = 0.85x, 20% lighter = 0.65x, 50% lighter = 0.3x
-        const weightPenalty = weightRatio;
-        damage *= Math.max(0.3, weightPenalty);
-      }
-    }
+    // Effects manager power modifier
+    const effectsMod = (this.effectsManager && attackerId)
+      ? 1 + this.effectsManager.getPowerModifier(attackerId)
+      : 1.0;
 
-    // Apply effects manager power modifier
-    if (this.effectsManager && attackerId) {
-      const powerMod = this.effectsManager.getPowerModifier(attackerId);
-      damage *= 1 + powerMod;
-    }
-
-    // Power modifier - balanced for meaningful power differences
-    // Low power (50): 0.6 + 0.2 = 0.8x damage
-    // Average power (70): 0.6 + 0.28 = 0.88x damage
-    // High power (95): 0.6 + 0.38 = 0.98x damage
-    // With knockout power bonus for sluggers
+    // Power modifier calculation
     const power = punchType.includes('jab') || punchType.includes('body_jab')
       ? (attacker.power.powerLeft + attacker.power.powerRight) / 4
       : punchType.includes('lead')
         ? attacker.power.powerLeft
         : attacker.power.powerRight;
 
-    // Base power modifier (0.6 to 1.0 based on power stat)
-    let powerMultiplier = 0.6 + power / 250;
+    const basePowerMod = params.powerBase + power / params.powerDivisor;
 
-    // Knockout power bonus for power punches (not jabs)
-    // High knockout power (90+) adds significant damage to power shots
-    if (!punchType.includes('jab') && attacker.power.knockoutPower) {
-      const koPower = attacker.power.knockoutPower;
-      if (koPower >= 85) {
-        powerMultiplier *= 1.15 + (koPower - 85) / 100; // 1.15-1.3x for elite KO power
-      } else if (koPower >= 70) {
-        powerMultiplier *= 1.0 + (koPower - 70) / 150; // 1.0-1.1x for good KO power
-      }
-    }
+    // KO power bonus for power punches
+    const koPower = attacker.power.knockoutPower || 70;
+    const koPowerMod = !punchType.includes('jab') && koPower >= params.koPowerEliteThreshold
+      ? params.koPowerEliteBonus + (koPower - params.koPowerEliteThreshold) / 100
+      : !punchType.includes('jab') && koPower >= params.koPowerGoodThreshold
+        ? 1.0 + (koPower - params.koPowerGoodThreshold) / 150
+        : 1.0;
 
-    damage *= powerMultiplier;
+    const powerMod = basePowerMod * koPowerMod;
 
-    // Distance modifier (sweet spot for each punch)
-    const optimalRange = punchStats.range;
-    const rangeDeviation = Math.abs(distance - optimalRange);
-    damage *= Math.max(0.5, 1 - rangeDeviation * 0.1);
+    // Distance modifier
+    const rangeDeviation = Math.abs(distance - punchStats.range);
+    const distanceMod = Math.max(0.5, 1 - rangeDeviation * 0.1);
 
-    // Counter punch bonus (multiplicative, not additive flat bonus)
-    // Elite counter-punchers (90+) get up to 1.4x, average (70) gets 1.28x
-    if (isCounter) {
-      const counterSkill = attacker.offense.counterPunching || 70;
-      const counterBonus = 1.15 + counterSkill / 400; // 1.15x to 1.4x
-      damage *= counterBonus;
-    }
+    // Counter punch bonus
+    const counterSkill = attacker.offense.counterPunching || 70;
+    const counterMod = isCounter
+      ? params.counterBaseBonus + counterSkill / params.counterSkillDivisor
+      : 1.0;
 
     // Partial hit reduction
-    if (isPartial) {
-      damage *= 0.5;
-    }
+    const partialMod = isPartial ? params.partialHitMultiplier : 1.0;
 
     // Body punching skill for body shots
-    if (punchType.includes('body')) {
-      damage *= (0.7 + attacker.power.bodyPunching / 150);
-    }
+    const bodyMod = punchType.includes('body')
+      ? params.bodyPunchBase + attacker.power.bodyPunching / params.bodyPunchDivisor
+      : 1.0;
 
     // Fatigue penalty
     const staminaPercent = attacker.getStaminaPercent();
-    if (staminaPercent < 0.25) {
-      damage *= 0.6;
-    } else if (staminaPercent < 0.4) {
-      damage *= 0.75;
-    } else if (staminaPercent < 0.6) {
-      damage *= 0.9;
-    }
+    const fatigueMod = staminaPercent < params.fatigueSevereThreshold ? params.fatigueSevereMultiplier
+      : staminaPercent < params.fatigueModerateThreshold ? params.fatigueModerateMultiplier
+      : staminaPercent < params.fatigueMildThreshold ? params.fatigueMildMultiplier
+      : 1.0;
 
     // Random variance
-    damage *= 0.85 + Math.random() * 0.3;
+    const varianceMod = params.varianceMin + Math.random() * params.varianceRange;
 
-    return Math.max(1, Math.round(damage));
+    // Combine all modifiers
+    const finalDamage = baseDamage
+      * weightClassMod
+      * weightMod
+      * effectsMod
+      * powerMod
+      * distanceMod
+      * counterMod
+      * partialMod
+      * bodyMod
+      * fatigueMod
+      * varianceMod;
+
+    return Math.max(1, Math.round(finalDamage));
+  }
+
+  /**
+   * Calculate weight differential modifier for damage
+   */
+  calculateWeightDifferentialMod(attacker, defender) {
+    const attackerWeight = attacker.physical?.weight || 75;
+    const defenderWeight = defender.physical?.weight || 75;
+    const weightRatio = attackerWeight / defenderWeight;
+
+    return weightRatio > 1.1
+      ? Math.min(2.5, 1 + (weightRatio - 1) * 2.0)
+      : weightRatio < 0.9
+        ? Math.max(0.3, weightRatio)
+        : 1.0;
   }
 
   /**
@@ -1105,71 +1068,92 @@ export class CombatResolver {
     // Only head shots can cause knockdowns
     if (hit.location !== 'head') return null;
 
+    // Load knockdown check parameters
+    const kdParams = {
+      minDamagePercent: ModelParameters.get('combat.resolution.knockdown_check.min_damage_percent', 0.15),
+      chinBase: ModelParameters.get('combat.resolution.knockdown_check.chin_base', 3),
+      chinDivisor: ModelParameters.get('combat.resolution.knockdown_check.chin_divisor', 15),
+      damageReductionThreshold: ModelParameters.get('combat.resolution.knockdown_check.damage_reduction_threshold', 0.5),
+      damageReductionFactor: ModelParameters.get('combat.resolution.knockdown_check.damage_reduction_factor', 0.3),
+      staminaSevereThreshold: ModelParameters.get('combat.resolution.knockdown_check.stamina_severe_threshold', 0.25),
+      staminaSevereReduction: ModelParameters.get('combat.resolution.knockdown_check.stamina_severe_reduction', 0.85),
+      staminaModerateThreshold: ModelParameters.get('combat.resolution.knockdown_check.stamina_moderate_threshold', 0.4),
+      staminaModerateReduction: ModelParameters.get('combat.resolution.knockdown_check.stamina_moderate_reduction', 0.92),
+      flashDamageThreshold: ModelParameters.get('combat.resolution.knockdown_check.flash_damage_threshold', 8),
+      flashCapEliteChin: ModelParameters.get('combat.resolution.knockdown_check.flash_cap_elite_chin', 0.025),
+      flashCapGoodChin: ModelParameters.get('combat.resolution.knockdown_check.flash_cap_good_chin', 0.035),
+      flashCapDecentChin: ModelParameters.get('combat.resolution.knockdown_check.flash_cap_decent_chin', 0.045),
+      flashCapWeakChin: ModelParameters.get('combat.resolution.knockdown_check.flash_cap_weak_chin', 0.10),
+      flashCapDefault: ModelParameters.get('combat.resolution.knockdown_check.flash_cap_default', 0.06),
+      zeroStaminaThreshold: ModelParameters.get('combat.resolution.knockdown_check.zero_stamina_threshold', 0.10),
+      zeroStaminaMaxMultiplier: ModelParameters.get('combat.resolution.knockdown_check.zero_stamina_max_multiplier', 2.0),
+      directKnockdownFreshMultiplier: ModelParameters.get('combat.resolution.knockdown_check.direct_knockdown_fresh_multiplier', 1.3)
+    };
+
     // Check damage threshold
     const headDamagePercent = target.getHeadDamagePercent();
     const chin = target.mental.chin;
     const staminaPercent = target.getStaminaPercent();
 
-    // PROTECTION: No knockdowns when fighter is fresh (< 15% accumulated damage)
+    // PROTECTION: No knockdowns when fighter is fresh (< minDamagePercent accumulated damage)
     // This prevents unrealistic first-punch knockouts
     // Exception: Extremely powerful clean shots can still cause flash KDs
-    const minDamageForKnockdown = 0.15;
-    const isFresh = headDamagePercent < minDamageForKnockdown;
+    const isFresh = headDamagePercent < kdParams.minDamagePercent;
 
-    // Base knockdown threshold - scales with chin
-    // Higher chin = needs more single-punch damage to go down
-    // With new lower punch damage values (max ~5-8 per punch), threshold should be achievable
-    // Range: ~4 (chin 30) to ~9 (chin 100) - damage of 5+ has a chance to KD
-    let knockdownThreshold = 3 + (chin / 15);
+    // Calculate knockdown threshold with functional approach
+    const calculateKnockdownThreshold = () => {
+      // Base knockdown threshold - scales with chin
+      const baseThreshold = kdParams.chinBase + (chin / kdParams.chinDivisor);
 
-    // Reduce threshold if significantly damaged (> 50%)
-    // Accumulated damage wears down resistance
-    if (headDamagePercent > 0.5) {
-      const damageReduction = (headDamagePercent - 0.5) * 0.3; // Max 15% reduction at 100%
-      knockdownThreshold *= (1 - damageReduction);
-    }
+      // Damage reduction modifier (accumulated damage wears down resistance)
+      const damageModifier = headDamagePercent > kdParams.damageReductionThreshold
+        ? 1 - ((headDamagePercent - kdParams.damageReductionThreshold) * kdParams.damageReductionFactor)
+        : 1.0;
 
-    // Reduce threshold if very low stamina (exhausted fighters go down easier)
-    if (staminaPercent < 0.25) {
-      knockdownThreshold *= 0.85;
-    } else if (staminaPercent < 0.4) {
-      knockdownThreshold *= 0.92;
-    }
+      // Stamina reduction modifier (exhausted fighters go down easier)
+      const staminaModifier = staminaPercent < kdParams.staminaSevereThreshold
+        ? kdParams.staminaSevereReduction
+        : staminaPercent < kdParams.staminaModerateThreshold
+          ? kdParams.staminaModerateReduction
+          : 1.0;
+
+      return baseThreshold * damageModifier * staminaModifier;
+    };
+
+    const knockdownThreshold = calculateKnockdownThreshold();
 
     // DIRECT KNOCKDOWN: Only possible when damaged enough or hit VERY hard
     // Fresh fighters can only be knocked down by exceptional shots
-    const directKnockdownPossible = !isFresh || hit.damage >= knockdownThreshold * 1.3;
+    const directKnockdownPossible = !isFresh || hit.damage >= knockdownThreshold * kdParams.directKnockdownFreshMultiplier;
 
     // ZERO STAMINA VULNERABILITY: Exhausted fighters are extremely vulnerable to KOs
-    // At 0% stamina: 2.0x KO multiplier (resistance halved)
-    // At 5% stamina: 1.5x KO multiplier
-    // At 10%+ stamina: no additional vulnerability
+    // At 0% stamina: maxMultiplier KO multiplier (resistance halved)
+    // At threshold stamina: no additional vulnerability
     const targetStaminaPercent = target.getStaminaPercent();
-    let zeroStaminaKOMultiplier = 1.0;
-    if (targetStaminaPercent <= 0.10) {
-      const severityFactor = 1 - (targetStaminaPercent / 0.10);
-      zeroStaminaKOMultiplier = 1.0 + (1.0 * severityFactor); // 1.0 to 2.0
-    }
+    const zeroStaminaKOMultiplier = targetStaminaPercent <= kdParams.zeroStaminaThreshold
+      ? 1.0 + ((kdParams.zeroStaminaMaxMultiplier - 1.0) * (1 - targetStaminaPercent / kdParams.zeroStaminaThreshold))
+      : 1.0;
 
     if (directKnockdownPossible && hit.damage >= knockdownThreshold) {
       // Roll against chin - higher chin = much harder to knock down
       // chinResistance is the CHANCE to RESIST knockdown (higher = better)
       // ELITE CHIN SCALING: 85+ chins should be nearly impossible to drop
-      // Base: chin 50 = 0.40 resist, chin 70 = 0.65 resist
-      // Elite: chin 85 = 0.85 resist, chin 90 = 0.92 resist, chin 95 = 0.96 resist
-      let chinResistance = (chin - 30) / 80; // Base: 0.25 - 0.875 range
+      // Functional chin resistance calculation
+      const calculateChinResistance = (chinValue) => {
+        // Elite chin bonus - exponential resistance for 80+ chins
+        const baseResistance = chin >= 90
+          ? 0.85 + (chinValue - 90) * 0.012  // 90=0.85, 95=0.91, 100=0.97
+          : chin >= 85
+            ? 0.75 + (chinValue - 85) * 0.02   // 85=0.75, 90=0.85
+            : chin >= 80
+              ? 0.65 + (chinValue - 80) * 0.02 // 80=0.65, 85=0.75
+              : (chinValue - 30) / 80;          // Base: 0.25 - 0.875 range
 
-      // Elite chin bonus - exponential resistance for 80+ chins
-      if (chin >= 90) {
-        chinResistance = 0.85 + (chin - 90) * 0.012; // 90=0.85, 95=0.91, 100=0.97
-      } else if (chin >= 85) {
-        chinResistance = 0.75 + (chin - 85) * 0.02; // 85=0.75, 90=0.85
-      } else if (chin >= 80) {
-        chinResistance = 0.65 + (chin - 80) * 0.02; // 80=0.65, 85=0.75
-      }
+        // Apply zero stamina vulnerability - reduces resistance when exhausted
+        return baseResistance / zeroStaminaKOMultiplier;
+      };
 
-      // Apply zero stamina vulnerability - reduces resistance when exhausted
-      chinResistance /= zeroStaminaKOMultiplier;
+      const chinResistance = calculateChinResistance(chin);
 
       // Knockdown happens if random roll EXCEEDS resistance (i.e., chin fails to protect)
       if (Math.random() > chinResistance) {
@@ -1188,8 +1172,7 @@ export class CombatResolver {
     // 2. Significant damage (>= 70% of threshold)
     // 3. Some accumulated damage OR exceptionally powerful shot
     // 4. Random chance scaled by knockout power vs chin
-    // With new damage scale, 8+ damage is a big shot
-    const flashKnockdownPossible = !isFresh || hit.damage >= 8;
+    const flashKnockdownPossible = !isFresh || hit.damage >= kdParams.flashDamageThreshold;
 
     // Flash knockdown: Any clean power punch can cause knockdown
     // Elite KO power (90+) makes this much more likely
@@ -1204,122 +1187,94 @@ export class CombatResolver {
       const knockoutPower = attacker.power.knockoutPower;
 
       // MISMATCH CHECK: Low KO power vs elite chin = virtually no knockdowns
-      // If chin exceeds knockout power by 20+, knockdowns are extremely rare
+      // If chin exceeds knockout power by 25+, knockdowns are extremely rare
       const chinAdvantage = chin - knockoutPower;
-      if (chinAdvantage >= 25) {
+      if (chinAdvantage >= 25 && headDamagePercent < 0.5) {
         // Massive mismatch - weak puncher vs iron chin (e.g., 58 KO vs 85 chin)
         // Only possible if fighter is severely damaged (50%+)
-        if (headDamagePercent < 0.5) {
-          return null; // No knockdown possible
-        }
+        return null;
       }
 
-      // Flash knockdown chance - elite KO power DOMINATES
-      // Base chance from KO power vs chin matchup
-      // Tyson (99 KO) vs weak chin (68): should have good knockdown chances
-      let flashChance = Math.max(0, (knockoutPower - 40) / 200) * (1 - chin / 150);
+      // Functional flash knockdown calculation
+      const calculateFlashChance = () => {
+        // Base chance from KO power vs chin matchup
+        const baseChance = Math.max(0, (knockoutPower - 40) / 200) * (1 - chin / 150);
 
-      // ELITE CHIN PROTECTION (85+): These fighters rarely go down
-      // Prime Tyson, prime Holyfield, etc. - iron jaws
-      if (chin >= 90) {
-        flashChance *= 0.25; // 75% reduction
-      } else if (chin >= 85) {
-        flashChance *= 0.4; // 60% reduction
-      } else if (chin >= 80) {
-        flashChance *= 0.6; // 40% reduction
-      }
+        // Elite chin protection modifier (85+): These fighters rarely go down
+        const eliteChinMod = chin >= 90 ? 0.25
+          : chin >= 85 ? 0.4
+          : chin >= 80 ? 0.6
+          : 1.0;
 
-      // LOW KNOCKOUT POWER PENALTY (< 70): Weak punchers struggle to drop anyone
-      if (knockoutPower < 60) {
-        flashChance *= 0.3; // Pillow fists
-      } else if (knockoutPower < 70) {
-        flashChance *= 0.5; // Below average power
-      }
+        // Low knockout power penalty (< 70): Weak punchers struggle to drop anyone
+        const lowPowerMod = knockoutPower < 60 ? 0.3
+          : knockoutPower < 70 ? 0.5
+          : 1.0;
 
-      // Elite knockout power (90+) gets bonus - but reduced for realism
-      // Elite vs elite fights should mostly go to decision
-      if (knockoutPower >= 95) {
-        flashChance *= 1.6 + (knockoutPower - 95) / 50; // 1.6x to 1.7x for 95-100 KO (reduced from 2.5x)
-      } else if (knockoutPower >= 90) {
-        flashChance *= 1.4;
-      } else if (knockoutPower >= 80) {
-        flashChance *= 1.2;
-      }
+        // Elite knockout power bonus (90+)
+        const elitePowerMod = knockoutPower >= 95 ? (1.6 + (knockoutPower - 95) / 50)
+          : knockoutPower >= 90 ? 1.4
+          : knockoutPower >= 80 ? 1.2
+          : 1.0;
 
-      // EARLY ROUND KO POWER BOOST - Fast starters like Tyson should have a window
-      // Only ELITE KO power (94+) gets early round bonus - truly exceptional finishers
-      // Tyson was most dangerous early - 22 of his 44 KOs came in first 2 rounds
-      // This partially counteracts the "fresh fighter protection" for elite power punchers
-      const currentRound = this.currentRound || 1;
-      if (currentRound <= 5 && knockoutPower >= 94) {
-        const roundFade = 1 - (currentRound - 1) / 5; // 1.0 in R1, 0.8 in R2, etc.
-        const powerFactor = (knockoutPower - 92) / 25; // 99 KO = 0.28, 94 KO = 0.08
-        const earlyRoundBonus = 1 + powerFactor * roundFade * 1.5;
-        // Round 1: 99 KO = 1.42x, 94 KO = 1.12x
-        // Round 3: 99 KO = 1.25x, bonus fading
-        // Round 5: minimal bonus
-        flashChance *= earlyRoundBonus;
-      }
+        // Early round KO power boost - Fast starters like Tyson
+        // Only ELITE KO power (94+) gets early round bonus
+        const currentRound = this.currentRound || 1;
+        const earlyRoundMod = (currentRound <= 5 && knockoutPower >= 94)
+          ? (() => {
+            const roundFade = 1 - (currentRound - 1) / 5;
+            const powerFactor = (knockoutPower - 92) / 25;
+            return 1 + powerFactor * roundFade * 1.5;
+          })()
+          : 1.0;
 
-      // Scale up with accumulated damage (worn down fighters more vulnerable)
-      // But less aggressive scaling - elite fighters can take punishment
-      if (headDamagePercent > 0.4) {
-        flashChance *= (1 + (headDamagePercent - 0.4) * 1.5); // Max ~1.9x at 100% damage
-      }
+        // Accumulated damage vulnerability modifier
+        const damageMod = headDamagePercent > 0.4
+          ? (1 + (headDamagePercent - 0.4) * 1.5)
+          : 1.0;
 
-      // Fresh fighters get some protection - but big punchers can still score early KOs
-      if (isFresh) {
-        // Elite KO power can still get knockdowns on fresh fighters
-        if (knockoutPower >= 90) {
-          flashChance *= 0.5; // 50% reduction for elite KO power
-        } else {
-          flashChance *= 0.35; // 65% reduction for normal power
-        }
-      }
+        // Fresh fighter protection modifier
+        const freshMod = isFresh
+          ? (knockoutPower >= 90 ? 0.5 : 0.35)
+          : 1.0;
 
-      // Low stamina increases vulnerability but less dramatically
-      if (staminaPercent < 0.2) {
-        flashChance *= 1.3;
-      } else if (staminaPercent < 0.4) {
-        flashChance *= 1.1;
-      }
+        // Low stamina vulnerability modifier
+        const staminaMod = staminaPercent < 0.2 ? 1.3
+          : staminaPercent < 0.4 ? 1.1
+          : 1.0;
 
-      // ZERO STAMINA VULNERABILITY: Apply KO multiplier for exhausted fighters
-      // This stacks with the above low stamina modifier for truly devastating effect at 0%
-      flashChance *= zeroStaminaKOMultiplier;
+        // Power punch bonus modifier
+        const powerPunchMod = (hit.punchType && (
+          hit.punchType.includes('hook') ||
+          hit.punchType.includes('uppercut') ||
+          hit.punchType === 'cross'
+        )) ? 1.2 : 1.0;
 
-      // Power punches have higher KO chance
-      if (hit.punchType && (hit.punchType.includes('hook') || hit.punchType.includes('uppercut') || hit.punchType === 'cross')) {
-        flashChance *= 1.2; // Reduced from 1.3
-      }
+        // Combine all modifiers
+        return baseChance * eliteChinMod * lowPowerMod * elitePowerMod *
+               earlyRoundMod * damageMod * freshMod * staminaMod *
+               zeroStaminaKOMultiplier * powerPunchMod;
+      };
 
-      // Cap maximum flash knockdown chance - balanced for exciting fights
-      // Target: ~0.5-1.5 knockdowns per fight for heavyweight matchups
-      // Elite vs elite should still be lower, but knockdowns should HAPPEN
-      let flashCap = 0.06; // Default 6% (increased from 2.5%)
-      if (chin >= 90) {
-        flashCap = 0.025; // 2.5% max for 90+ chin (iron jaw)
-      } else if (chin >= 85) {
-        flashCap = 0.035; // 3.5% max for 85+ chin (elite chin)
-      } else if (chin >= 80) {
-        flashCap = 0.045; // 4.5% max for 80+ chin (good chin)
-      } else if (chin < 70) {
-        flashCap = 0.10; // 10% max for weak chin (glass jaw)
-      }
+      // Calculate flash cap based on chin level (from params)
+      const calculateFlashCap = () => {
+        const baseCap = chin >= 90 ? kdParams.flashCapEliteChin
+          : chin >= 85 ? kdParams.flashCapGoodChin
+          : chin >= 80 ? kdParams.flashCapDecentChin
+          : chin < 70 ? kdParams.flashCapWeakChin
+          : kdParams.flashCapDefault;
 
-      // Elite KO power raises the cap significantly
-      // Tyson, Foreman, Wilder should drop people
-      if (knockoutPower >= 95) {
-        flashCap *= 2.5; // 99 KO vs 93 chin: cap becomes ~6% instead of 2.5%
-      } else if (knockoutPower >= 90) {
-        flashCap *= 2.0;
-      } else if (knockoutPower >= 85) {
-        flashCap *= 1.6;
-      } else if (knockoutPower >= 80) {
-        flashCap *= 1.3;
-      }
+        // Elite KO power raises the cap significantly
+        const powerMultiplier = knockoutPower >= 95 ? 2.5
+          : knockoutPower >= 90 ? 2.0
+          : knockoutPower >= 85 ? 1.6
+          : knockoutPower >= 80 ? 1.3
+          : 1.0;
 
-      flashChance = Math.min(flashCap, flashChance);
+        return baseCap * powerMultiplier;
+      };
+
+      const flashChance = Math.min(calculateFlashCap(), calculateFlashChance());
 
       if (Math.random() < flashChance) {
         return {

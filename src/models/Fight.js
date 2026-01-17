@@ -4,6 +4,10 @@
  */
 
 import { Round } from './Round.js';
+import ModelParameters from '../engine/model/ModelParameters.js';
+
+// Helper to get scoring parameters with defaults
+const getScoringParam = (path, defaultValue) => ModelParameters.get(`scoring.${path}`, defaultValue);
 
 // Fight status
 export const FightStatus = {
@@ -310,34 +314,62 @@ export class Fight {
     const statsA = round.stats.A;
     const statsB = round.stats.B;
 
+    // Load scoring parameters
+    const cleanPunchParams = {
+      cleanPunchesWeight: getScoringParam('clean_punching.clean_punches_weight', 0.8),
+      powerPunchesWeight: getScoringParam('clean_punching.power_punches_weight', 1.5),
+      jabsWeight: getScoringParam('clean_punching.jabs_weight', 0.2),
+      damageWeight: getScoringParam('clean_punching.damage_weight', 6.0),
+      damageDivisor: getScoringParam('clean_punching.damage_divisor', 10),
+      significantStrikesWeight: getScoringParam('clean_punching.significant_strikes_weight', 3.0)
+    };
+
+    const aggressionParams = {
+      forwardMovementBase: getScoringParam('effective_aggression.forward_movement_base', 0.03),
+      outlandingBonus: getScoringParam('effective_aggression.outlanding_bonus', 2),
+      damageAdvantageBonus: getScoringParam('effective_aggression.damage_advantage_bonus', 18),
+      absoluteDamageDivisor: getScoringParam('effective_aggression.absolute_damage_divisor', 15)
+    };
+
+    const ringGenParams = {
+      centerControlWeight: getScoringParam('ring_generalship.center_control_weight', 0.2),
+      opponentRopesWeight: getScoringParam('ring_generalship.opponent_ropes_weight', 0.25),
+      opponentCornerWeight: getScoringParam('ring_generalship.opponent_corner_weight', 0.4),
+      backwardPenaltyWinning: getScoringParam('ring_generalship.backward_penalty_winning', 0.02),
+      backwardPenaltyLosing: getScoringParam('ring_generalship.backward_penalty_losing', 0.08),
+      ownRopesPenalty: getScoringParam('ring_generalship.own_ropes_penalty', 0.12),
+      ownCornerPenalty: getScoringParam('ring_generalship.own_corner_penalty', 0.2)
+    };
+
+    const defenseParams = {
+      blockedWeight: getScoringParam('defense.blocked_weight', 1.0),
+      evadedWeight: getScoringParam('defense.evaded_weight', 2.0),
+      damageReceivedDivisor: getScoringParam('defense.damage_received_divisor', 20)
+    };
+
+    const judgeAppParams = {
+      cleanPunchingMultiplier: getScoringParam('judge_application.clean_punching_multiplier', 1.2),
+      powerShotsMultiplier: getScoringParam('judge_application.power_shots_multiplier', 2.0),
+      volumeMultiplier: getScoringParam('judge_application.volume_multiplier', 0.25),
+      defenseMultiplier: getScoringParam('judge_application.defense_multiplier', 0.8)
+    };
+
     // ============================================
     // 1. CLEAN EFFECTIVE PUNCHING
-    // Power punches and damage matter more than jabs
     // ============================================
+    const calculateCleanPunching = (stats) =>
+      stats.cleanPunchesLanded * cleanPunchParams.cleanPunchesWeight +
+      stats.powerPunchesLanded * cleanPunchParams.powerPunchesWeight +
+      stats.jabsLanded * cleanPunchParams.jabsWeight +
+      (stats.damageDealt / cleanPunchParams.damageDivisor) * cleanPunchParams.damageWeight +
+      stats.significantStrikesLanded * cleanPunchParams.significantStrikesWeight;
 
-    // Clean punches weighted by impact
-    // DAMAGE is king - fighter dealing more damage should win rounds
-    // In boxing, it's not about how many punches you throw, but how effective they are
-    // Lewis' power jab vs Holyfield's volume - Lewis should win if dealing more damage
-    const cleanPunchingA =
-      statsA.cleanPunchesLanded * 0.8 +           // Clean shots (reduced - count less)
-      statsA.powerPunchesLanded * 1.5 +           // Power punches (reduced)
-      statsA.jabsLanded * 0.2 +                   // Jabs worth minimal
-      (statsA.damageDealt / 10) * 6.0 +           // DAMAGE - very heavily weighted (up from 4)
-      statsA.significantStrikesLanded * 3.0;      // Big, impactful shots
-
-    const cleanPunchingB =
-      statsB.cleanPunchesLanded * 0.8 +
-      statsB.powerPunchesLanded * 1.5 +
-      statsB.jabsLanded * 0.2 +
-      (statsB.damageDealt / 10) * 6.0 +           // DAMAGE - very heavily weighted (up from 4)
-      statsB.significantStrikesLanded * 3.0;
+    const cleanPunchingA = calculateCleanPunching(statsA);
+    const cleanPunchingB = calculateCleanPunching(statsB);
 
     // ============================================
     // 2. EFFECTIVE AGGRESSION
-    // Moving forward AND landing, not just charging
     // ============================================
-
     const accuracyA = statsA.punchesThrown > 0
       ? statsA.punchesLanded / statsA.punchesThrown
       : 0;
@@ -345,196 +377,175 @@ export class Fight {
       ? statsB.punchesLanded / statsB.punchesThrown
       : 0;
 
-    // Effective aggression = forward pressure that results in landed punches
-    // Just moving forward without landing shouldn't score much - DAMAGE is what counts
-    // Reduce forward movement bonus significantly - it's not effective if it doesn't hurt opponent
-    // Boxing rewards EFFECTIVE aggression, not just walking forward
-    const effectiveAggressionA =
-      statsA.forwardMovementTime * 0.03 * accuracyA +          // Forward movement (reduced more)
-      (statsA.punchesLanded > statsB.punchesLanded ? 2 : 0) +  // Small bonus for outlanding
-      (statsA.damageDealt > statsB.damageDealt ? 18 : 0) +     // BIG bonus for damage advantage
-      (statsA.damageDealt / 15);                               // Absolute damage bonus (increased)
+    const calculateEffectiveAggression = (ownStats, oppStats, accuracy) =>
+      ownStats.forwardMovementTime * aggressionParams.forwardMovementBase * accuracy +
+      (ownStats.punchesLanded > oppStats.punchesLanded ? aggressionParams.outlandingBonus : 0) +
+      (ownStats.damageDealt > oppStats.damageDealt ? aggressionParams.damageAdvantageBonus : 0) +
+      (ownStats.damageDealt / aggressionParams.absoluteDamageDivisor);
 
-    const effectiveAggressionB =
-      statsB.forwardMovementTime * 0.03 * accuracyB +
-      (statsB.punchesLanded > statsA.punchesLanded ? 2 : 0) +
-      (statsB.damageDealt > statsA.damageDealt ? 18 : 0) +
-      (statsB.damageDealt / 15);
+    const effectiveAggressionA = calculateEffectiveAggression(statsA, statsB, accuracyA);
+    const effectiveAggressionB = calculateEffectiveAggression(statsB, statsA, accuracyB);
 
     // ============================================
     // 3. RING GENERALSHIP
-    // Who is dictating the fight? Not who is running!
-    // Controlling center, cutting off ring, forcing opponent to corners/ropes
     // ============================================
+    const calculateBackwardPenalty = (ownStats, oppStats) =>
+      ownStats.damageDealt > oppStats.damageDealt
+        ? ownStats.backwardMovementTime * ringGenParams.backwardPenaltyWinning
+        : ownStats.backwardMovementTime * ringGenParams.backwardPenaltyLosing;
 
-    // Penalize backward movement ONLY if not dealing damage
-    // Smart boxing (moving backward but outscoring) shouldn't be penalized
-    // If dealing more damage while moving back, that's ring generalship, not running
-    const backwardPenaltyA = statsA.damageDealt > statsB.damageDealt
-      ? statsA.backwardMovementTime * 0.02  // Minimal penalty - boxing, not running
-      : statsA.backwardMovementTime * 0.08; // Penalty - running without effective offense
-    const backwardPenaltyB = statsB.damageDealt > statsA.damageDealt
-      ? statsB.backwardMovementTime * 0.02
-      : statsB.backwardMovementTime * 0.08;
+    const backwardPenaltyA = calculateBackwardPenalty(statsA, statsB);
+    const backwardPenaltyB = calculateBackwardPenalty(statsB, statsA);
 
-    // Reward controlling center and putting opponent on ropes/corners
-    // Also consider who is dictating WHERE the fight takes place
-    const ringGeneralshipA =
-      statsA.centerControlTime * 0.2 +            // Center control (slightly reduced)
-      statsB.ropeTime * 0.25 +                    // Opponent on ropes (you put them there)
-      statsB.cornerTime * 0.4 -                   // Opponent in corner (you trapped them)
-      backwardPenaltyA -                          // Penalize running (not boxing)
-      statsA.ropeTime * 0.12 -                    // Penalize being on ropes yourself
-      statsA.cornerTime * 0.2;                    // Penalize being cornered yourself
+    const calculateRingGeneralship = (ownStats, oppStats, backwardPenalty) =>
+      ownStats.centerControlTime * ringGenParams.centerControlWeight +
+      oppStats.ropeTime * ringGenParams.opponentRopesWeight +
+      oppStats.cornerTime * ringGenParams.opponentCornerWeight -
+      backwardPenalty -
+      ownStats.ropeTime * ringGenParams.ownRopesPenalty -
+      ownStats.cornerTime * ringGenParams.ownCornerPenalty;
 
-    const ringGeneralshipB =
-      statsB.centerControlTime * 0.2 +
-      statsA.ropeTime * 0.25 +
-      statsA.cornerTime * 0.4 -
-      backwardPenaltyB -
-      statsB.ropeTime * 0.12 -
-      statsB.cornerTime * 0.2;
+    const ringGeneralshipA = calculateRingGeneralship(statsA, statsB, backwardPenaltyA);
+    const ringGeneralshipB = calculateRingGeneralship(statsB, statsA, backwardPenaltyB);
 
     // ============================================
     // 4. DEFENSE
-    // Making opponent miss through skill, not just running
-    // Blocking and slipping are more valuable than just being far away
     // ============================================
+    const calculateDefense = (stats) =>
+      stats.punchesBlocked * defenseParams.blockedWeight +
+      stats.punchesEvaded * defenseParams.evadedWeight -
+      (stats.damageReceived / defenseParams.damageReceivedDivisor);
 
-    // Defense through skill (blocking, evading)
-    const defenseA =
-      statsA.punchesBlocked * 1.0 +              // Blocking
-      statsA.punchesEvaded * 2.0 -               // Head movement (more skillful)
-      (statsA.damageReceived / 20);              // Penalize taking damage
-
-    const defenseB =
-      statsB.punchesBlocked * 1.0 +
-      statsB.punchesEvaded * 2.0 -
-      (statsB.damageReceived / 20);
+    const defenseA = calculateDefense(statsA);
+    const defenseB = calculateDefense(statsB);
 
     // ============================================
     // APPLY JUDGE PREFERENCES
     // ============================================
+    const calculateTotal = (cleanPunching, effectiveAggression, ringGeneralship, defense, stats) => {
+      const cleanPunchingScore = cleanPunching *
+        (judge.preferences.cleanPunching || 1.0) * judgeAppParams.cleanPunchingMultiplier;
+      const powerShotsScore = stats.powerPunchesLanded *
+        (judge.preferences.powerShots || 1.0) * judgeAppParams.powerShotsMultiplier;
+      const volumeScore = stats.punchesLanded *
+        (judge.preferences.volume || 1.0) * judgeAppParams.volumeMultiplier;
+      const aggressionScore = effectiveAggression * (judge.preferences.effectiveAggression || 1.0);
+      const generalshipScore = Math.max(0, ringGeneralship) *
+        (judge.preferences.ringGeneralship || 1.0);
+      const defenseScore = Math.max(0, defense) *
+        (judge.preferences.defense || 1.0) * judgeAppParams.defenseMultiplier;
 
-    let totalA = 0, totalB = 0;
+      return cleanPunchingScore + powerShotsScore + volumeScore +
+        aggressionScore + generalshipScore + defenseScore;
+    };
 
-    // Clean punching (most important - weighted higher)
-    totalA += cleanPunchingA * (judge.preferences.cleanPunching || 1.0) * 1.2;
-    totalB += cleanPunchingB * (judge.preferences.cleanPunching || 1.0) * 1.2;
-
-    // Power shots preference
-    totalA += statsA.powerPunchesLanded * (judge.preferences.powerShots || 1.0) * 2.0;
-    totalB += statsB.powerPunchesLanded * (judge.preferences.powerShots || 1.0) * 2.0;
-
-    // Volume preference (some judges favor activity - but much less than damage)
-    // Reduced from 0.5 to 0.25 - activity without damage shouldn't win rounds
-    totalA += statsA.punchesLanded * (judge.preferences.volume || 1.0) * 0.25;
-    totalB += statsB.punchesLanded * (judge.preferences.volume || 1.0) * 0.25;
-
-    // Effective aggression
-    totalA += effectiveAggressionA * (judge.preferences.effectiveAggression || 1.0);
-    totalB += effectiveAggressionB * (judge.preferences.effectiveAggression || 1.0);
-
-    // Ring generalship
-    totalA += Math.max(0, ringGeneralshipA) * (judge.preferences.ringGeneralship || 1.0);
-    totalB += Math.max(0, ringGeneralshipB) * (judge.preferences.ringGeneralship || 1.0);
-
-    // Defense
-    totalA += Math.max(0, defenseA) * (judge.preferences.defense || 1.0) * 0.8;
-    totalB += Math.max(0, defenseB) * (judge.preferences.defense || 1.0) * 0.8;
+    const baseTotalA = calculateTotal(cleanPunchingA, effectiveAggressionA, ringGeneralshipA, defenseA, statsA);
+    const baseTotalB = calculateTotal(cleanPunchingB, effectiveAggressionB, ringGeneralshipB, defenseB, statsB);
 
     // ============================================
-    // APPLY HOME BIAS
+    // APPLY HOME BIAS (functional)
     // ============================================
+    const applyHomeBias = (total, isHomeFighter) =>
+      judge.homeBias > 0 && isHomeFighter
+        ? total * (1 + judge.homeBias / 100)
+        : total;
 
-    if (judge.homeBias > 0) {
-      if (this.fighterA.isHomeFighter) {
-        totalA *= 1 + (judge.homeBias / 100);
-      } else if (this.fighterB.isHomeFighter) {
-        totalB *= 1 + (judge.homeBias / 100);
-      }
-    }
+    const totalA = applyHomeBias(baseTotalA, this.fighterA.isHomeFighter);
+    const totalB = applyHomeBias(baseTotalB, this.fighterB.isHomeFighter);
 
     // ============================================
-    // DETERMINE ROUND SCORE
+    // DETERMINE ROUND SCORE (functional)
     // ============================================
+    const roundParams = {
+      clearRoundThreshold: getScoringParam('round_thresholds.clear_round', 12),
+      moderateAdvantage: getScoringParam('round_thresholds.moderate_advantage', 4),
+      closeRoundEvenChance: getScoringParam('round_thresholds.close_round_even_chance', 0.30)
+    };
 
-    let scoreA = 10, scoreB = 10;
+    const consistencyParams = {
+      wrongCallChance: getScoringParam('consistency.wrong_call_chance', 0.4),
+      moderateCheckThreshold: getScoringParam('consistency.moderate_check_threshold', 0.6)
+    };
+
     const diff = totalA - totalB;
-    const threshold = 12;  // Threshold for clear round
 
-    if (Math.abs(diff) > threshold) {
-      // Clear round
-      if (diff > 0) scoreB = 9;
-      else scoreA = 9;
-    } else if (Math.abs(diff) > 4) {
-      // Moderate advantage, use consistency
-      if (Math.random() > judge.consistency / 100) {
-        // Inconsistent judging - might miss the edge
-        if (Math.random() > 0.6) {
-          // 40% chance of wrong call in close round
-          if (diff > 0) scoreA = 9;
-          else scoreB = 9;
-        } else {
-          if (diff > 0) scoreB = 9;
-          else scoreA = 9;
-        }
-      } else {
-        if (diff > 0) scoreB = 9;
-        else if (diff < 0) scoreA = 9;
+    // Pure function to determine base round scores
+    const determineBaseScores = (scoreDiff, judgeConsistency) => {
+      // Clear round - large point differential
+      if (Math.abs(scoreDiff) > roundParams.clearRoundThreshold) {
+        return scoreDiff > 0 ? { A: 10, B: 9 } : { A: 9, B: 10 };
       }
-    } else {
+
+      // Moderate advantage - use consistency check
+      if (Math.abs(scoreDiff) > roundParams.moderateAdvantage) {
+        const isInconsistent = Math.random() > judgeConsistency / 100;
+        const wrongCall = isInconsistent && Math.random() < consistencyParams.wrongCallChance;
+
+        // Wrong call reverses the actual winner
+        return wrongCall
+          ? (scoreDiff > 0 ? { A: 9, B: 10 } : { A: 10, B: 9 })
+          : (scoreDiff > 0 ? { A: 10, B: 9 } : { A: 9, B: 10 });
+      }
+
       // Very close - could go either way or be 10-10
       const closeRoll = Math.random();
-      if (closeRoll < 0.3) {
-        // 30% chance of even round
-        // Keep 10-10
-      } else if (diff > 1) {
-        scoreB = 9;
-      } else if (diff < -1) {
-        scoreA = 9;
+
+      // Even round chance
+      if (closeRoll < roundParams.closeRoundEvenChance) {
+        return { A: 10, B: 10 };
       }
-      // else 10-10
-    }
+
+      // Slight edge gives the round
+      return scoreDiff > 1 ? { A: 10, B: 9 }
+        : scoreDiff < -1 ? { A: 9, B: 10 }
+        : { A: 10, B: 10 };
+    };
+
+    const baseScores = determineBaseScores(diff, judge.consistency);
 
     // ============================================
-    // APPLY KNOCKDOWN PENALTIES
+    // APPLY KNOCKDOWN PENALTIES (functional)
     // Knockdowns are automatic point deductions
+    // 1 KD = 10-8 round, 2 KDs = 10-7 round, 3 KDs = 10-6 round (usually stopped)
     // ============================================
+    const kdParams = {
+      minRoundScore: getScoringParam('knockdown.min_round_score', 7),
+      defaultWeight: getScoringParam('knockdown.default_weight', 1.0)
+    };
 
-    const kdWeight = judge.knockdownWeight || 1.0;
     const knockdownsA = round.knockdowns.A.length;  // A got knocked down
     const knockdownsB = round.knockdowns.B.length;  // B got knocked down
+    const kdWeight = judge.knockdownWeight || kdParams.defaultWeight;
 
-    // Fighter who gets knocked down loses a point (given to opponent)
-    // Knockdowns should be decisive - no cap per round (realistic scoring)
-    // 1 KD = 10-8 round, 2 KDs = 10-7 round, 3 KDs = 10-6 round (usually stopped)
-    if (knockdownsA > 0) {
-      // A was knocked down, B scores the knockdown
-      scoreA -= knockdownsA * kdWeight;
-      // If A was winning on points but got knocked down, B should win the round (reversal)
-      if (diff > 0 && knockdownsB === 0) {
-        // A was winning on points but B knocked A down - B takes the round
-        scoreB = 10;
-        scoreA = Math.min(scoreA, 9);  // A can't win after getting knocked down while "winning"
-      }
-    }
-    if (knockdownsB > 0) {
-      // B was knocked down, A scores the knockdown
-      scoreB -= knockdownsB * kdWeight;
-      // If B was winning on points but got knocked down, A should win the round (reversal)
-      if (diff < 0 && knockdownsA === 0) {
-        // B was winning on points but A knocked B down - A takes the round
-        scoreA = 10;
-        scoreB = Math.min(scoreB, 9);  // B can't win after getting knocked down while "winning"
-      }
-    }
+    // Pure function to apply knockdown penalties and reversals
+    const applyKnockdownPenalties = (scores, kdsA, kdsB, weight, scoreDiff) => {
+      // Apply base knockdown point deductions
+      const afterKdA = kdsA > 0 ? scores.A - kdsA * weight : scores.A;
+      const afterKdB = kdsB > 0 ? scores.B - kdsB * weight : scores.B;
 
-    // Ensure minimum score of 7
-    scoreA = Math.max(7, Math.round(scoreA));
-    scoreB = Math.max(7, Math.round(scoreB));
+      // Handle round reversals when knocked down while winning on points
+      // If A was winning but got knocked down (and B wasn't), B takes the round
+      const aKnockedDownWhileWinning = kdsA > 0 && scoreDiff > 0 && kdsB === 0;
+      // If B was winning but got knocked down (and A wasn't), A takes the round
+      const bKnockedDownWhileWinning = kdsB > 0 && scoreDiff < 0 && kdsA === 0;
 
-    return { A: scoreA, B: scoreB };
+      const finalA = aKnockedDownWhileWinning ? Math.min(afterKdA, 9) : afterKdA;
+      const finalB = bKnockedDownWhileWinning ? Math.min(afterKdB, 9) : afterKdB;
+
+      // Winner gets 10 in reversal scenarios
+      const scoreAWithReversal = bKnockedDownWhileWinning ? 10 : finalA;
+      const scoreBWithReversal = aKnockedDownWhileWinning ? 10 : finalB;
+
+      // Ensure minimum score and round to integer
+      return {
+        A: Math.max(kdParams.minRoundScore, Math.round(scoreAWithReversal)),
+        B: Math.max(kdParams.minRoundScore, Math.round(scoreBWithReversal))
+      };
+    };
+
+    const finalScores = applyKnockdownPenalties(baseScores, knockdownsA, knockdownsB, kdWeight, diff);
+
+    return finalScores;
   }
 
   /**
@@ -689,8 +700,6 @@ export class Fight {
    * Get fight summary
    */
   getSummary() {
-    const winner = this.result?.winner;
-
     return {
       fighterA: this.fighterA.name,
       fighterB: this.fighterB.name,

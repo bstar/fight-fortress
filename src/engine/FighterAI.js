@@ -4,6 +4,10 @@
  */
 
 import { FighterState, OffensiveSubState, DefensiveSubState, MovementSubState } from '../models/Fighter.js';
+import ModelParameters from './model/ModelParameters.js';
+
+// Helper to get AI parameters with defaults
+const getAIParam = (path, defaultValue) => ModelParameters.get(`ai.${path}`, defaultValue);
 
 // Action types
 export const ActionType = {
@@ -424,80 +428,95 @@ export class FighterAI {
    * Smart fighters with good fight IQ recognize when to conserve
    */
   shouldTakeRoundOff(fighter, memory, round, fight) {
+    const restParams = {
+      staminaThreshold: getAIParam('rest_round.stamina_threshold', 0.60),
+      fightIQThreshold: getAIParam('rest_round.fight_iq_threshold', 70),
+      earlyRoundsExclude: getAIParam('rest_round.early_rounds_exclude', 2),
+      lateRoundsExclude: getAIParam('rest_round.late_rounds_exclude', 1),
+      lowStaminaRestChance: getAIParam('rest_round.low_stamina_rest_chance', 0.3),
+      veryLowStaminaRestChance: getAIParam('rest_round.very_low_stamina_rest_chance', 0.2),
+      fightIQFactor: getAIParam('rest_round.fight_iq_factor', 0.01),
+      paceControlFactor: getAIParam('rest_round.pace_control_factor', 0.008),
+      consecutiveRestPenalty: getAIParam('rest_round.consecutive_rest_penalty', 0.3)
+    };
+
     const staminaPercent = fighter.getStaminaPercent();
     const fightIQ = fighter.technical?.fightIQ || 65;
     const paceControl = fighter.stamina?.paceControl || 60;
     const totalRounds = fight.config?.rounds || 12;
 
-    // Don't rest in first 2 rounds or last 2 rounds
-    if (round <= 2 || round >= totalRounds - 1) return false;
+    // Don't rest in first N rounds or last N rounds
+    const inEarlyRounds = round <= restParams.earlyRoundsExclude;
+    const inLateRounds = round >= totalRounds - restParams.lateRoundsExclude;
+    if (inEarlyRounds || inLateRounds) return false;
 
     // Don't rest if stamina is fine
-    if (staminaPercent > 0.60) return false;
+    if (staminaPercent > restParams.staminaThreshold) return false;
 
     // Low fight IQ fighters don't know how to pace
-    if (fightIQ < 70) return false;
+    if (fightIQ < restParams.fightIQThreshold) return false;
 
     // Calculate rest probability based on stamina and attributes
-    let restChance = 0;
+    const lowStaminaBonus = staminaPercent < 0.40 ? restParams.lowStaminaRestChance : 0;
+    const veryLowStaminaBonus = staminaPercent < 0.30 ? restParams.veryLowStaminaRestChance : 0;
+    const fightIQBonus = (fightIQ - restParams.fightIQThreshold) * restParams.fightIQFactor;
+    const paceControlBonus = (paceControl - 60) * restParams.paceControlFactor;
 
-    // Low stamina increases rest chance
-    if (staminaPercent < 0.40) restChance += 0.3;
-    if (staminaPercent < 0.30) restChance += 0.2;
-
-    // High fight IQ increases willingness to rest strategically
-    restChance += (fightIQ - 70) * 0.01;
-
-    // High pace control means better at managing output
-    restChance += (paceControl - 60) * 0.008;
+    const baseRestChance = lowStaminaBonus + veryLowStaminaBonus + fightIQBonus + paceControlBonus;
 
     // Don't rest every round - check if rested recently
-    if (memory.restingRounds.includes(round - 1)) {
-      restChance *= 0.3; // Much less likely to rest two rounds in a row
-    }
+    const restedLastRound = memory.restingRounds.includes(round - 1);
+    const restChance = restedLastRound
+      ? baseRestChance * restParams.consecutiveRestPenalty
+      : baseRestChance;
 
     // Roll for rest
-    if (Math.random() < restChance) {
+    const shouldRest = Math.random() < restChance;
+    if (shouldRest) {
       memory.restingRounds.push(round);
-      return true;
     }
-
-    return false;
+    return shouldRest;
   }
 
   /**
    * Generate round-specific strategy variation
    * This creates natural ebb and flow in fights
    */
-  generateRoundStrategy(fighter, opponent, round, memory) {
+  generateRoundStrategy(fighter, _opponent, round, memory) {
+    const stratParams = {
+      baseVariation: getAIParam('round_strategy.base_variation', 0.4),
+      composureConsistencyFactor: getAIParam('round_strategy.composure_consistency_factor', 1.5),
+      lateRoundAggressionBoost: getAIParam('round_strategy.late_round_aggression_boost', 0.1),
+      highHeartPostHurtBoost: getAIParam('round_strategy.high_heart_post_hurt_boost', 0.1),
+      lowComposurePostHurtReduction: getAIParam('round_strategy.low_composure_post_hurt_reduction', -0.15)
+    };
+
     const baseAggression = 0;
-    const variation = (Math.random() - 0.5) * 0.4; // -0.2 to +0.2 random variation
+    const variation = (Math.random() - 0.5) * stratParams.baseVariation;
 
     // Some fighters have more variable output (less consistent)
     const consistency = (fighter.mental?.composure || 70) / 100;
-    const roundVariation = variation * (1.5 - consistency); // Less composure = more variation
+    const roundVariation = variation * (stratParams.composureConsistencyFactor - consistency);
 
     // Aggression tends to increase in later rounds
-    const lateRoundBoost = round >= 9 ? 0.1 : 0;
+    const lateRoundBoost = round >= 9 ? stratParams.lateRoundAggressionBoost : 0;
 
     // After being hurt, fighter may come out more cautious OR more aggressive
-    // Depends on personality
-    let postHurtModifier = 0;
-    if (memory.hurtCount > 0 && round > 1) {
+    const calculatePostHurtModifier = () => {
+      if (memory.hurtCount === 0 || round <= 1) return 0;
+
       const heart = fighter.mental?.heart || 70;
       const composure = fighter.mental?.composure || 70;
 
-      if (heart >= 85) {
-        // High heart = respond with aggression ("I'll show you")
-        postHurtModifier = 0.1;
-      } else if (composure < 60) {
-        // Low composure = become gun-shy
-        postHurtModifier = -0.15;
-      }
-    }
+      return heart >= 85
+        ? stratParams.highHeartPostHurtBoost
+        : composure < 60
+          ? stratParams.lowComposurePostHurtReduction
+          : 0;
+    };
 
     return {
-      aggressionModifier: baseAggression + roundVariation + lateRoundBoost + postHurtModifier,
+      aggressionModifier: baseAggression + roundVariation + lateRoundBoost + calculatePostHurtModifier(),
       isRestRound: memory.restingRounds.includes(round)
     };
   }
@@ -741,80 +760,118 @@ export class FighterAI {
    * Apply situational modifiers to state weights
    */
   applyStateModifiers(weights, fighter, opponent, situation) {
+    // Load stamina thresholds from parameters
+    const staminaThresholds = {
+      critical: getAIParam('stamina_thresholds.critical', 0.20),
+      high: getAIParam('stamina_thresholds.high', 0.80),
+      moderate: getAIParam('stamina_thresholds.moderate', 0.50)
+    };
+
     // =========================================================================
     // CRITICAL STAMINA - SURVIVAL/CONSERVATION MODE
     // When stamina is critically low, finding energy becomes the #1 priority
     // Fighter enters a defensive posture focused on recovery
     // BUT fighters with the right attributes can still throw dangerous punches
     // =========================================================================
-    if (situation.staminaPercent < 0.20) {
-      const criticalLevel = situation.staminaPercent / 0.20; // 0 at 0%, 1 at 20%
+    if (situation.staminaPercent < staminaThresholds.critical) {
+      const critParams = {
+        offensiveFloor: getAIParam('critical_stamina.offensive_floor', 0.15),
+        offensiveReduction: getAIParam('critical_stamina.offensive_reduction', 0.30),
+        defensiveBoost: getAIParam('critical_stamina.defensive_boost', 1.8),
+        defensiveIntensityFactor: getAIParam('critical_stamina.defensive_intensity_factor', 0.6),
+        timingBoost: getAIParam('critical_stamina.timing_boost', 1.5),
+        timingIntensityFactor: getAIParam('critical_stamina.timing_intensity_factor', 0.3),
+        movementReduction: getAIParam('critical_stamina.movement_reduction', 0.7),
+        clinchBoost: getAIParam('critical_stamina.clinch_boost', 1.3),
+        clinchIntensityFactor: getAIParam('critical_stamina.clinch_intensity_factor', 0.4)
+      };
+
+      const powerParams = {
+        knockoutPowerThreshold: getAIParam('critical_stamina_power.knockout_power_threshold', 75),
+        killerInstinctThreshold: getAIParam('critical_stamina_power.killer_instinct_threshold', 70),
+        heartThreshold: getAIParam('critical_stamina_power.heart_threshold', 85),
+        criticalLevelMin: getAIParam('critical_stamina_power.critical_level_min', 0.25),
+        timingBoost: getAIParam('critical_stamina_power.timing_boost', 1.4),
+        sluggerTimingBoost: getAIParam('critical_stamina_power.slugger_timing_boost', 1.2),
+        sluggerOffensiveBoost: getAIParam('critical_stamina_power.slugger_offensive_boost', 1.3),
+        behindOffensiveBoost: getAIParam('critical_stamina_power.behind_offensive_boost', 1.3),
+        behindTimingBoost: getAIParam('critical_stamina_power.behind_timing_boost', 1.2),
+        highHeartThreshold: getAIParam('critical_stamina_power.high_heart_threshold', 90),
+        highHeartOffensiveBoost: getAIParam('critical_stamina_power.high_heart_offensive_boost', 1.4),
+        highHeartDefensiveReduction: getAIParam('critical_stamina_power.high_heart_defensive_reduction', 0.85),
+        opponentHurtKillerThreshold: getAIParam('critical_stamina_power.opponent_hurt_killer_threshold', 75),
+        opponentHurtKillerLevelMin: getAIParam('critical_stamina_power.opponent_hurt_killer_level_min', 0.3),
+        opponentHurtOffensiveBoost: getAIParam('critical_stamina_power.opponent_hurt_offensive_boost', 1.6),
+        opponentHurtTimingReduction: getAIParam('critical_stamina_power.opponent_hurt_timing_reduction', 0.7)
+      };
+
+      const criticalLevel = situation.staminaPercent / staminaThresholds.critical;
       const fightIQ = fighter.technical?.fightIQ || 65;
       const heart = fighter.mental?.heart || 70;
       const killerInstinct = fighter.mental?.killerInstinct || 65;
       const knockoutPower = fighter.power?.knockoutPower || 65;
 
       // Base conservation - dramatically reduce offense
-      // Smart fighters (high IQ) conserve more aggressively
       const iqFactor = Math.min(1.5, fightIQ / 65);
       const conservationIntensity = (1 - criticalLevel) * iqFactor;
 
       // MAJOR reduction to offense - can barely throw punches
-      weights[FighterState.OFFENSIVE] *= Math.max(0.15, 0.4 - conservationIntensity * 0.3);
+      weights[FighterState.OFFENSIVE] *= Math.max(critParams.offensiveFloor,
+        0.4 - conservationIntensity * critParams.offensiveReduction);
 
-      // MAJOR increase to defensive posture - focus on not getting hit
-      weights[FighterState.DEFENSIVE] *= 1.8 + conservationIntensity * 0.6;
+      // MAJOR increase to defensive posture
+      weights[FighterState.DEFENSIVE] *= critParams.defensiveBoost +
+        conservationIntensity * critParams.defensiveIntensityFactor;
 
       // Timing/counters - only throw when there's a clear opening
-      // This becomes MORE important when exhausted - waiting for the perfect shot
-      weights[FighterState.TIMING] *= 1.5 + conservationIntensity * 0.3;
+      weights[FighterState.TIMING] *= critParams.timingBoost +
+        conservationIntensity * critParams.timingIntensityFactor;
 
-      // Movement - move to avoid but don't waste energy on lateral movement
-      weights[FighterState.MOVING] *= 0.7; // Reduce movement to conserve
+      // Movement - reduce to conserve
+      weights[FighterState.MOVING] *= critParams.movementReduction;
 
-      // Clinch becomes attractive for rest (but refs break it)
-      weights[FighterState.CLINCH] *= 1.3 + conservationIntensity * 0.4;
+      // Clinch becomes attractive for rest
+      weights[FighterState.CLINCH] *= critParams.clinchBoost +
+        conservationIntensity * critParams.clinchIntensityFactor;
 
       // =========================================================================
       // RISKY POWER SHOT OPTION - Exhausted fighters can still be dangerous
-      // Fighters with KO power and killer instinct may load up for one big shot
-      // This is the "hail mary" - spend remaining energy on one bomb
       // =========================================================================
-      const canStillHurt = knockoutPower >= 75;
-      const willTakeRisk = killerInstinct >= 70 || heart >= 85;
+      const canStillHurt = knockoutPower >= powerParams.knockoutPowerThreshold;
+      const willTakeRisk = killerInstinct >= powerParams.killerInstinctThreshold ||
+        heart >= powerParams.heartThreshold;
 
-      if (canStillHurt && willTakeRisk && criticalLevel > 0.25) {
-        // Fighter has enough left to potentially end it with one shot
-        // Boost TIMING over OFFENSIVE - they're waiting for the perfect moment
-        weights[FighterState.TIMING] *= 1.4;
+      if (canStillHurt && willTakeRisk && criticalLevel > powerParams.criticalLevelMin) {
+        weights[FighterState.TIMING] *= powerParams.timingBoost;
 
         // Sluggers especially will load up for one big shot
-        if (fighter.style?.primary === 'slugger' || fighter.style?.primary === 'boxer-puncher') {
-          weights[FighterState.TIMING] *= 1.2;
-          weights[FighterState.OFFENSIVE] *= 1.3; // Some willingness to load up
+        const isSluggerType = fighter.style?.primary === 'slugger' ||
+          fighter.style?.primary === 'boxer-puncher';
+        if (isSluggerType) {
+          weights[FighterState.TIMING] *= powerParams.sluggerTimingBoost;
+          weights[FighterState.OFFENSIVE] *= powerParams.sluggerOffensiveBoost;
         }
 
         // Being behind on cards increases desperation shots
         const scoreDiff = situation.scoreDiff || 0;
         if (scoreDiff < -2) {
-          weights[FighterState.OFFENSIVE] *= 1.3;
-          weights[FighterState.TIMING] *= 1.2;
+          weights[FighterState.OFFENSIVE] *= powerParams.behindOffensiveBoost;
+          weights[FighterState.TIMING] *= powerParams.behindTimingBoost;
         }
       }
 
       // High heart fighters may still push despite exhaustion
-      // But even they need to conserve at truly critical levels
-      if (heart >= 90 && criticalLevel > 0.5) {
-        // Holyfield-type heart - can still push when gassed
-        weights[FighterState.OFFENSIVE] *= 1.4;
-        weights[FighterState.DEFENSIVE] *= 0.85;
+      if (heart >= powerParams.highHeartThreshold && criticalLevel > 0.5) {
+        weights[FighterState.OFFENSIVE] *= powerParams.highHeartOffensiveBoost;
+        weights[FighterState.DEFENSIVE] *= powerParams.highHeartDefensiveReduction;
       }
 
       // Exception: If opponent is hurt, even exhausted fighters may go for the kill
-      // But only if they have killer instinct and some stamina left
-      if (situation.opponentIsHurt && killerInstinct >= 75 && criticalLevel > 0.3) {
-        weights[FighterState.OFFENSIVE] *= 1.6;
-        weights[FighterState.TIMING] *= 0.7; // Don't wait, attack!
+      if (situation.opponentIsHurt &&
+          killerInstinct >= powerParams.opponentHurtKillerThreshold &&
+          criticalLevel > powerParams.opponentHurtKillerLevelMin) {
+        weights[FighterState.OFFENSIVE] *= powerParams.opponentHurtOffensiveBoost;
+        weights[FighterState.TIMING] *= powerParams.opponentHurtTimingReduction;
       }
     }
 
@@ -823,24 +880,39 @@ export class FighterAI {
     // Fresh fighters should be comfortable letting their hands go
     // More offensive, more power shots, more combinations
     // =========================================================================
-    else if (situation.staminaPercent >= 0.80) {
+    else if (situation.staminaPercent >= staminaThresholds.high) {
+      const highStamParams = {
+        offensiveBaseBoost: getAIParam('high_stamina.offensive_base_boost', 1.3),
+        offensiveFreshBonus: getAIParam('high_stamina.offensive_fresh_bonus', 0.4),
+        timingReduction: getAIParam('high_stamina.timing_reduction', 0.8),
+        defensiveBaseReduction: getAIParam('high_stamina.defensive_base_reduction', 0.7),
+        defensiveFreshReduction: getAIParam('high_stamina.defensive_fresh_reduction', 0.2),
+        workRateOffensiveFactor: getAIParam('high_stamina.work_rate_offensive_factor', 0.3),
+        aggressiveStyleOffensiveBoost: getAIParam('high_stamina.aggressive_style_offensive_boost', 1.2),
+        aggressiveStyleMovementBoost: getAIParam('high_stamina.aggressive_style_movement_boost', 1.1)
+      };
+
       // Fresh fighter - be aggressive, throw big shots
-      const freshBonus = (situation.staminaPercent - 0.80) / 0.20; // 0 at 80%, 1 at 100%
+      const freshBonus = (situation.staminaPercent - staminaThresholds.high) /
+        (1 - staminaThresholds.high);
 
       // Increase offensive output significantly when fresh
-      weights[FighterState.OFFENSIVE] *= 1.3 + (freshBonus * 0.4); // 1.3x to 1.7x
-      weights[FighterState.TIMING] *= 0.8; // Less waiting around
-      weights[FighterState.DEFENSIVE] *= 0.7 - (freshBonus * 0.2); // 0.7x to 0.5x
+      weights[FighterState.OFFENSIVE] *= highStamParams.offensiveBaseBoost +
+        (freshBonus * highStamParams.offensiveFreshBonus);
+      weights[FighterState.TIMING] *= highStamParams.timingReduction;
+      weights[FighterState.DEFENSIVE] *= highStamParams.defensiveBaseReduction -
+        (freshBonus * highStamParams.defensiveFreshReduction);
 
-      // Work rate amplifies this - high work rate fighters take advantage of full tank
+      // Work rate amplifies this
       const workRateBonus = (fighter.stamina?.workRate || 70) / 100;
-      weights[FighterState.OFFENSIVE] *= 1 + (workRateBonus * 0.3);
+      weights[FighterState.OFFENSIVE] *= 1 + (workRateBonus * highStamParams.workRateOffensiveFactor);
 
       // Aggressive styles get extra boost when fresh
       const style = fighter.style?.primary || 'boxer-puncher';
-      if (style === 'swarmer' || style === 'slugger') {
-        weights[FighterState.OFFENSIVE] *= 1.2;
-        weights[FighterState.MOVING] *= 1.1; // Press forward
+      const isAggressiveStyle = style === 'swarmer' || style === 'slugger';
+      if (isAggressiveStyle) {
+        weights[FighterState.OFFENSIVE] *= highStamParams.aggressiveStyleOffensiveBoost;
+        weights[FighterState.MOVING] *= highStamParams.aggressiveStyleMovementBoost;
       }
     }
 
@@ -955,46 +1027,65 @@ export class FighterAI {
     // POWER PUNCHER KO HUNTING - Big punchers losing late go for the knockout
     // This is the "Deontay Wilder" mode - down on points, loading up bombs
     // =========================================================================
+    const koHuntParams = {
+      scoreDeficitThreshold: getAIParam('ko_hunting.score_deficit_threshold', -2),
+      roundsLeftThreshold: getAIParam('ko_hunting.rounds_left_threshold', 4),
+      desperationScoreDivisor: getAIParam('ko_hunting.desperation_score_divisor', 6),
+      desperationRoundsFactor: getAIParam('ko_hunting.desperation_rounds_factor', 0.25),
+      offensiveBaseBoost: getAIParam('ko_hunting.offensive_base_boost', 1.5),
+      offensiveIntensityFactor: getAIParam('ko_hunting.offensive_intensity_factor', 0.5),
+      timingBaseBoost: getAIParam('ko_hunting.timing_base_boost', 1.4),
+      timingIntensityFactor: getAIParam('ko_hunting.timing_intensity_factor', 0.3),
+      defensiveBaseReduction: getAIParam('ko_hunting.defensive_base_reduction', 0.6),
+      defensiveIntensityFactor: getAIParam('ko_hunting.defensive_intensity_factor', 0.1),
+      clinchReduction: getAIParam('ko_hunting.clinch_reduction', 0.3),
+      highHeartOffensiveBoost: getAIParam('ko_hunting.high_heart_offensive_boost', 1.3),
+      highHeartDefensiveReduction: getAIParam('ko_hunting.high_heart_defensive_reduction', 0.6),
+      highKillerOffensiveBoost: getAIParam('ko_hunting.high_killer_offensive_boost', 1.2),
+      highKillerTimingBoost: getAIParam('ko_hunting.high_killer_timing_boost', 1.2)
+    };
+
     const knockoutPower = fighter.power?.knockoutPower || 70;
     const isPowerPuncher = knockoutPower >= 80 ||
                            fighter.style?.primary === 'slugger' ||
                            fighter.style?.primary === 'boxer-puncher';
-    const isLateRounds = roundsLeft <= 4;
-    const isChampionshipRounds = situation.round >= 9;
+    const isLateRounds = roundsLeft <= koHuntParams.roundsLeftThreshold;
 
-    if (isPowerPuncher && scoreDiff < -2 && isLateRounds) {
-      // Power puncher down 3+ points with 4 or fewer rounds left
-      // They NEED a knockout to win - go hunting
+    if (isPowerPuncher && scoreDiff < koHuntParams.scoreDeficitThreshold && isLateRounds) {
+      // Power puncher down on points with few rounds left - go hunting
+      const desperationIntensity = Math.min(1.5,
+        (Math.abs(scoreDiff) / koHuntParams.desperationScoreDivisor) *
+        (1 + (koHuntParams.roundsLeftThreshold - roundsLeft) * koHuntParams.desperationRoundsFactor));
 
-      const desperationIntensity = Math.min(1.5, (Math.abs(scoreDiff) / 6) * (1 + (4 - roundsLeft) / 4));
+      // Massive boost to offense
+      weights[FighterState.OFFENSIVE] *= koHuntParams.offensiveBaseBoost +
+        desperationIntensity * koHuntParams.offensiveIntensityFactor;
 
-      // Massive boost to offense - they're swinging for the fences
-      weights[FighterState.OFFENSIVE] *= 1.5 + desperationIntensity * 0.5; // Up to 2.5x
+      // Timing becomes important
+      weights[FighterState.TIMING] *= koHuntParams.timingBaseBoost +
+        desperationIntensity * koHuntParams.timingIntensityFactor;
 
-      // Timing becomes important - waiting to land the big one
-      weights[FighterState.TIMING] *= 1.4 + desperationIntensity * 0.3;
+      // Reduced defense
+      weights[FighterState.DEFENSIVE] *= koHuntParams.defensiveBaseReduction -
+        desperationIntensity * koHuntParams.defensiveIntensityFactor;
 
-      // Reduced defense - willing to get hit to land
-      weights[FighterState.DEFENSIVE] *= 0.6 - desperationIntensity * 0.1;
+      // Clinch useless now
+      weights[FighterState.CLINCH] *= koHuntParams.clinchReduction;
 
-      // Clinch useless now - no points in clinching
-      weights[FighterState.CLINCH] *= 0.3;
-
-      // Mark that we're in KO hunting mode for punch selection
+      // Mark KO hunting mode for punch selection
       situation.koHuntingMode = true;
       situation.koHuntingIntensity = desperationIntensity;
 
       // Heart determines how reckless they get
       if (fighterHeart >= 85) {
-        // Warrior - throw caution completely to the wind
-        weights[FighterState.OFFENSIVE] *= 1.3;
-        weights[FighterState.DEFENSIVE] *= 0.6;
+        weights[FighterState.OFFENSIVE] *= koHuntParams.highHeartOffensiveBoost;
+        weights[FighterState.DEFENSIVE] *= koHuntParams.highHeartDefensiveReduction;
       }
 
-      // Killer instinct amplifies - this is their chance
+      // Killer instinct amplifies
       if (fighterKillerInstinct >= 85) {
-        weights[FighterState.OFFENSIVE] *= 1.2;
-        weights[FighterState.TIMING] *= 1.2;
+        weights[FighterState.OFFENSIVE] *= koHuntParams.highKillerOffensiveBoost;
+        weights[FighterState.TIMING] *= koHuntParams.highKillerTimingBoost;
       }
     }
 
@@ -1105,27 +1196,42 @@ export class FighterAI {
     // RECENT HURT/KNOCKDOWN MEMORY
     // Fighters who just got buzzed or knocked down are more cautious
     // =========================================================================
+    const hurtMemParams = {
+      knockdownOffensiveReduction: getAIParam('hurt_memory.knockdown_offensive_reduction', 0.5),
+      knockdownDefensiveBoost: getAIParam('hurt_memory.knockdown_defensive_boost', 1.6),
+      knockdownMovementBoost: getAIParam('hurt_memory.knockdown_movement_boost', 1.3),
+      knockdownTimingBoost: getAIParam('hurt_memory.knockdown_timing_boost', 1.4),
+      knockdownHighComposureRecovery: getAIParam('hurt_memory.knockdown_high_composure_recovery', 1.2),
+      knockdownLowHeartOffensiveReduction: getAIParam('hurt_memory.knockdown_low_heart_offensive_reduction', 0.8),
+      knockdownLowHeartClinchBoost: getAIParam('hurt_memory.knockdown_low_heart_clinch_boost', 1.3),
+      hurtLowComposureOffensiveReduction: getAIParam('hurt_memory.hurt_low_composure_offensive_reduction', 0.65),
+      hurtLowComposureDefensiveBoost: getAIParam('hurt_memory.hurt_low_composure_defensive_boost', 1.4),
+      hurtLowComposureMovementBoost: getAIParam('hurt_memory.hurt_low_composure_movement_boost', 1.2),
+      hurtEliteComposureThreshold: getAIParam('hurt_memory.hurt_elite_composure_threshold', 85),
+      hurtEliteHeartThreshold: getAIParam('hurt_memory.hurt_elite_heart_threshold', 80),
+      hurtEliteOffensiveBoost: getAIParam('hurt_memory.hurt_elite_offensive_boost', 1.1)
+    };
+
     if (situation.wasRecentlyKnockedDown) {
       // Just got knocked down - be VERY cautious
-      // Even brave fighters need time to recover mentally
       const composure = fighter.mental?.composure || 70;
       const heart = fighter.mental?.heart || 70;
 
       // Base caution from knockdown
-      weights[FighterState.OFFENSIVE] *= 0.5;
-      weights[FighterState.DEFENSIVE] *= 1.6;
-      weights[FighterState.MOVING] *= 1.3;
-      weights[FighterState.TIMING] *= 1.4; // Wait for counters instead of leading
+      weights[FighterState.OFFENSIVE] *= hurtMemParams.knockdownOffensiveReduction;
+      weights[FighterState.DEFENSIVE] *= hurtMemParams.knockdownDefensiveBoost;
+      weights[FighterState.MOVING] *= hurtMemParams.knockdownMovementBoost;
+      weights[FighterState.TIMING] *= hurtMemParams.knockdownTimingBoost;
 
       // High composure fighters recover mental equilibrium faster
-      if (composure >= 85) {
-        weights[FighterState.OFFENSIVE] *= 1.2; // Partial recovery
+      if (composure >= hurtMemParams.hurtEliteComposureThreshold) {
+        weights[FighterState.OFFENSIVE] *= hurtMemParams.knockdownHighComposureRecovery;
       }
 
-      // Fighters with low heart may become gun-shy for the rest of the fight
+      // Fighters with low heart may become gun-shy
       if (heart < 60) {
-        weights[FighterState.OFFENSIVE] *= 0.8;
-        weights[FighterState.CLINCH] *= 1.3;
+        weights[FighterState.OFFENSIVE] *= hurtMemParams.knockdownLowHeartOffensiveReduction;
+        weights[FighterState.CLINCH] *= hurtMemParams.knockdownLowHeartClinchBoost;
       }
     } else if (situation.wasRecentlyHurt) {
       // Got buzzed recently but not knocked down - moderate caution
@@ -1133,15 +1239,17 @@ export class FighterAI {
       const heart = fighter.mental?.heart || 70;
 
       // How cautious depends on personality
-      if (composure < 70 || heart < 70) {
-        // Nervous/less brave fighters become very cautious
-        weights[FighterState.OFFENSIVE] *= 0.65;
-        weights[FighterState.DEFENSIVE] *= 1.4;
-        weights[FighterState.MOVING] *= 1.2;
-      } else if (composure >= 85 && heart >= 80) {
+      const isNervousFighter = composure < 70 || heart < 70;
+      const isEliteFighter = composure >= hurtMemParams.hurtEliteComposureThreshold &&
+        heart >= hurtMemParams.hurtEliteHeartThreshold;
+
+      if (isNervousFighter) {
+        weights[FighterState.OFFENSIVE] *= hurtMemParams.hurtLowComposureOffensiveReduction;
+        weights[FighterState.DEFENSIVE] *= hurtMemParams.hurtLowComposureDefensiveBoost;
+        weights[FighterState.MOVING] *= hurtMemParams.hurtLowComposureMovementBoost;
+      } else if (isEliteFighter) {
         // Elite composure + heart = "I'll show you" mentality
-        // Some fighters respond to getting hurt by fighting back harder
-        weights[FighterState.OFFENSIVE] *= 1.1;
+        weights[FighterState.OFFENSIVE] *= hurtMemParams.hurtEliteOffensiveBoost;
       } else {
         // Average fighters - moderate caution
         weights[FighterState.OFFENSIVE] *= 0.8;
@@ -1153,15 +1261,18 @@ export class FighterAI {
     // REST ROUND / TAKE A ROUND OFF
     // Smart fighters with good fight IQ recognize when to conserve
     // =========================================================================
-    if (situation.shouldRestThisRound) {
-      // This is a designated rest round - significantly reduce output
-      weights[FighterState.OFFENSIVE] *= 0.5;
-      weights[FighterState.TIMING] *= 1.5;    // Wait for counters, don't lead
-      weights[FighterState.DEFENSIVE] *= 1.4;
-      weights[FighterState.MOVING] *= 1.3;    // Move more, punch less
+    const restRoundParams = {
+      offensiveReduction: getAIParam('rest_round.offensive_reduction', 0.5),
+      timingBoost: getAIParam('rest_round.timing_boost', 1.5),
+      defensiveBoost: getAIParam('rest_round.defensive_boost', 1.4),
+      movementBoost: getAIParam('rest_round.movement_boost', 1.3)
+    };
 
-      // Still throw enough to not lose the round completely
-      // But focus on landing efficient shots, not volume
+    if (situation.shouldRestThisRound) {
+      weights[FighterState.OFFENSIVE] *= restRoundParams.offensiveReduction;
+      weights[FighterState.TIMING] *= restRoundParams.timingBoost;
+      weights[FighterState.DEFENSIVE] *= restRoundParams.defensiveBoost;
+      weights[FighterState.MOVING] *= restRoundParams.movementBoost;
     }
 
     // =========================================================================
@@ -1172,13 +1283,11 @@ export class FighterAI {
       const stratMod = situation.roundStrategy.aggressionModifier;
 
       if (stratMod > 0) {
-        // More aggressive this round
         weights[FighterState.OFFENSIVE] *= 1 + stratMod;
         weights[FighterState.DEFENSIVE] *= 1 - (stratMod * 0.3);
       } else {
-        // More conservative this round
-        weights[FighterState.OFFENSIVE] *= 1 + stratMod; // stratMod is negative
-        weights[FighterState.DEFENSIVE] *= 1 - stratMod; // Increases defense
+        weights[FighterState.OFFENSIVE] *= 1 + stratMod;
+        weights[FighterState.DEFENSIVE] *= 1 - stratMod;
         weights[FighterState.TIMING] *= 1 - (stratMod * 0.5);
       }
     }
@@ -1187,23 +1296,30 @@ export class FighterAI {
     // ACCUMULATED DAMAGE AFFECTS OVERALL AGGRESSION
     // Fighters with high total hurt count become more careful as fight goes on
     // =========================================================================
-    if (situation.totalHurtCount >= 3) {
-      // Been hurt multiple times - self-preservation kicks in
+    const accDamageParams = {
+      hurtCountThreshold: getAIParam('accumulated_damage.hurt_count_threshold', 3),
+      hurtLowHeartThreshold: getAIParam('accumulated_damage.hurt_low_heart_threshold', 80),
+      hurtOffensiveReduction: getAIParam('accumulated_damage.hurt_offensive_reduction', 0.85),
+      hurtDefensiveBoost: getAIParam('accumulated_damage.hurt_defensive_boost', 1.15),
+      knockdownCountThreshold: getAIParam('accumulated_damage.knockdown_count_threshold', 2),
+      knockdownOffensiveReduction: getAIParam('accumulated_damage.knockdown_offensive_reduction', 0.8),
+      knockdownDefensiveBoost: getAIParam('accumulated_damage.knockdown_defensive_boost', 1.2),
+      knockdownClinchBoost: getAIParam('accumulated_damage.knockdown_clinch_boost', 1.2)
+    };
+
+    if (situation.totalHurtCount >= accDamageParams.hurtCountThreshold) {
       const heart = fighter.mental?.heart || 70;
 
-      if (heart < 80) {
-        // Average heart - starts to think about survival
-        weights[FighterState.OFFENSIVE] *= 0.85;
-        weights[FighterState.DEFENSIVE] *= 1.15;
+      if (heart < accDamageParams.hurtLowHeartThreshold) {
+        weights[FighterState.OFFENSIVE] *= accDamageParams.hurtOffensiveReduction;
+        weights[FighterState.DEFENSIVE] *= accDamageParams.hurtDefensiveBoost;
       }
-      // High heart fighters keep pushing regardless
     }
 
-    if (situation.totalKnockdowns >= 2) {
-      // Multiple knockdowns - even brave fighters get cautious
-      weights[FighterState.OFFENSIVE] *= 0.8;
-      weights[FighterState.DEFENSIVE] *= 1.2;
-      weights[FighterState.CLINCH] *= 1.2; // May try to survive
+    if (situation.totalKnockdowns >= accDamageParams.knockdownCountThreshold) {
+      weights[FighterState.OFFENSIVE] *= accDamageParams.knockdownOffensiveReduction;
+      weights[FighterState.DEFENSIVE] *= accDamageParams.knockdownDefensiveBoost;
+      weights[FighterState.CLINCH] *= accDamageParams.knockdownClinchBoost;
     }
 
     // Apply effects modifiers (from FightEffectsManager)
@@ -1660,79 +1776,123 @@ export class FighterAI {
 
     // HIGH STAMINA = POWER PUNCH PREFERENCE
     // Fresh fighters throw bigger, more energy-expensive punches
+    const punchStamMods = {
+      freshCrossBoost: getAIParam('punch_stamina_modifiers.fresh.cross_boost', 1.3),
+      freshCrossFreshBonus: getAIParam('punch_stamina_modifiers.fresh.cross_fresh_bonus', 0.5),
+      freshRearHookBoost: getAIParam('punch_stamina_modifiers.fresh.rear_hook_boost', 1.3),
+      freshRearHookFreshBonus: getAIParam('punch_stamina_modifiers.fresh.rear_hook_fresh_bonus', 0.5),
+      freshRearUppercutBoost: getAIParam('punch_stamina_modifiers.fresh.rear_uppercut_boost', 1.2),
+      freshRearUppercutFreshBonus: getAIParam('punch_stamina_modifiers.fresh.rear_uppercut_fresh_bonus', 0.4),
+      freshLeadHookBoost: getAIParam('punch_stamina_modifiers.fresh.lead_hook_boost', 1.2),
+      freshLeadHookFreshBonus: getAIParam('punch_stamina_modifiers.fresh.lead_hook_fresh_bonus', 0.3),
+      freshBodyHookRearBoost: getAIParam('punch_stamina_modifiers.fresh.body_hook_rear_boost', 1.2),
+      freshBodyHookRearFreshBonus: getAIParam('punch_stamina_modifiers.fresh.body_hook_rear_fresh_bonus', 0.4),
+      freshJabReduction: getAIParam('punch_stamina_modifiers.fresh.jab_reduction', 0.7),
+      freshJabFreshReduction: getAIParam('punch_stamina_modifiers.fresh.jab_fresh_reduction', 0.2),
+      freshBodyJabReduction: getAIParam('punch_stamina_modifiers.fresh.body_jab_reduction', 0.8),
+      freshPowerPuncherExtraBoost: getAIParam('punch_stamina_modifiers.fresh.power_puncher_extra_boost', 1.2),
+      tiredCrossReductionFactor: getAIParam('punch_stamina_modifiers.tired.cross_reduction_factor', 0.4),
+      tiredRearHookReductionFactor: getAIParam('punch_stamina_modifiers.tired.rear_hook_reduction_factor', 0.5),
+      tiredRearUppercutReductionFactor: getAIParam('punch_stamina_modifiers.tired.rear_uppercut_reduction_factor', 0.5),
+      tiredJabBoostFactor: getAIParam('punch_stamina_modifiers.tired.jab_boost_factor', 0.5)
+    };
+
     if (situation.staminaPercent >= 0.75) {
-      const freshBonus = (situation.staminaPercent - 0.75) / 0.25; // 0 at 75%, 1 at 100%
+      const freshBonus = (situation.staminaPercent - 0.75) / 0.25;
 
-      // Boost all power punches when fresh
-      punchWeights[PunchType.CROSS] *= 1.3 + (freshBonus * 0.5);       // 1.3x to 1.8x
-      punchWeights[PunchType.REAR_HOOK] *= 1.3 + (freshBonus * 0.5);
-      punchWeights[PunchType.REAR_UPPERCUT] *= 1.2 + (freshBonus * 0.4);
-      punchWeights[PunchType.LEAD_HOOK] *= 1.2 + (freshBonus * 0.3);
-      punchWeights[PunchType.BODY_HOOK_REAR] *= 1.2 + (freshBonus * 0.4);
+      punchWeights[PunchType.CROSS] *= punchStamMods.freshCrossBoost +
+        (freshBonus * punchStamMods.freshCrossFreshBonus);
+      punchWeights[PunchType.REAR_HOOK] *= punchStamMods.freshRearHookBoost +
+        (freshBonus * punchStamMods.freshRearHookFreshBonus);
+      punchWeights[PunchType.REAR_UPPERCUT] *= punchStamMods.freshRearUppercutBoost +
+        (freshBonus * punchStamMods.freshRearUppercutFreshBonus);
+      punchWeights[PunchType.LEAD_HOOK] *= punchStamMods.freshLeadHookBoost +
+        (freshBonus * punchStamMods.freshLeadHookFreshBonus);
+      punchWeights[PunchType.BODY_HOOK_REAR] *= punchStamMods.freshBodyHookRearBoost +
+        (freshBonus * punchStamMods.freshBodyHookRearFreshBonus);
 
-      // Reduce jab preference when fresh - why poke when you can blast?
-      punchWeights[PunchType.JAB] *= 0.7 - (freshBonus * 0.2); // 0.7x to 0.5x
-      punchWeights[PunchType.BODY_JAB] *= 0.8;
+      punchWeights[PunchType.JAB] *= punchStamMods.freshJabReduction -
+        (freshBonus * punchStamMods.freshJabFreshReduction);
+      punchWeights[PunchType.BODY_JAB] *= punchStamMods.freshBodyJabReduction;
 
-      // Power punchers get extra boost when fresh
       const knockoutPower = fighter.power?.knockoutPower || 70;
       if (knockoutPower >= 80) {
-        punchWeights[PunchType.CROSS] *= 1.2;
-        punchWeights[PunchType.REAR_HOOK] *= 1.2;
+        punchWeights[PunchType.CROSS] *= punchStamMods.freshPowerPuncherExtraBoost;
+        punchWeights[PunchType.REAR_HOOK] *= punchStamMods.freshPowerPuncherExtraBoost;
       }
     }
 
     // LOW STAMINA = JAB MORE, POWER LESS
-    // Tired fighters conserve energy with lighter punches
     if (situation.staminaPercent < 0.40) {
-      const fatigueLevel = 1 - (situation.staminaPercent / 0.40); // 0 at 40%, 1 at 0%
+      const fatigueLevel = 1 - (situation.staminaPercent / 0.40);
 
-      // Reduce power punch preference when tired
-      punchWeights[PunchType.CROSS] *= 1 - (fatigueLevel * 0.4);
-      punchWeights[PunchType.REAR_HOOK] *= 1 - (fatigueLevel * 0.5);
-      punchWeights[PunchType.REAR_UPPERCUT] *= 1 - (fatigueLevel * 0.5);
-
-      // Favor jabs when tired - less energy cost
-      punchWeights[PunchType.JAB] *= 1 + (fatigueLevel * 0.5);
+      punchWeights[PunchType.CROSS] *= 1 - (fatigueLevel * punchStamMods.tiredCrossReductionFactor);
+      punchWeights[PunchType.REAR_HOOK] *= 1 - (fatigueLevel * punchStamMods.tiredRearHookReductionFactor);
+      punchWeights[PunchType.REAR_UPPERCUT] *= 1 - (fatigueLevel * punchStamMods.tiredRearUppercutReductionFactor);
+      punchWeights[PunchType.JAB] *= 1 + (fatigueLevel * punchStamMods.tiredJabBoostFactor);
     }
 
     // Modify weights based on distance
-    if (situation.distance < 3) {
-      // Inside - favor hooks and uppercuts
-      punchWeights[PunchType.LEAD_HOOK] *= 1.5;
-      punchWeights[PunchType.REAR_HOOK] *= 1.5;
-      punchWeights[PunchType.LEAD_UPPERCUT] *= 1.5;
-      punchWeights[PunchType.REAR_UPPERCUT] *= 1.5;
-      punchWeights[PunchType.JAB] *= 0.5;
-      punchWeights[PunchType.CROSS] *= 0.7;
-    } else if (situation.distance > 4.5) {
-      // Long range - favor jab
-      punchWeights[PunchType.JAB] *= 1.5;
-      punchWeights[PunchType.LEAD_HOOK] *= 0.5;
-      punchWeights[PunchType.REAR_HOOK] *= 0.5;
+    const distParams = {
+      insideThreshold: getAIParam('distance.inside_threshold', 3),
+      outsideThreshold: getAIParam('distance.outside_threshold', 4.5),
+      insideHookBoost: getAIParam('distance.inside_hook_boost', 1.5),
+      insideUppercutBoost: getAIParam('distance.inside_uppercut_boost', 1.5),
+      insideJabReduction: getAIParam('distance.inside_jab_reduction', 0.5),
+      insideCrossReduction: getAIParam('distance.inside_cross_reduction', 0.7),
+      outsideJabBoost: getAIParam('distance.outside_jab_boost', 1.5),
+      outsideHookReduction: getAIParam('distance.outside_hook_reduction', 0.5)
+    };
+
+    if (situation.distance < distParams.insideThreshold) {
+      punchWeights[PunchType.LEAD_HOOK] *= distParams.insideHookBoost;
+      punchWeights[PunchType.REAR_HOOK] *= distParams.insideHookBoost;
+      punchWeights[PunchType.LEAD_UPPERCUT] *= distParams.insideUppercutBoost;
+      punchWeights[PunchType.REAR_UPPERCUT] *= distParams.insideUppercutBoost;
+      punchWeights[PunchType.JAB] *= distParams.insideJabReduction;
+      punchWeights[PunchType.CROSS] *= distParams.insideCrossReduction;
+    } else if (situation.distance > distParams.outsideThreshold) {
+      punchWeights[PunchType.JAB] *= distParams.outsideJabBoost;
+      punchWeights[PunchType.LEAD_HOOK] *= distParams.outsideHookReduction;
+      punchWeights[PunchType.REAR_HOOK] *= distParams.outsideHookReduction;
     }
 
     // =========================================================================
     // KO HUNTING MODE - Power punchers behind late go for bombs
-    // This OVERRIDES fatigue adjustments - they're swinging regardless of tiredness
     // =========================================================================
     if (situation.koHuntingMode) {
+      const koHuntPunch = {
+        crossBoost: getAIParam('ko_hunting.cross_boost', 2.0),
+        crossIntensityBonus: getAIParam('ko_hunting.cross_intensity_bonus', 1.0),
+        rearHookBoost: getAIParam('ko_hunting.rear_hook_boost', 2.5),
+        rearHookIntensityBonus: getAIParam('ko_hunting.rear_hook_intensity_bonus', 1.0),
+        rearUppercutBoost: getAIParam('ko_hunting.rear_uppercut_boost', 2.0),
+        rearUppercutIntensityBonus: getAIParam('ko_hunting.rear_uppercut_intensity_bonus', 1.0),
+        leadHookBoost: getAIParam('ko_hunting.lead_hook_boost', 1.8),
+        leadHookIntensityBonus: getAIParam('ko_hunting.lead_hook_intensity_bonus', 1.0),
+        jabReduction: getAIParam('ko_hunting.jab_reduction', 0.4),
+        bodyJabReduction: getAIParam('ko_hunting.body_jab_reduction', 0.3),
+        bodyCrossReduction: getAIParam('ko_hunting.body_cross_reduction', 0.5),
+        bodyHookLeadReduction: getAIParam('ko_hunting.body_hook_lead_reduction', 0.5),
+        bodyHookRearReduction: getAIParam('ko_hunting.body_hook_rear_reduction', 0.6)
+      };
+
       const intensity = situation.koHuntingIntensity || 1.0;
 
-      // Massively favor power punches - looking for the one-punch KO
-      punchWeights[PunchType.CROSS] *= 2.0 + intensity;        // Big right hand
-      punchWeights[PunchType.REAR_HOOK] *= 2.5 + intensity;    // The kill shot
-      punchWeights[PunchType.REAR_UPPERCUT] *= 2.0 + intensity; // Chin checker
-      punchWeights[PunchType.LEAD_HOOK] *= 1.8 + intensity;    // Left hook KO
+      punchWeights[PunchType.CROSS] *= koHuntPunch.crossBoost +
+        (intensity * koHuntPunch.crossIntensityBonus);
+      punchWeights[PunchType.REAR_HOOK] *= koHuntPunch.rearHookBoost +
+        (intensity * koHuntPunch.rearHookIntensityBonus);
+      punchWeights[PunchType.REAR_UPPERCUT] *= koHuntPunch.rearUppercutBoost +
+        (intensity * koHuntPunch.rearUppercutIntensityBonus);
+      punchWeights[PunchType.LEAD_HOOK] *= koHuntPunch.leadHookBoost +
+        (intensity * koHuntPunch.leadHookIntensityBonus);
 
-      // Jabs are just to set up the bomb - reduce but don't eliminate
-      punchWeights[PunchType.JAB] *= 0.4;
-      punchWeights[PunchType.BODY_JAB] *= 0.3;
-
-      // Body shots less useful for quick KO
-      punchWeights[PunchType.BODY_CROSS] *= 0.5;
-      punchWeights[PunchType.BODY_HOOK_LEAD] *= 0.5;
-      punchWeights[PunchType.BODY_HOOK_REAR] *= 0.6; // Liver shot still viable
+      punchWeights[PunchType.JAB] *= koHuntPunch.jabReduction;
+      punchWeights[PunchType.BODY_JAB] *= koHuntPunch.bodyJabReduction;
+      punchWeights[PunchType.BODY_CROSS] *= koHuntPunch.bodyCrossReduction;
+      punchWeights[PunchType.BODY_HOOK_LEAD] *= koHuntPunch.bodyHookLeadReduction;
+      punchWeights[PunchType.BODY_HOOK_REAR] *= koHuntPunch.bodyHookRearReduction;
     }
 
     // Select punch type
@@ -1749,41 +1909,43 @@ export class FighterAI {
    * Generate a combination
    * Combo length varies based on stamina - fresh fighters throw longer combos
    */
-  generateCombination(fighter, opponent, situation) {
+  generateCombination(fighter, _opponent, situation) {
     const comboPunches = [];
 
-    // STAMINA AFFECTS COMBO LENGTH
-    // Fresh (80%+): 3-6 punch combos - let hands go
-    // Good (50-80%): 2-4 punch combos - normal
-    // Tired (<50%): 2-3 punch combos - conserve energy
-    // Gassed (<25%): 2 punch combos only - survival
-    let minLength = 2;
-    let maxLength = 4;
+    // Load combination length parameters
+    const comboParams = {
+      freshMin: getAIParam('combination_length.fresh.min', 3),
+      freshMax: getAIParam('combination_length.fresh.max', 6),
+      freshThreshold: getAIParam('combination_length.fresh.stamina_threshold', 0.80),
+      goodMin: getAIParam('combination_length.good.min', 2),
+      goodMax: getAIParam('combination_length.good.max', 4),
+      goodThreshold: getAIParam('combination_length.good.stamina_threshold', 0.50),
+      tiredMin: getAIParam('combination_length.tired.min', 2),
+      tiredMax: getAIParam('combination_length.tired.max', 3),
+      tiredThreshold: getAIParam('combination_length.tired.stamina_threshold', 0.25),
+      gassedMin: getAIParam('combination_length.gassed.min', 2),
+      gassedMax: getAIParam('combination_length.gassed.max', 2),
+      highWorkRateThreshold: getAIParam('combination_length.high_work_rate_threshold', 85),
+      highWorkRateBonus: getAIParam('combination_length.high_work_rate_bonus', 1),
+      powerInclusionStaminaThreshold: getAIParam('combination_length.power_inclusion_stamina_threshold', 0.70)
+    };
+
     const staminaPercent = situation.staminaPercent ?? 1;
 
-    if (staminaPercent >= 0.80) {
-      // Fresh - throw big combinations
-      minLength = 3;
-      maxLength = 6;
-    } else if (staminaPercent >= 0.50) {
-      // Normal range
-      minLength = 2;
-      maxLength = 4;
-    } else if (staminaPercent >= 0.25) {
-      // Tired - shorter combos
-      minLength = 2;
-      maxLength = 3;
-    } else {
-      // Gassed - minimal combos
-      minLength = 2;
-      maxLength = 2;
-    }
+    // Determine combo length range based on stamina
+    const { minLength, maxLength: baseMaxLength } = staminaPercent >= comboParams.freshThreshold
+      ? { minLength: comboParams.freshMin, maxLength: comboParams.freshMax }
+      : staminaPercent >= comboParams.goodThreshold
+        ? { minLength: comboParams.goodMin, maxLength: comboParams.goodMax }
+        : staminaPercent >= comboParams.tiredThreshold
+          ? { minLength: comboParams.tiredMin, maxLength: comboParams.tiredMax }
+          : { minLength: comboParams.gassedMin, maxLength: comboParams.gassedMax };
 
     // Work rate allows longer combos at any stamina level
     const workRate = fighter.stamina?.workRate || 70;
-    if (workRate >= 85) {
-      maxLength += 1;
-    }
+    const maxLength = workRate >= comboParams.highWorkRateThreshold
+      ? baseMaxLength + comboParams.highWorkRateBonus
+      : baseMaxLength;
 
     const comboLength = minLength + Math.floor(Math.random() * (maxLength - minLength + 1));
 
@@ -1794,39 +1956,46 @@ export class FighterAI {
       comboPunches.push(Math.random() > 0.5 ? PunchType.JAB : PunchType.LEAD_HOOK);
     }
 
-    // Add follow-up punches
-    for (let i = 1; i < comboLength; i++) {
-      const lastPunch = comboPunches[i - 1];
+    // Add follow-up punches using functional iteration
+    const buildFollowUpPunches = (currentPunches, remaining) => {
+      if (remaining <= 0) return currentPunches;
 
-      // When fresh, include more power punches in combinations
-      const includePowerShots = staminaPercent >= 0.70;
+      const lastPunch = currentPunches[currentPunches.length - 1];
+      const includePowerShots = staminaPercent >= comboParams.powerInclusionStaminaThreshold;
 
-      // Logical follow-ups
-      if (lastPunch === PunchType.JAB) {
-        const options = [PunchType.CROSS, PunchType.JAB, PunchType.LEAD_HOOK];
-        if (includePowerShots) options.push(PunchType.BODY_CROSS, PunchType.REAR_HOOK);
-        comboPunches.push(this.selectFrom(options));
-      } else if (lastPunch === PunchType.CROSS) {
-        const options = [PunchType.LEAD_HOOK, PunchType.JAB];
-        if (includePowerShots) options.push(PunchType.BODY_HOOK_LEAD, PunchType.REAR_UPPERCUT);
-        comboPunches.push(this.selectFrom(options));
-      } else if (lastPunch === PunchType.LEAD_HOOK) {
-        const options = [PunchType.CROSS];
-        if (includePowerShots) options.push(PunchType.REAR_HOOK, PunchType.REAR_UPPERCUT, PunchType.BODY_HOOK_REAR);
-        comboPunches.push(this.selectFrom(options));
-      } else {
-        comboPunches.push(this.selectFrom([
-          PunchType.JAB,
-          PunchType.LEAD_HOOK,
-          PunchType.CROSS
-        ]));
-      }
-    }
+      // Logical follow-ups based on last punch
+      const getNextPunchOptions = () => {
+        if (lastPunch === PunchType.JAB) {
+          const base = [PunchType.CROSS, PunchType.JAB, PunchType.LEAD_HOOK];
+          return includePowerShots
+            ? [...base, PunchType.BODY_CROSS, PunchType.REAR_HOOK]
+            : base;
+        }
+        if (lastPunch === PunchType.CROSS) {
+          const base = [PunchType.LEAD_HOOK, PunchType.JAB];
+          return includePowerShots
+            ? [...base, PunchType.BODY_HOOK_LEAD, PunchType.REAR_UPPERCUT]
+            : base;
+        }
+        if (lastPunch === PunchType.LEAD_HOOK) {
+          const base = [PunchType.CROSS];
+          return includePowerShots
+            ? [...base, PunchType.REAR_HOOK, PunchType.REAR_UPPERCUT, PunchType.BODY_HOOK_REAR]
+            : base;
+        }
+        return [PunchType.JAB, PunchType.LEAD_HOOK, PunchType.CROSS];
+      };
+
+      const nextPunch = this.selectFrom(getNextPunchOptions());
+      return buildFollowUpPunches([...currentPunches, nextPunch], remaining - 1);
+    };
+
+    const finalComboPunches = buildFollowUpPunches(comboPunches, comboLength - 1);
 
     return {
       type: ActionType.PUNCH,
       punchType: 'combination',
-      combination: comboPunches,
+      combination: finalComboPunches,
       target: 'head'
     };
   }
@@ -1834,7 +2003,7 @@ export class FighterAI {
   /**
    * Decide defensive action
    */
-  decideDefensiveAction(fighter, opponent, subState, situation) {
+  decideDefensiveAction(_fighter, opponent, subState, _situation) {
     // If opponent is offensive, we need to defend
     if (opponent.state === FighterState.OFFENSIVE) {
       switch (subState) {
@@ -1865,7 +2034,7 @@ export class FighterAI {
   /**
    * Decide timing/counter action
    */
-  decideTimingAction(fighter, opponent, situation) {
+  decideTimingAction(_fighter, opponent, _situation) {
     // Looking for counter opportunity
     if (opponent.state === FighterState.OFFENSIVE) {
       // Opponent is attacking - counter!
@@ -1890,7 +2059,7 @@ export class FighterAI {
   /**
    * Decide movement action
    */
-  decideMovementAction(fighter, opponent, subState, situation) {
+  decideMovementAction(_fighter, _opponent, subState, _situation) {
     switch (subState) {
       case MovementSubState.CUTTING_OFF:
         return { type: ActionType.MOVE, direction: 'forward', cutting: true };

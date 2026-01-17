@@ -1,0 +1,116 @@
+# Scoring Parameters v1.0.0
+# Extracted from Fight.js
+# Controls judge scoring, round determination, and knockdown rules
+
+version: "1.0.0"
+description: "Scoring parameters - baseline extraction from current code"
+source_files:
+  - "src/models/Fight.js"
+
+# Clean effective punching weights
+# "DAMAGE is king" - fighter dealing more damage should win rounds
+clean_punching:
+  clean_punches_weight: 0.8         # Clean shots (reduced - count less)
+  power_punches_weight: 1.5         # Power punches
+  jabs_weight: 0.2                  # Jabs worth minimal
+  damage_weight: 6.0                # DAMAGE - very heavily weighted
+  damage_divisor: 10                # Divide damage dealt by this
+  significant_strikes_weight: 3.0   # Big, impactful shots
+
+# Effective aggression scoring
+# Moving forward AND landing, not just charging
+effective_aggression:
+  forward_movement_base: 0.03       # Per second of forward movement
+  outlanding_bonus: 2               # Bonus for landing more punches
+  damage_advantage_bonus: 18        # BIG bonus for damage advantage
+  absolute_damage_divisor: 15       # Divide damage by this for bonus
+
+# Ring generalship scoring
+# Who is dictating the fight?
+ring_generalship:
+  center_control_weight: 0.2        # Controlling center ring
+  opponent_ropes_weight: 0.25       # Putting opponent on ropes
+  opponent_corner_weight: 0.4       # Trapping opponent in corner
+
+  # Backward movement penalties
+  backward_penalty_winning: 0.02    # Minimal penalty when dealing damage
+  backward_penalty_losing: 0.08     # Penalty when running without offense
+
+  # Positional penalties
+  own_ropes_penalty: 0.12           # Being on ropes yourself
+  own_corner_penalty: 0.2           # Being cornered yourself
+
+# Defense scoring
+defense:
+  blocked_weight: 1.0               # Points per punch blocked
+  evaded_weight: 2.0                # Points per punch evaded (more skillful)
+  damage_received_divisor: 20       # Penalty divisor for damage taken
+
+# Judge preferences application multipliers
+judge_application:
+  clean_punching_multiplier: 1.2    # Applied to clean punching score
+  power_shots_multiplier: 2.0       # Applied to power punches landed
+  volume_multiplier: 0.25           # Applied to punches landed (reduced)
+  defense_multiplier: 0.8           # Applied to defense score
+
+# Round determination thresholds
+round_thresholds:
+  clear_round: 12                   # Score diff for clear round (10-9)
+  moderate_advantage: 4             # Score diff for contested round
+  close_round_even_chance: 0.30     # Probability of 10-10 in very close rounds
+
+# Knockdown scoring
+knockdown:
+  min_round_score: 7                # Minimum score possible (3 KDs = 10-7)
+  default_weight: 1.0               # Base knockdown weight
+  # Note: Each knockdown = -1 point to fighter knocked down
+  # 1 KD = 10-8 round, 2 KDs = 10-7 round, 3 KDs = 10-6 (usually stopped)
+
+# Judge consistency affects close round calls
+# Lower consistency = more likely to "miss" close rounds
+consistency:
+  wrong_call_chance: 0.4            # Chance of wrong call when inconsistent
+  moderate_check_threshold: 0.6     # Roll threshold for consistency check
+
+# Default judge preferences by type
+judge_types:
+  technical:
+    # Favors clean boxing, defense
+    clean_punching: 1.15
+    defense: 1.2
+    effective_aggression: 0.9
+    ring_generalship: 1.1
+    power_shots: 1.0
+    volume: 0.85
+    knockdown_weight: 1.0
+    consistency: 88
+
+  action:
+    # Favors aggression, activity
+    clean_punching: 0.95
+    defense: 0.85
+    effective_aggression: 1.2
+    ring_generalship: 0.9
+    power_shots: 1.05
+    volume: 1.15
+    knockdown_weight: 1.0
+    consistency: 82
+
+  power:
+    # Favors damage and power shots
+    clean_punching: 1.1
+    defense: 0.95
+    effective_aggression: 1.0
+    ring_generalship: 0.95
+    power_shots: 1.2
+    volume: 1.0
+    knockdown_weight: 1.0
+    consistency: 85
+
+# Default referee parameters
+referee:
+  clinch_tolerance: 4.0             # Seconds before breaking clinch
+  stoppage_threshold: 0.6           # Threshold for stopping fight
+  warning_frequency: 0.5            # How often to issue warnings
+  count_speed: 1.0                  # Knockdown count speed
+  protectiveness: 0.5               # 0-1 scale, higher = quicker stoppages
